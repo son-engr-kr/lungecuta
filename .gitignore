@@ -1,0 +1,18 @@
+# project caches and renders
+cache/
+*.lc/cache/
+out/
+
+# Python
+.venv/
+__pycache__/
+*.egg-info/
+
+# research about private projects, kept local
+docs/research/private/
+
+# local agent instructions: this machine, sample media and private repositories
+AGENTS.local.md
+CLAUDE.md
+
+.DS_Store

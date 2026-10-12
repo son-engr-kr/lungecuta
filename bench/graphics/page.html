@@ -1,0 +1,179 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>html,body{margin:0;background:transparent;overflow:hidden}canvas{display:block}</style>
+</head><body>
+<canvas id="c"></canvas>
+<script>
+// Synthetic motion-graphics frame: gradients, rounded rects, rotated text (Latin + Hangul).
+// Every frame is a pure function of the frame number (no clocks).
+let W = 0, H = 0, mode = '', cv = null, ctx = null, gl = null, ws = null;
+const stats = {render: [], read: [], send: []};
+
+function drawScene2D(c, n) {
+  const t = n / 60;
+  c.clearRect(0, 0, W, H);
+  const g = c.createLinearGradient(0, 0, W, H);
+  g.addColorStop(0, 'rgba(20,40,120,0.6)');
+  g.addColorStop(1, 'rgba(200,60,90,0.6)');
+  c.fillStyle = g;
+  c.fillRect(0, 0, W, H * 0.25);
+  const s = W / 1080;
+  for (let i = 0; i < 150; i++) {
+    const x = (Math.sin(i * 12.9898 + t * 0.7) * 0.5 + 0.5) * W;
+    const y = (Math.cos(i * 78.233 + t * 0.5) * 0.5 + 0.5) * H;
+    c.save();
+    c.translate(x, y);
+    c.rotate(t + i);
+    c.globalAlpha = 0.5 + 0.5 * Math.sin(i + t);
+    c.fillStyle = `hsl(${(i * 17 + n) % 360} 70% 55%)`;
+    c.beginPath();
+    c.roundRect(-40 * s, -20 * s, 80 * s, 40 * s, 10 * s);
+    c.fill();
+    c.restore();
+  }
+  c.globalAlpha = 1;
+  c.fillStyle = 'white';
+  c.textBaseline = 'middle';
+  for (let i = 0; i < 12; i++) {
+    c.save();
+    c.translate(W * 0.5, H * (0.3 + i * 0.05));
+    c.rotate(Math.sin(t + i) * 0.1);
+    c.font = `${Math.round(54 * s)}px "Apple SD Gothic Neo", "Helvetica Neue", sans-serif`;
+    c.textAlign = 'center';
+    c.fillText(`Frame ${n} 안녕하세요 모션 그래픽 ${i}`, 0, 0);
+    c.restore();
+  }
+}
+
+// WebGL2 path: 2D scene drawn into an offscreen 2D canvas, uploaded as a texture,
+// then read back with readPixels. Measures the GPU readback path specifically.
+// In gl-f16 the drawing buffer is RGBA16F and readback is FLOAT, but the uploaded
+// texture is 8-bit, so this mode measures the cost of a float readback, not float content.
+let off = null, offCtx = null, tex = null, prog = null;
+function setupGL(fmt) {
+  gl = cv.getContext('webgl2', {alpha: true, premultipliedAlpha: true, preserveDrawingBuffer: true, antialias: false});
+  if (fmt === 'f16') {
+    if (!gl.drawingBufferStorage) throw new Error('drawingBufferStorage unsupported');
+    if (!gl.getExtension('EXT_color_buffer_float')) throw new Error('EXT_color_buffer_float unsupported');
+    gl.drawingBufferStorage(gl.RGBA16F, W, H);
+  }
+  off = new OffscreenCanvas(W, H);
+  offCtx = off.getContext('2d');
+  const vs = `#version 300 es
+  in vec2 p; out vec2 uv; void main(){ uv = p*0.5+0.5; uv.y = 1.0-uv.y; gl_Position = vec4(p,0,1); }`;
+  const fs = `#version 300 es
+  precision highp float; in vec2 uv; uniform sampler2D tx; out vec4 o; void main(){ o = texture(tx, uv); }`;
+  const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; };
+  prog = gl.createProgram();
+  gl.attachShader(prog, sh(gl.VERTEX_SHADER, vs));
+  gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(prog);
+  gl.useProgram(prog);
+  const b = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, b);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+  const loc = gl.getAttribLocation(prog, 'p');
+  gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+  tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.viewport(0, 0, W, H);
+}
+
+window.setup = async (w, h, m, wsUrl) => {
+  W = w; H = h; mode = m;
+  cv = document.getElementById('c');
+  cv.width = W; cv.height = H;
+  cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  if (m === '2d') ctx = cv.getContext('2d', {alpha: true, willReadFrequently: false});
+  else if (m === '2d-wrf') ctx = cv.getContext('2d', {alpha: true, willReadFrequently: true});
+  else if (m === '2d-f16') ctx = cv.getContext('2d', {alpha: true, colorType: 'float16'});
+  else if (m === '2d-p3') ctx = cv.getContext('2d', {alpha: true, colorSpace: 'display-p3'});
+  else if (m === 'gl-u8') setupGL('u8');
+  else if (m === 'gl-f16') setupGL('f16');
+  else if (m === 'vf') ctx = cv.getContext('2d', {alpha: true});
+  else if (m === 'screenshot') ctx = cv.getContext('2d', {alpha: true});
+  let info = {};
+  if (ctx && ctx.getContextAttributes) info.attrs = ctx.getContextAttributes();
+  const probe = document.createElement('canvas').getContext('webgl2');
+  const dbg = probe && probe.getExtension('WEBGL_debug_renderer_info');
+  info.renderer = dbg ? probe.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : 'n/a';
+  if (wsUrl) {
+    ws = new WebSocket(wsUrl);
+    ws.binaryType = 'arraybuffer';
+    await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });
+    // Frames are rendered strictly in request order even when several are in flight.
+    let chain = Promise.resolve();
+    ws.onmessage = (ev) => {
+      const n = JSON.parse(ev.data).frame;
+      chain = chain.then(async () => {
+        let buf;
+        try { buf = await renderAndRead(n); }
+        catch (e) { ws.send(JSON.stringify({error: String(e && e.stack || e)})); throw e; }
+        const t0 = performance.now();
+        const CH = window.WS_CHUNK || buf.byteLength;
+        for (let off = 0; off < buf.byteLength; off += CH) ws.send(new Uint8Array(buf, off, Math.min(CH, buf.byteLength - off)));
+        stats.send.push(performance.now() - t0);
+      });
+    };
+  }
+  return info;
+};
+
+window.renderOnly = (n) => { drawScene2D(ctx, n); };
+
+// HTTP transport: render frame n, read it back, POST the raw bytes to the local server.
+window.renderAndPost = async (n) => {
+  const buf = await renderAndRead(n);
+  const t0 = performance.now();
+  const r = await fetch(`/frame?n=${n}`, {method: 'POST', body: buf});
+  if (!r.ok) throw new Error('POST failed ' + r.status);
+  stats.send.push(performance.now() - t0);
+};
+
+async function renderAndRead(n) {
+  let t0 = performance.now(), buf;
+  if (mode.startsWith('2d') || mode === 'vf') {
+    drawScene2D(ctx, n);
+    const t1 = performance.now();
+    if (mode === '2d-f16') {
+      const id = ctx.getImageData(0, 0, W, H, {pixelFormat: 'rgba-float16'});
+      buf = id.data.buffer;
+    } else if (mode === 'vf') {
+      const vf = new VideoFrame(cv, {timestamp: n});
+      const ab = new ArrayBuffer(W * H * 4);
+      await vf.copyTo(ab, {format: 'RGBA'});
+      vf.close();
+      buf = ab;
+    } else {
+      buf = ctx.getImageData(0, 0, W, H).data.buffer;
+    }
+    stats.render.push(t1 - t0); stats.read.push(performance.now() - t1);
+  } else {
+    drawScene2D(offCtx, n);
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, off);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    const t1 = performance.now();
+    if (mode === 'gl-f16') {
+      const out = new Float32Array(W * H * 4);
+      gl.readPixels(0, 0, W, H, gl.RGBA, gl.FLOAT, out);
+      buf = out.buffer;
+    } else {
+      const out = new Uint8Array(W * H * 4);
+      gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, out);
+      buf = out.buffer;
+    }
+    stats.render.push(t1 - t0); stats.read.push(performance.now() - t1);
+  }
+  return buf;
+}
+
+window.getStats = () => {
+  const med = a => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y); return +s[Math.floor(s.length / 2)].toFixed(2); };
+  return {render_ms: med(stats.render), read_ms: med(stats.read), send_ms: med(stats.send)};
+};
+</script>
+</body></html>

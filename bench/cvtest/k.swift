@@ -1,0 +1,2 @@
+import CoreVideo
+print(kCVImageBufferLogTransferFunctionKey, kCVImageBufferLogTransferFunction_AppleLog, kCVImageBufferLogTransferFunction_AppleLog2)
