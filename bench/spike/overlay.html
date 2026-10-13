@@ -1,0 +1,25 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>
+html,body{margin:0;background:#000}
+#frame,#title{position:absolute;left:0;top:0;width:960px;height:540px;border:0}
+#title{background:transparent}
+</style></head><body>
+<canvas id="frame" width="960" height="540"></canvas>
+<iframe id="title" src="title.html" allowtransparency="true"></iframe>
+<script>
+// The live overlay: the engine's frame in a canvas, the title page in a transparent iframe
+// over it, as the editor would draw a web layer while it is edited (01-architecture.md).
+const ctx = document.getElementById("frame").getContext("2d", { colorSpace: "srgb" });
+window.ready = new Promise((resolve) => {
+  const frame = document.getElementById("title");
+  const wait = () => (frame.contentWindow && frame.contentWindow.ready === true) ? resolve(true) : setTimeout(wait, 20);
+  frame.addEventListener("load", wait);
+});
+window.showAt = async (base64, t) => {
+  const bytes = Uint8ClampedArray.from(atob(base64), (c) => c.charCodeAt(0));
+  ctx.putImageData(new ImageData(bytes, 960, 540), 0, 0);
+  document.getElementById("title").contentWindow.renderAt(t);
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  return true;
+};
+</script></body></html>

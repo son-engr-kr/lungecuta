@@ -1,0 +1,55 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>spike viewer</title>
+<style>html,body{margin:0;background:#000}canvas{display:block}</style></head>
+<body><canvas id="view" width="960" height="540"></canvas>
+<script>
+// The Phase 1 spike's viewer: asks the engine for a frame over a WebSocket, draws the
+// RGBA bytes with putImageData, and times from the request to the next animation frame
+// after the draw (the frame the compositor shows it in).
+const canvas = document.getElementById("view");
+const ctx = canvas.getContext("2d", { colorSpace: "srgb" });
+const socket = new WebSocket(`ws://${location.host}/ws`);
+socket.binaryType = "arraybuffer";
+let waiting = null;
+socket.onmessage = (event) => {
+  const view = new DataView(event.data);
+  const headerLength = view.getUint32(0, true);
+  const header = JSON.parse(new TextDecoder().decode(new Uint8Array(event.data, 4, headerLength)));
+  const pixels = new Uint8ClampedArray(event.data, 4 + headerLength);
+  const resolve = waiting; waiting = null;
+  resolve({ header, pixels });
+};
+window.ready = new Promise((r) => { socket.onopen = () => r(true); });
+
+function request(message) {
+  return new Promise((resolve) => { waiting = resolve; socket.send(JSON.stringify(message)); });
+}
+
+// n changes, one after another: each a new exposure on `frame` (cached: a parked frame)
+// or a new frame each time (cached false: the full chain from decode).
+window.run = async (n, mode) => {
+  const out = [];
+  for (let k = 0; k < n; k++) {
+    const frame = mode.startsWith("scrub") ? (37 * k) % 600 : 352;
+    const start = performance.now();
+    const { header, pixels } = await request({ frame, second: frame + 100, exposure: 0.01 * (k % 50),
+                                               saturation: 1.0 + 0.002 * (k % 50), cached: mode === "parked",
+                                               decoder: mode === "scrub-cli" ? "cli" : "pyav" });
+    const received = performance.now();
+    ctx.putImageData(new ImageData(pixels, header.width, header.height), 0, 0);
+    await new Promise((r) => requestAnimationFrame(() => r()));
+    const shown = performance.now();
+    out.push({ total: shown - start, transport: received - start - header.engine_ms, engine: header.engine_ms,
+               draw: shown - received, stages: header.stages });
+  }
+  return out;
+};
+
+// Draw raw RGBA (for the on-screen colour check) and report when it is on screen.
+window.show = async (width, height, base64) => {
+  const bytes = Uint8ClampedArray.from(atob(base64), (c) => c.charCodeAt(0));
+  ctx.putImageData(new ImageData(bytes, width, height), 0, 0);
+  await new Promise((r) => requestAnimationFrame(() => r()));
+  return true;
+};
+</script></body></html>

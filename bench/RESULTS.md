@@ -7,7 +7,7 @@ Several entries were corrected after a design review re-ran them (see
 
 Machine: Apple M5 Pro (5 performance + 10 efficiency cores), 24 GB. ffmpeg 8.1
 (Homebrew), OpenColorIO 2.6.0, PyTorch 2.14.1, Python 3.12.13 and numpy 2.5.4 through uv,
-macOS 26.4.1 (25E253). Measured 2026-10-10 and 2026-10-11.
+macOS 26.4.1 (25E253). Measured 2026-10-10 to 2026-10-13.
 
 ## Decode, proxy build, proxy seek: `bench/decode.sh`
 
@@ -55,6 +55,385 @@ Decoding that proxy with the original's range would lift S-Log3 black from code 
 about 145. The script now writes the conversion explicitly
 (`in_range=pc:out_range=tv`, `-color_range tv`) and prints the proxy's tag, and the
 design gives every proxy its own decode record.
+
+## Y'CbCr to R'G'B': `uv run python bench/swscale_range.py`
+
+ffmpeg 8.1's scale filter to `rgb48le` (flags `accurate_rnd+full_chroma_int+full_chroma_inp`,
+explicit `in_color_matrix=bt709` and `in_range`, the path `lc` used until 2026-10-13)
+against ITU-T H.273 V4's equations, on flat frames whose codes are made from known
+R'G'B'. R'G'B' in 10-bit codes (value x 1023), swscale minus H.273. Run 2026-10-13:
+
+| input | black | mid grey | nominal white | colour bars, the full channel |
+| --- | --- | --- | --- | --- |
+| 10-bit limited | 0 | -1.97 | -3.93 | -3.97 to -3.99 |
+| 10-bit full | 0 | -0.49 | -0.98 | -0.97 to -0.99 |
+| 8-bit limited | 0 | -1.98 | -3.93 | -3.94 to -3.99 |
+| 8-bit full | 0 | -2.00 | -3.98 | -3.95 to -3.96 |
+
+- A gain short of 1: in limited range white reads 1019.07 of 1023, about 255/256 of
+  full scale; 10-bit full range reads code c as c x 64 / 65535 of full scale (1023 becomes
+  1022.02), a left shift rather than a scaling.
+- Values below 0 (a bar's empty channels, where code rounding falls under black) are
+  clipped to 0 by swscale and kept by H.273.
+- Y'CbCr to Y'CbCr at 16 bits (`yuv444p16le`), which `lc` used for one day to let ffmpeg
+  upsample chroma, is not a shift either: on a 960x540 frame of the S-Log3 proxy luma's top
+  bits were replicated into the low ones (10-bit 104 became 6662, 104 x 64 = 6656) and
+  chroma was shifted, while an 8x2 test frame was shifted in both, which is why the first
+  check passed; why the two differ is not established. `lc` now
+  takes the decoder's own planes and does chroma, range and matrix itself
+  (`docs/design/02-media.md#decode`).
+- Measurements in this file from before 2026-10-13 were decoded through swscale's path; the
+  proxy parity below was measured again with H.273.
+
+## Proxy parity: `uv run python bench/proxy_parity.py WORKDIR CLIP...`
+
+The parity test of `docs/design/02-media.md#proxies` for every proxy candidate at 960x540,
+on the eleven frames the test uses: the original decoded with its own matrix, range and
+chroma siting, area-downscaled in float, against the proxy decoded with its own record.
+10-bit codes over every pixel and channel: p99, max, mean signed bias per channel (R, G,
+B), and p99 after averaging 4x4 blocks. Seek is one frame per ffmpeg process, process
+start included. Run 2026-10-13 with the `lungecuta` package's own code: frames decoded
+by ITU-T H.273 from the decoder's planes, and every candidate built from that decode
+(each plane area-averaged, the range re-coded by H.273 where it differs, rounded to
+10-bit codes, 4:2:2 candidates decimated co-sited) and then encoded (ffmpeg 8.1, OCIO
+2.6.0). Speeds come from a machine also running other work and are rough.
+
+Clip A (the S-Log3 sample; full range, BT.709 matrix, chroma sited left), in R'G'B' codes
+and in DaVinci Intermediate:
+
+| proxy | range | build fps | MB | decode fps | seek ms | R'G'B' p99 / max | R'G'B' bias | blocks p99 | DI p99 / max | DI bias |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ProRes Proxy | limited | 32.3 | 27.8 | 7825 | 24 | 23.45 / 122.1 | +0.29 +0.29 +1.14 | 7.14 | 28.28 / 130.6 | +0.88 +1.03 +1.89 |
+| ProRes LT | limited | 31.7 | 100.3 | 3986 | 28 | 18.64 / 89.4 | -0.01 +0.17 +0.42 | 4.63 | 22.66 / 123.8 | +0.54 +0.84 +1.13 |
+| ProRes 422 HQ | limited | 31.2 | 216.6 | 1927 | 37 | 13.28 / 69.4 | -0.05 +0.20 +0.45 | 3.60 | 15.43 / 92.8 | +0.47 +0.84 +1.12 |
+| ProRes 4444 | limited | 29.9 | 324.5 | 1412 | 50 | 8.00 / 31.1 | -0.06 +0.19 +0.37 | 2.07 | 10.33 / 43.7 | +0.45 +0.83 +1.01 |
+| ProRes 4444 | full | 30.7 | 325.2 | 1294 | 45 | 7.98 / 34.1 | -0.19 +0.05 +0.31 | 2.09 | 10.35 / 47.6 | +0.33 +0.68 +0.94 |
+| FFV1 4:2:2 (lossless) | limited | 30.8 | 354.0 | 478 | 102 | 9.94 / 56.7 | +0.00 +0.00 -0.00 | 1.81 | 10.97 / 75.2 | +0.45 +0.54 +0.57 |
+| FFV1 4:4:4 (lossless) | limited | 30.1 | 499.6 | 271 | 149 | 1.39 / 1.64 | +0.02 -0.00 -0.01 | 0.44 | 3.96 / 17.7 | +0.46 +0.54 +0.53 |
+| **FFV1 4:4:4 (lossless)** | **full** | 29.7 | 525.4 | 261 | 157 | **1.24 / 1.43** | **+0.07 +0.02 +0.07** | 0.39 | 3.94 / 16.4 | +0.51 +0.56 +0.62 |
+
+The HLG sample (210 frames, limited range, BT.2020 matrix, rotation 90; colour undecided,
+so R'G'B' codes only, the matrix taken from its XML for the measurement):
+
+| proxy | range | build fps | MB | decode fps | seek ms | R'G'B' p99 / max | R'G'B' bias | blocks p99 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ProRes Proxy | limited | 30.4 | 12.8 | 4395 | 23 | 83.49 / 370.3 | +1.31 +0.43 +2.02 | 25.52 |
+| ProRes LT | limited | 30.4 | 29.6 | 3137 | 27 | 44.81 / 195.2 | +0.66 +0.24 +1.03 | 12.44 |
+| ProRes 422 HQ | limited | 30.7 | 63.9 | 2041 | 34 | 20.49 / 125.9 | +0.48 +0.20 +0.76 | 8.08 |
+| ProRes 4444 | limited | 30.6 | 95.2 | 1472 | 41 | 10.35 / 51.4 | +0.31 +0.13 +0.46 | 3.14 |
+| ProRes 4444 | full | 29.6 | 95.9 | 1451 | 41 | 10.33 / 52.6 | -0.03 -0.17 +0.11 | 3.03 |
+| FFV1 4:2:2 (lossless) | limited | 29.8 | 120.0 | 408 | 105 | 12.25 / 101.8 | +0.05 +0.04 +0.05 | 4.39 |
+| **FFV1 4:4:4 (lossless)** | **limited** | 29.7 | 156.4 | 306 | 135 | **1.38 / 1.66** | **+0.08 +0.02 +0.09** | 0.47 |
+| FFV1 4:4:4 (lossless) | full | 28.8 | 163.9 | 293 | 143 | 1.20 / 1.44 | +0.00 -0.00 +0.00 | 0.47 |
+
+Findings:
+
+- **A lossless 4:4:4 proxy built from lc's own decode is as close as rounding allows**: the
+  maximum, 1.64 and 1.66 codes in limited range and 1.43 and 1.44 in full, is the bound
+  that rounding each plane to a 10-bit code puts on R'G'B' (`tests/test_proxy.py`), and
+  the bias is under 0.1 code.
+- **Converting the range costs nothing when done by H.273**: limited proxies of the full
+  range clip and full proxies of the limited range clip pass as well as range-keeping ones.
+  The two earlier runs (2026-10-11 decoded through ffmpeg's RGB conversion and built with
+  its scaler; the first run of 2026-10-13 decoded by H.273 but still built with the
+  scaler) saw most of a code of bias from a range conversion: that was the scaler's.
+- **No ProRes profile holds 2 codes at 540 lines on this footage**, not even 4444, in the
+  file's own codes: the codec's loss on noisy log footage alone is p99 8 codes. Lossless
+  FFV1 4:2:2 is at 10 to 12: the 4:2:2 chroma alone costs that much.
+- **The DaVinci Intermediate criterion is out of reach by construction.** The lossless
+  proxy of clip A is at p99 1.24 in R'G'B' codes and 3.94 in DI, with a bias of about +0.55
+  in every channel: the proxy is downscaled before the input transform and the reference
+  after it, and on noisy pixels the two orders disagree.
+- Building from lc's decode runs at about 30 fps, against 100 to 180 fps with ffmpeg's
+  scaler: a 23.5 s 4K clip takes about 24 s.
+- ProRes 4444 reads back as `yuv444p12le` with range `tv` whatever range was written:
+  the range of a ProRes proxy can only live in its record.
+- FFV1 decodes at about 260 to 300 fps at this size, but a seek costs about 140 to 160 ms
+  per ffmpeg process; through PyAV with the container open it costs 5 ms (below, "PyAV
+  against the ffmpeg CLI").
+- The first run read the HLG sample through ffmpeg's automatic rotation: frames of the
+  same byte count but transposed, p99 about 440 codes. Every decode now passes
+  `-noautorotate` (`docs/design/02-media.md#decode`).
+
+## One still: `uv run python bench/still_cost.py WORKDIR CLIP [FRAME]`
+
+`lc still --media KEY --at f:352` on clip A, 15 OCIO threads, median of three runs, in
+milliseconds; the stages in-process, then the whole command as a new process (Python and
+OCIO start-up included). Every run gave the same frame, and the PNG decodes back to the
+frame's quantized codes. Run 2026-10-12.
+
+| size | seek and decode | input transform | downscale | view | numbers | PNG | `lc still` as a process |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 3840x2160 | 593 | 6 | | 124 | 148 | 569 (15.6 MB) | 1552 |
+| 960x540 (`--height 540`) | 571 | 6 | 39 | 9 | 9 | 43 (0.9 MB) | 812 |
+
+- Seeking and decoding the 4K original is most of a small still (571 of 812 ms). How that
+  splits between decoding from the keyframe before the frame and the conversion to
+  `rgb48le` is not measured.
+- At full size the PNG's zlib pass costs as much as the decode.
+- OCIO's view at 4K, 124 ms on 15 threads, agrees with the 144 ms measured by
+  `bench/ocio_threads.py` on random data.
+
+## Sheet and scope: `uv run python bench/sheet_scope_cost.py WORKDIR CLIP`
+
+On clip A, 2026-10-13, three runs of the script (each process time a median of three),
+15 OCIO threads. The runs differ by up to 30 % for reasons not established, so all three
+are given:
+
+| what | run 1 | run 2 | run 3 |
+| --- | --- | --- | --- |
+| the 24 frames at every 30th, one decode from the start | 6536 ms | 4433 ms | 5381 ms |
+| the same 24 frames, a seek per frame | 23476 ms | 19179 ms | 18783 ms |
+| `lc sheet --every f:30` (24 tiles, one page) | 7697 ms | 6762 ms | 5869 ms |
+| `lc sheet --every f:5` (141 tiles, four pages) | 14060 ms | 13944 ms | 11823 ms |
+| `lc scope --at f:352`, 3840x2160 | 1816 ms | 1933 ms | 1671 ms |
+| `lc scope --at f:352 --height 540` | 1259 ms | 1088 ms | 968 ms |
+
+- The two reads gave identical frames; one decode is 3.5 to 4.4 times faster than a seek
+  per frame here, which is why `lc sheet` uses it. A seek costs 0.8 to 1.0 s on average
+  here against 0.6 s for frame 352 alone (`still_cost.py`); why is not measured (each
+  seek includes an ffmpeg process start, and frames sit at different places in their
+  GOPs).
+- Through the ACES 2.0 view, frame 352 has no value below 0 and some channel exactly 0 in
+  9.87 % of its pixels at 3840x2160, all counted as clipped low; at 540 lines it is
+  4.88 %, because the downscale averages the dark noise before the view. Clipped
+  fractions are comparable only at one size.
+
+## Beats: `uv run python bench/beats_check.py [MUSIC]`
+
+Beat This! 1.1.0, checkpoint `final0`, `minimal` postprocessing, CPU, PyTorch 2.14.1 with
+torchaudio 2.11.0. Run 2026-10-13.
+
+| input | beats | error against the true beats | downbeats |
+| --- | --- | --- | --- |
+| synthetic drum track (`tests/clips.py`), 120 BPM, 48 beats, at 48 kHz | 48, plus 1 after the last bar | mean +2.1 ms, -10.0 to +10.0 | every true downbeat found |
+| the same at 44.1 kHz, resampled by soxr | 48, plus 1 after the last bar | mean +0.8 ms, -10.0 to +10.0 | every true downbeat found |
+
+The errors are the model's 20 ms frame grid: the true beats fall on odd 10 ms steps
+(0.25 s plus 0.5 s steps) and are found on the frames either side.
+
+The music sample (MP3, 48 kHz, 124.9 s): 258 beats, 65 downbeats, mean interval 0.48 s
+(125 BPM), the first beat at 0.02 s a pickup before the first downbeat. ffmpeg decode
+113 ms, no resampling, model load 180 ms (with the checkpoint cached), analysis 1222 ms;
+`lc import` of it took 2.2 s as a process. A second analysis (`lc beats`) matched every
+beat one to one with the same downbeats. No ground truth exists for this file.
+
+## PyAV against the ffmpeg CLI: `uv run bench/pyav_check.py FILE...`
+
+PyAV 19.0.1 (its bundled FFmpeg, libavcodec 63.1.102) against the Homebrew ffmpeg 8.1 CLI,
+2026-10-13: every frame's planes from PyAV against the CLI's framemd5 in the stream's own
+pixel format, then 40 random frames reached by a seek in a container kept open, each
+checked against the CLI's md5 for its index.
+
+| file | frames identical | sequential decode | seek, median / p95 / max |
+| --- | --- | --- | --- |
+| clip A's FFV1 4:4:4 proxy, 960x540 | 705 of 705 | 121 fps | 4.9 / 9.5 / 9.9 ms |
+| clip A (H.264 4:2:2 10-bit, 3840x2160) | 705 of 705 | 23 fps | 100.0 / 243.7 / 244.5 ms |
+
+- PyAV decodes these files identically to the CLI, so the condition the design set for
+  using it (`docs/design/01-architecture.md`, process model) is met for them.
+- A seek in an open FFV1 container costs 5 ms, against 140 to 170 ms for one ffmpeg process
+  per seek: the preview reads proxies through PyAV.
+- 23 fps sequential on the 4K original is PyAV's default, which decodes on one thread; the
+  CLI's 210 fps uses frame threads. Not measured with PyAV's threading turned on.
+
+## Phase 1 spike: `bench/spike/`
+
+The preview loop's kill criteria that an agent can measure (`docs/design/10-roadmap.md`,
+Phase 1), with the throwaway engine, server and viewer in `bench/spike/` (README there).
+Clip A's 960x540 FFV1 4:4:4 proxy; chrome-headless-shell 153.0.8010.12 through Playwright
+1.63.0; OCIO threads 15. Run 2026-10-13.
+
+**Interaction latency** (`latency.py`): from a change sent by the viewer to the next
+animation frame after its pixels are drawn; a comp frame of two layers of the proxy, a
+dynamic `GradingPrimaryTransform` (LOG) on the top one, a 50 % blend, the ACES 2.0 view,
+then sRGB for the viewer, sent as RGBA over a WebSocket and drawn with `putImageData`.
+
+| change | n | p50 | p95 | max | engine p50 | transport p50 | to the next frame p50 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| grade on a parked frame | 200 | 49.9 ms | **51.4 ms** | 52.1 | 19.8 | 17.4 | 12.5 |
+| a new frame each time, both layers decoded by PyAV | 100 | 56.7 ms | **62.3 ms** | 67.2 | 37.2 | 17.4 | 2.0 |
+| the same, one ffmpeg process per decoded frame | 30 | 340.0 ms | 347.0 ms | 357.3 | 320.1 | 17.8 | 2.0 |
+
+Engine stages for a new frame, medians: decode 10.1 ms (two frames), H.273 3.0, input
+transform 4.7, grade 2.5, blend 0.4, output view 11.6, to sRGB 1.8, to 8-bit RGBA 2.0.
+Criterion p95 at most 150 ms at 540 lines: met with PyAV, not with an ffmpeg process per
+frame. Checked: the canvas holds the bytes the engine sent for the last change of each
+mode. Caveats: headless Chromium, so "the next animation frame" is the headless
+compositor's, not a display's; transport (17 ms for 2 MB) is localhost.
+
+**Cache refill** (`refill.py`): a timeline-wide grade on a 60 s comp of one layer (1798
+frames cut from the proxy, looped), every frame decoded in order by PyAV and rendered to
+8-bit RGB in memory.
+
+| how | time | frames per second | real time |
+| --- | --- | --- | --- |
+| one frame at a time, OCIO on 15 threads | 42.4 s | 42.4 | 1.42 x |
+| 4 frames in parallel, OCIO single-threaded each | 56.5 s | 31.8 | 1.06 x |
+| 8 frames in parallel | 31.8 s | 56.5 | 1.89 x |
+| 15 frames in parallel | 26.1 s | 68.9 | 2.30 x |
+
+Criterion at least real time: met, for one layer. Checked: every frame arrived once, and
+sampled frames are identical both ways. The cache holds 2.80 GB of 8-bit RGB for 60 s.
+
+**On-screen colour** (`screen.py`): a frame of known codes (every code of each channel,
+a 16 x 16 x 16 sample of the RGB cube, seeded random colours) and an engine frame, drawn
+with `putImageData` and captured with a page screenshot: **0 codes** of difference
+anywhere. Criterion within 1 code: met. What a physical display then shows is not
+measured.
+
+**Graphics parity** (`screen.py`): a title page (gradient-clipped text, a translucent
+rounded card with a shadow, a bar), captured on a transparent background and composited
+over the engine frame in numpy with straight alpha on the sRGB-encoded values, against
+the same page live in a transparent iframe over the same frame: over the 141,066 pixels
+the title covers, **max 1 code, p99 1.0**, 2.6 to 3.3 % of values differing, at t = 0.3,
+0.6 and 2.0 s. Criterion p99 within 2 codes: met.
+
+## A render and its check: `lc render COMP --preset web-h264`, `lc verify FILE --comp COMP --preset web-h264`
+
+The Phase 0 check comp of `docs/research/phase0-resolve-checks.md` (3840x2160, 29.97,
+476 frames: four cuts of the S-Log3 sample on beats, one at 50 %, the music sample under
+them), rendered 2026-10-13 one frame at a time (OCIO on 15 threads, x264 CRF 18, AAC
+256 kbps through AudioToolbox): **195 s, 2.4 frames a second**. `lc verify` passed every
+check: codec, profile, `yuv420p`, size, rate, 476 frames, tags 1-1-1 `tv`, chroma `left`,
+48 kHz stereo; the two frames either side of every cut, decoded from the file, against
+the engine's reference render: **PSNR 39.24 dB, bias +0.20 +0.05 +0.35** ten-bit codes,
+each frame closer to its own reference than to the frame across the cut (RMSE 7.4 to 19.5
+against 21.4 to 134.4; the margin is thin where two cuts come from the same, nearly static
+shot). Loudness, reported before the master chain existed: -16.0 LUFS integrated, -3.7
+dBTP true peak (the rerun with the chain is below). On a synthetic
+smooth ramp the encode planes alone (no codec) come back with RMSE 0.64 codes for
+`master-prores-hq` (10-bit 4:2:2) and 3.37 for `web-h264` (8-bit dithered 4:2:0), bias
+under 0.11 (`tests/test_render.py`).
+
+**Frames in flight** (`uv run python bench/render_cost.py PROJECT check web-h264`, the same
+comp, 2026-10-13): 1 worker 208.4 s (2.28 fps), 4 workers 248.3 s (1.92), 8 workers 158.4 s
+(3.00), 15 workers 151.7 s (3.14); every render's frames identical (framemd5) to the
+1-worker render's, since dither is seeded by frame. The gain is small because the machine
+is already busy: x264 alone, CRF 18, on 120 frames of noisy 4K (`testsrc2` with `noise`),
+runs at 7.7 fps with 12 cores busy (15.5 s; clean `testsrc2` 89 fps), so encoding and the
+colour work compete for the same cores. A faster delivery needs the VideoToolbox encoder,
+which is measured against x264 before a preset uses it (08-deliver.md).
+
+## Master chain: `uv run python bench/master_chain.py WAV TARGET...`
+
+The music sample's cache WAV (124.85 s, 48 kHz stereo; -14.36 LUFS, -1.89 dBTP as it
+comes), through `audio.master` at a -1 dBTP ceiling, 2026-10-13; pyloudnorm 0.2.0, soxr
+1.1.0, scipy 1.18.1. The engine's meters and `ebur128` (on the same mastered WAV) agree to
+`ebur128`'s printed precision in every row. Each encode was decoded and checked before
+its numbers were taken: PCM gave back exactly the samples; AAC started at lag 0 and ran
+1464 samples past the end, under -132 dBFS (the last frame's padding).
+
+| target | gain | deepest limiter cut | engine: LUFS, dBTP | 24-bit PCM: LUFS, dBTP | AAC 256 kbps: LUFS, dBTP | time |
+| --- | --- | --- | --- | --- | --- | --- |
+| -14 | +0.38 dB | none | -14.00, -1.80 | -14.0, -1.8 | -14.0, **-1.6** | 0.56 s |
+| -12 | +2.43 dB | -1.25 dB | -12.01, -1.00 | -12.0, -1.0 | -12.0, **-0.8** | 1.68 s |
+| -9 | +8.42 dB | -7.30 dB | -9.00, -1.07 | -9.0, -1.1 | -9.0, **-0.6** | 3.67 s |
+
+So a lossy encode adds 0.2 to 0.5 dB of true peak, more as the limiter works harder, and
+a file mastered to the ceiling breaks it once encoded. `lc render` therefore measures the
+decoded AAC and masters again under a lowered ceiling (07-audio.md). A -6 LUFS target is
+refused: more gain stops raising the loudness under -1 dBTP. A first version of the
+limiter that aimed at the ceiling every pass still overshot by thousandths of a dB after
+four passes on the -9 row (the over-ceiling samples halved each pass); aiming each pass
+under the ceiling by the last overshoot brings it under in two.
+
+**With the chain in a render** (2026-10-13): the Phase 0 check comp of the render section
+below, `lc render check --preset web-h264` with 15 workers, 141.5 s. Its mix came in at
+-16.02 LUFS; the master raised it 2.02 dB with the limiter cutting at most 0.88 dB; the
+first AAC encode decoded at -0.95 dBTP, so the render mastered again under -1.065 dBTP and
+the delivered AAC decoded at -1.003. `lc verify` passed every check, loudness included:
+-14.0 LUFS integrated and -1.0 dBTP by `ebur128`, picture as before (PSNR 39.24 dB, bias
++0.20 +0.05 +0.35).
+
+## An alpha render: `lc render alpha --preset prores-4444-alpha`, `lc verify`
+
+The Phase 0 package's comp `alpha` (3840x2160, 29.97, 90 frames: the S-Log3 sample at 60 %
+scale under a feathered ellipse mask, 0.9 of the layer, feather 0.05 of its height),
+2026-10-13. `lc verify` against the engine's reference on the frames it samples: colour
+over black bias -0.007 +0.021 +0.034 ten-bit codes; the alpha's largest error 0.685
+ten-bit codes, read back from ffmpeg's ProRes decoder at 12 bits (`yuva444p12le`). Half a
+code of that is the 10-bit rounding the render writes; the rest comes with the 12-bit
+decode, which is why `lc verify` allows one code.
+
+## HEVC Main 10, VideoToolbox against x265 and x264: `uv run python bench/hevc_quality.py REFERENCE OUT_DIR SETTING...`
+
+The reference is the Phase 0 check comp rendered with `prores-4444-alpha` (3840x2160,
+29.97, 476 frames, 15.9 s; decoded as `yuva444p12le`), 2026-10-13, ffmpeg 8.1. Every
+encode decoded to 476 frames before its numbers were taken. PSNR is per plane against the
+reference brought to 4:2:0 10-bit by the same conversion the encoders' input went through,
+so it is the codec's loss alone (an 8-bit encode is compared after swscale's 8 to 10-bit
+step, checked to be exactly four times the code over all 256 codes). Frame to frame is the
+Y PSNR of every frame against the next: the reference's own is **37.79 dB**, and an encode
+whose frames differ from each other less than that has smoothed away grain or motion.
+
+Three runs on the same reference: the defaults (`vt:50 vt:60 vt:70 vt:80 x265:18 x265:22`,
+before the frame-to-frame column existed: q50's is measured over frames 20 to 120 by hand,
+and q80 came to 350.62 Mbps for 49.69 / 54.16 / 54.95 dB); then `x264:18 vt:60 vt:62 vt:65
+vt:68 vt:70 vt:75 x265:18 x265:22` and `vt:69`, whose numbers the table gives; and
+`file:RENDER` on the engine's own web-h264 render of the comp.
+
+The footage is grainy: a dim, nearly static indoor shot, whose consecutive frames differ by
+37.8 dB in Y, mostly sensor noise. That is the material 08-deliver.md asks presets to be
+tested on, and it explains the first sweep's puzzle.
+
+| setting | Mbps | PSNR Y / U / V, dB | frame to frame, dB | encode |
+| --- | --- | --- | --- | --- |
+| `hevc_videotoolbox -q:v 50` | 0.95 | 39.23 / 47.39 / 49.49 | 56.54 (frames 20 to 120) | 59.0 fps |
+| `hevc_videotoolbox -q:v 60` | 24.62 | 40.14 / 48.14 / 50.21 | 42.88 | 62.5 fps |
+| `hevc_videotoolbox -q:v 62` | 57.13 | 41.15 / 48.68 / 50.58 | 41.28 | 60.1 fps |
+| `hevc_videotoolbox -q:v 65` | 75.77 | 41.72 / 48.99 / 50.80 | 40.76 | 51.9 fps |
+| `hevc_videotoolbox -q:v 68` | 120.84 | 43.12 / 49.80 / 51.40 | 39.91 | 46.2 fps |
+| `hevc_videotoolbox -q:v 69` | 120.84 | 43.12 / 49.80 / 51.40 | 39.91 | 63.2 fps |
+| **`hevc_videotoolbox -q:v 70`** | **168.11** | **44.65 / 50.67 / 52.09** | **39.30** | 53.7 fps |
+| `hevc_videotoolbox -q:v 75` | 219.52 | 46.30 / 51.80 / 52.97 | 38.92 | 55.5 fps |
+| `libx265 -preset medium -crf 18` | 79.76 | 41.74 / 48.22 / 50.27 | 40.21 | 5.3 fps |
+| `libx265 -preset medium -crf 22` | 19.20 | 39.78 / 47.02 / 49.46 | 42.94 | 6.8 fps |
+| `libx264 -crf 18` 8-bit (web-h264's settings) | 150.63 | 43.70 / 49.66 / 51.20 | 38.33 | 18.4 fps |
+| `lc render check --preset web-h264` (engine dither and chroma) | 153.59 (video) | 43.57 / (49.51 / 51.03) | 38.13 | |
+
+The q50 row is explained: its encode is nearly a still picture, smoothed. Its consecutive
+frames differ by 56.5 dB against the reference's 37.8 (frames 20 to 120), its keyframes
+are about 21 kB for a 4K frame and its other frames 2 to 4 kB, and a crop at 1:1 shows the
+wall's grain and texture gone. It still scores 39.2 dB because the error left is the
+grain itself, which differs from frame to frame by about as much; so near 39 dB PSNR cannot
+tell an encode that keeps the grain from one that discards it, and the frame-to-frame
+column is reported beside it. The engine's web-h264 render's chroma went through its own
+decimation, not the conversion the reference was brought to 4:2:0 by, so only its Y is
+comparable (its U and V are in parentheses).
+
+`-q:v` moves in steps: 68 and 69 give byte-identical bitrates and PSNR. On this footage
+VideoToolbox saves no bitrate over x264: at the first setting whose Y, U and V PSNR are
+all at least web-h264's (q70) it spends 168 Mbps against x264's 151, and its frames vary
+less from one to the next (39.3 dB against 38.3, against the reference's 37.8), so it
+smooths more of the grain than x264 does at a lower PSNR. What it buys is ten bits (no
+banding in gradients, where 8-bit needs its dither) and speed: about three times x264's
+encode rate and ten times x265's. x265 at CRF 18 is the most efficient here (80 Mbps for
+41.7 dB) but 5.3 fps. **`web-hevc10` takes q70** (*proposed*, src/lungecuta/encode.py),
+the rule being web-h264's PSNR on every plane at the least bitrate VideoToolbox offers; how
+much grain it smooths against web-h264 is for the person to judge on screen. One comp of
+one shot is the evidence; a bright, detailed shot may place the settings differently.
+
+## The web-hevc10 render and a flash check: `lc render check --preset web-hevc10`, `lc verify`, `lc flash FILE`
+
+The same check comp, 2026-10-13, 15 workers, nothing else running: **149.5 s** (3.2 frames
+a second; web-h264's best was 151.7 s at 15 workers, above), 168 Mbps of video. `lc verify`
+passed every check: `hevc`, Main 10, `yuv420p10le`, size, rate, 476 frames, tags 1-1-1
+`tv`, 48 kHz stereo, -14.0 LUFS and -1.0 dBTP; the frames either side of every cut against
+the engine's reference: PSNR 39.24 dB, bias +0.004 +0.007 +0.074 ten-bit codes. The PSNR
+is web-h264's to the hundredth although the codecs differ (Y PSNR over every frame: 44.65
+against 43.70); one reading, not verified, is that the 4:2:0 chroma round trip both share
+dominates that RGB number on this footage.
+
+`lc flash` (WCAG 2.2's general flash threshold, `src/lungecuta/flash.py`) on that file:
+**75.9 s** for 476 frames decoded at 4K (533 by 300 cells, a 133 by 100 field), passed: 78
+transitions in all, no cell over six in a second. On the web-h264 render of the same comp
+it took 58.3 s with an HEVC sweep running beside it, and passed with 80 transitions. The
+tests check its threshold on synthetic files: three flashes a second over the whole frame
+pass and a transition every four frames at 30 fps fails, a flashing patch of 19 % of a
+field passes and one of 33 % fails, flashes whose darker image is at 0.85 are not counted,
+and a 1-pixel checkerboard flipping in 2-pixel cells is excepted while a 4-pixel one is
+not (`tests/test_flash.py`).
 
 ## 4K into numpy: `uv run bench/pipe_read.py CLIP 300 sw|hw`
 
