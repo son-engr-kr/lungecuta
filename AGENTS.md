@@ -63,7 +63,7 @@ the Phase 0 media tests need samples of your own (see Conventions).
   keys dragged), each edit an `lc op`
   operation (`key`, `unkey`, `set`, `remap`, `style`, `grade`, `masks`, `transition`),
   and scopes of the frame on screen (on the proxy). Not written yet: the colour page's
-  node graph, moving a key in time in the graph.
+  node graph.
 - **The agent sees a comp without rendering it**: `lc still COMP --at P`, `lc sheet COMP
   --every b:1` and `lc scope COMP --at P` show the frame the render delivers, labelled with
   its beat and the layers on screen (`look.py`). `lc init` writes a project's own
