@@ -4,13 +4,12 @@ hear measures before it calls an audio change done.
 Written so far, over a span of the comp:
 - every cut (a footage layer's first frame) with its signed offset in milliseconds to the
   nearest beat of the comp's grid, and whether that beat is a downbeat;
+- its signed offset in milliseconds to the nearest onset of the mix (before the master
+  chain), found by SuperFlux (`onsets.py`); onsets come one or two frames (5 to 10 ms)
+  before the hit on a synthetic drum track, a lead measured and reported, not corrected;
 - the RMS level of the mix, before the master chain, on every half beat, in dBFS, and its
   least-squares slope in dB per beat, which says whether a build climbs. No threshold
   turns the slope into a pass or a fail: none is published or measured here.
-
-The design also asks for the offset to the nearest onset. That needs an onset detector,
-whose method and parameters come from its paper (SuperFlux, Boeck and Widmer, DAFx 2013,
-is the candidate); until it has been read, the onset field says so instead of guessing.
 """
 from __future__ import annotations
 
@@ -23,9 +22,10 @@ from .comp import MIX_RATE, Resolved, load_comp, resolve
 from .literals import Field, parse_literal, resolve_position
 from .media import Project
 from .mixdown import mix
+from .onsets import THRESHOLD, onsets
 from .ticks import TICKS_PER_SECOND, ticks_per_frame
 
-ONSETS = "not written: the onset detector waits for its paper (SuperFlux, Boeck and Widmer, DAFx 2013)"
+METHOD = "SuperFlux (Boeck and Widmer, DAFx-13), offline peak picking; src/lungecuta/onsets.py"
 
 
 def _span(resolved: Resolved, start: str | None, end: str | None) -> tuple[int, int]:
@@ -39,7 +39,7 @@ def _span(resolved: Resolved, start: str | None, end: str | None) -> tuple[int, 
     return first, last
 
 
-def cuts(resolved: Resolved, first: int, last: int) -> list[dict[str, Any]]:
+def cuts(resolved: Resolved, first: int, last: int, onset_times: list[float] | None = None) -> list[dict[str, Any]]:
     tick = ticks_per_frame(resolved.rate)
     grid = resolved.grid
     downbeats = set() if grid is None else {grid.times[k] for k in grid.downbeats}
@@ -53,17 +53,21 @@ def cuts(resolved: Resolved, first: int, last: int) -> list[dict[str, Any]]:
             nearest = min(range(len(grid.times)), key=lambda k: abs(grid.times[k] - at))
             row |= {"nearest_beat": nearest, "offset_ms": round((at - grid.times[nearest]) / TICKS_PER_SECOND * 1000, 2),
                     "downbeat": grid.times[nearest] in downbeats}
+        if onset_times:
+            seconds = at / TICKS_PER_SECOND
+            onset = min(onset_times, key=lambda t: abs(t - seconds))
+            row |= {"nearest_onset_seconds": round(onset, 3), "onset_offset_ms": round((seconds - onset) * 1000, 2)}
         out.append(row)
     return out
 
 
-def half_beat_rms(project: Project, resolved: Resolved, first: int, last: int) -> tuple[list[dict], float | None]:
+def half_beat_rms(mixed: np.ndarray, resolved: Resolved, first: int, last: int) -> tuple[list[dict], float | None]:
     """RMS in dBFS of the mix (both channels) on every half beat inside the span, and the
     least-squares slope of those levels in dB per beat (None with fewer than two)."""
     grid = resolved.grid
     if grid is None:
         return [], None
-    signal = mix(project, resolved).astype(np.float64)
+    signal = mixed.astype(np.float64)
     rows = []
     for k in range(len(grid.times) - 1):
         a, b = grid.times[k], grid.times[k + 1]
@@ -86,12 +90,16 @@ def half_beat_rms(project: Project, resolved: Resolved, first: int, last: int) -
 def audio_check(project: Project, name: str, start: str | None = None, end: str | None = None) -> dict[str, Any]:
     resolved = resolve(project, load_comp(project, name))
     first, last = _span(resolved, start, end)
-    rows, slope = half_beat_rms(project, resolved, first, last)
+    signal = mix(project, resolved)
+    rows, slope = half_beat_rms(signal, resolved, first, last)
+    found = onsets(signal, MIX_RATE) if resolved.sounds else []
+    span = [first / TICKS_PER_SECOND, last / TICKS_PER_SECOND]
+    inside = [round(t, 3) for t in found if span[0] <= t < span[1]]
     return {
         "comp": name,
-        "span_seconds": [round(first / TICKS_PER_SECOND, 6), round(last / TICKS_PER_SECOND, 6)],
-        "cuts": cuts(resolved, first, last),
+        "span_seconds": [round(span[0], 6), round(span[1], 6)],
+        "cuts": cuts(resolved, first, last, found),
         "rms_half_beats": rows,
         "rms_slope_db_per_beat": slope,
-        "onsets": ONSETS,
+        "onsets": {"method": METHOD, "threshold": THRESHOLD, "count": len(inside), "seconds": inside},
     }

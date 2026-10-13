@@ -435,6 +435,18 @@ field passes and one of 33 % fails, flashes whose darker image is at 0.85 are no
 and a 1-pixel checkerboard flipping in 2-pixel cells is excepted while a 4-pixel one is
 not (`tests/test_flash.py`).
 
+## Onsets: `uv run python bench/onsets.py WAV`
+
+SuperFlux (`src/lungecuta/onsets.py`) on the music sample's cache WAV (124.85 s, 48 kHz,
+resampled to 44.1 kHz inside), 2026-10-13: **862 onsets, 6.9 a second, in 0.27 s**; the
+median gap is 0.125 s, a sixteenth note at the sample's tempo of about 125 BPM, the
+smallest 0.04 s. A real song has no ground truth here, so these are a sanity check; on the
+synthetic drum track of `tests/clips.py` (four bars at 120 BPM) every kick, hat and the
+last bass note's cut-off click is found and nothing else, each 5 or 10 ms before its hit
+(`tests/test_onsets.py`). `lc audio-check check` on the Phase 0 check comp: cuts 0.5 to
+31 ms after their beats and -14 to +38 ms from their nearest onsets, 102 onsets in the
+comp's 15.9 s.
+
 ## 4K into numpy: `uv run bench/pipe_read.py CLIP 300 sw|hw`
 
 ffmpeg decode, `rgb48le` over a pipe, converted to float32 in numpy, 300 frames:

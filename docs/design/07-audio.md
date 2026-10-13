@@ -121,9 +121,17 @@ The set past edits needed, each a parameterized engine effect:
 - Written so far (`src/lungecuta/audio_check.py`): each cut's signed offset to the nearest
   beat of the grid, and the mix's RMS (before the master chain, both channels) on every
   half beat with its least-squares slope in dB per beat. The slope is reported, not
-  judged: no threshold for "the build climbs" is published or measured. The offset to the
-  nearest onset waits for an onset detector, whose method and parameters come from its
-  paper (SuperFlux, Boeck and Widmer, DAFx 2013, the candidate), not yet read.
+  judged: no threshold for "the build climbs" is published or measured. Each cut's offset
+  to the nearest onset of the mix comes from SuperFlux (`src/lungecuta/onsets.py`: S. Boeck
+  and G. Widmer, "Maximum filter vibrato suppression for onset detection", DAFx-13, read
+  2026-10-13), every parameter the paper states taken from it at its own 44.1 kHz, and
+  what it leaves out (frame placement, filter edges, edge handling, the threshold delta,
+  which it tunes per dataset) from its authors' reference implementation. Delta is that
+  program's default, 1.1, tuned there with its own peak-picking windows, so the pairing
+  with the paper's windows is unverified; on a synthetic drum track it finds every kick,
+  hat and click and nothing else, each one or two frames (5 to 10 ms) early, a lead
+  reported rather than corrected (`tests/test_onsets.py`). The filterbank built that way
+  has 139 bands where the paper says 138.
 
 ## Preview
 

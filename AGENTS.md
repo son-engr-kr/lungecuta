@@ -71,9 +71,8 @@ the Phase 0 media tests need samples of your own (see Conventions).
   the working space, `lc op transition`), precomps (`comp` layers, recursive, composited
   in the working space), layer rotation, masks (rectangles and ellipses, feathered,
   `lc op masks`), audio layer gain in dB with keys and fades, `lc audio-check` (cut
-  offsets to beats, RMS per half beat), `lc lint` (three of the review rules), `lc diff`
-  and `lc licence`. The onset detector waits for its paper, and the organization reads
-  papers through the LibKey connector, which needs the user's sign-in.
+  offsets to beats and to onsets by SuperFlux, `onsets.py`; RMS per half beat), `lc lint`
+  (three of the review rules), `lc flash`, `lc diff` and `lc licence`.
 - **What Phase 0 still needs is the person:** the Resolve checks in
   [docs/research/phase0-resolve-checks.md](docs/research/phase0-resolve-checks.md)
   (markers, in points against timecode, speed, the float WAV, the graphics card), and the

@@ -17,7 +17,12 @@ def test_cuts_are_measured_against_the_nearest_beat(cut_project):
     assert (shot1["layer"], shot1["nearest_beat"], shot1["downbeat"]) == ("shot1", 0, True)
     assert shot1["offset_ms"] == pytest.approx((8 * 1001 / 30000 - 0.25) * 1000, abs=0.01)
     assert (shot2["nearest_beat"], shot2["downbeat"]) == (4, True)
-    assert report["onsets"].startswith("not written")
+    # the hand-written music clicks on every beat: each cut's nearest onset is its beat's click
+    assert report["onsets"]["count"] >= 12 and report["onsets"]["method"].startswith("SuperFlux")
+    for cut, beat in ((shot1, 0.25), (shot2, 2.25)):
+        assert -0.010 - 1e-9 <= cut["nearest_onset_seconds"] - beat <= 1e-9  # the measured lead, two frames at most
+        assert cut["onset_offset_ms"] == pytest.approx(cut["seconds"] * 1000 - cut["nearest_onset_seconds"] * 1000,
+                                                       abs=0.01)
 
 
 def test_a_rising_mix_has_a_positive_slope(cut_project):
