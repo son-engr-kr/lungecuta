@@ -1,0 +1,87 @@
+"""The comp's sound: music layers summed at the mix rate through their gains and fades,
+mastered at a preset's targets (`audio.py`), and encoded as the preset delivers it with
+the ceiling held in the delivered file (docs/design/07-audio.md)."""
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+
+from .audio import master, true_peak_db
+from .comp import MIX_RATE, Resolved
+from .encode import Preset
+from .media import Project, music_wav
+from .music import read_wav, wav_bytes
+from .ticks import nearest_sample, ticks_per_frame
+from .tools import run, tool
+
+
+def comp_samples(resolved: Resolved) -> int:
+    """The comp's length at the mix rate, its end landing on the nearest sample."""
+    return nearest_sample(resolved.end * ticks_per_frame(resolved.rate), MIX_RATE)
+
+
+def mix(project: Project, resolved: Resolved) -> np.ndarray:
+    """The music layers summed, each through its gain and fades, frames x 2 channels at
+    48 kHz, before the master chain (float, so a sum over full scale is kept for the
+    limiter)."""
+    total = comp_samples(resolved)
+    out = np.zeros((total, 2), np.float32)
+    for sound in resolved.sounds:
+        signal, rate = read_wav(music_wav(project, sound.record))
+        assert rate == MIX_RATE and signal.shape[1] in (1, 2), f"{sound.record.key}: a {rate} Hz WAV"
+        end = min(sound.end, total)
+        piece = signal[sound.source_first:sound.source_first + end - sound.first]
+        piece = piece if piece.shape[1] == 2 else np.repeat(piece, 2, axis=1)
+        out[sound.first:end] += piece * sound.envelope()[:end - sound.first, None].astype(np.float32)
+    return out
+
+
+def mastered(project: Project, resolved: Resolved, preset: Preset) -> tuple[np.ndarray, dict[str, Any]]:
+    return master(mix(project, resolved), MIX_RATE, target_lufs=preset.loudness, ceiling_dbtp=preset.true_peak)
+
+
+DELIVERY_PASSES = 6
+PEAK_STEP = 0.01  # dB: the precision the delivered true peak is reported at
+
+
+def delivered_audio(project: Project, resolved: Resolved, preset: Preset, base: Path) -> tuple[Path, list[str], dict]:
+    """The comp's sound encoded as the preset delivers it: the file to mux, the arguments
+    that mux it, and what the master chain did.
+
+    A lossy codec raises the true peak (AAC at 256 kbps by 0.2 to 0.5 dB on the music
+    sample, `bench/master_chain.py`), and the ceiling holds for the delivered file. So
+    lossy audio is encoded on its own, decoded and measured, and mastered again under a
+    lower ceiling until the decoded file is under the preset's ceiling; then it is muxed as
+    it is. The decoded peak moves by less than the ceiling does (0.88 dB per dB on the
+    Phase 0 check comp), so each new ceiling is a secant step through the last two
+    passes, aimed one reporting step under the preset's ceiling, since a step aimed at the
+    ceiling itself only approaches it from above. 24-bit PCM is muxed from the master
+    directly."""
+    mixed = mix(project, resolved)
+    wav = base.with_name(f".{base.stem}.mix.wav")
+    lossless = preset.audio[1].startswith("pcm_")
+    ceiling, aim, previous = preset.true_peak, preset.true_peak - PEAK_STEP, None
+    for _ in range(DELIVERY_PASSES):
+        signal, chain = master(mixed, MIX_RATE, target_lufs=preset.loudness, ceiling_dbtp=ceiling)
+        wav.write_bytes(wav_bytes(signal, MIX_RATE))
+        if lossless or chain.get("silent"):
+            return wav, list(preset.audio), chain
+        encoded = base.with_name(f".{base.stem}.audio.m4a")
+        run([tool("ffmpeg"), "-v", "error", "-y", "-i", str(wav), *preset.audio, str(encoded)])
+        decoded = np.frombuffer(run([tool("ffmpeg"), "-v", "error", "-i", str(encoded), "-f", "f32le", "-"]).stdout,
+                                np.float32).reshape(-1, 2)
+        peak = true_peak_db(decoded, MIX_RATE)
+        if peak <= preset.true_peak:
+            wav.unlink()
+            return encoded, ["-c:a", "copy"], chain | {"ceiling_used": round(ceiling, 3),
+                                                       "delivered_true_peak": round(peak, 3)}
+        slope = 1.0
+        if previous is not None:
+            slope = (peak - previous[1]) / (ceiling - previous[0])
+            assert slope > 0, f"lowering the ceiling to {ceiling:.3f} did not lower the encoded peak ({peak:.3f})"
+        previous = (ceiling, peak)
+        ceiling += (aim - peak) / slope
+    raise AssertionError(f"the encoded audio stayed over {preset.true_peak} dBTP after {DELIVERY_PASSES} passes "
+                         f"(last {peak:.3f} at a ceiling of {ceiling:.3f})")

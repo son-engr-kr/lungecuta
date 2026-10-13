@@ -106,7 +106,7 @@ def test_lossy_audio_is_muxed_as_measured_and_in_time(cut_project):
     from lungecuta.audio import true_peak_db
     from lungecuta.comp import load_comp, resolve
     from lungecuta.media import Project
-    from lungecuta.render import mastered
+    from lungecuta.mixdown import mastered
 
     result = CliRunner().invoke(main, ["render", "main", "--preset", "web-h264", "--project", str(cut_project)])
     assert result.exit_code == 0, result.output
@@ -144,7 +144,7 @@ def test_a_mix_over_full_scale_is_mastered_under_the_ceiling(cut_project):
     from lungecuta.comp import load_comp, resolve
     from lungecuta.encode import PRESETS
     from lungecuta.media import Project
-    from lungecuta.render import mastered, mix
+    from lungecuta.mixdown import mastered, mix
 
     comp = comp_json()
     for k in range(4):  # the track four times over itself: its clicks sum past full scale
@@ -161,7 +161,7 @@ def test_a_mix_over_full_scale_is_mastered_under_the_ceiling(cut_project):
 def test_a_graphics_layer_is_drawn_over_the_footage_with_its_own_codes(cut_project):
     from lungecuta.comp import load_comp, resolve
     from lungecuta.media import Project
-    from lungecuta.render import frame_at
+    from lungecuta.compose import frame_at
 
     (cut_project / "graphics" / "title.html").write_text(TITLE)
     comp = comp_json()
@@ -188,7 +188,7 @@ def test_a_graphics_layer_is_drawn_over_the_footage_with_its_own_codes(cut_proje
 def test_graphics_under_footage_composite_in_the_working_space(cut_project):
     from lungecuta.comp import load_comp, resolve
     from lungecuta.media import Project
-    from lungecuta.render import frame_at
+    from lungecuta.compose import frame_at
 
     (cut_project / "graphics" / "title.html").write_text(TITLE)
     comp = comp_json()
@@ -218,7 +218,7 @@ def test_graphics_under_footage_composite_in_the_working_space(cut_project):
 def test_a_transform_places_and_animates_the_layer(cut_project):
     from lungecuta.comp import load_comp, resolve
     from lungecuta.media import Project
-    from lungecuta.render import frame_at
+    from lungecuta.compose import frame_at
 
     comp = comp_json()
     comp["layers"][1]["transform"] = {
@@ -248,7 +248,7 @@ def test_a_transform_places_and_animates_the_layer(cut_project):
 def test_a_9_16_comp_from_16_9_footage_crops_the_middle(cut_project):
     from lungecuta.comp import load_comp, resolve
     from lungecuta.media import Project
-    from lungecuta.render import frame_at
+    from lungecuta.compose import frame_at
 
     comp = comp_json(size=[40, 72])
     put_comp(cut_project, comp)
@@ -262,7 +262,7 @@ def test_a_9_16_comp_from_16_9_footage_crops_the_middle(cut_project):
 def test_overlapping_layers_composite_in_stack_order(cut_project):
     from lungecuta.comp import load_comp, resolve
     from lungecuta.media import Project
-    from lungecuta.render import composite, frame_at
+    from lungecuta.compose import composite, frame_at
 
     comp = comp_json()
     comp["layers"][2]["start"] = "b:3"  # shot2 starts a beat before shot1 ends, over it
@@ -286,7 +286,7 @@ def test_overlapping_layers_composite_in_stack_order(cut_project):
 def test_a_blend_mixes_two_frames_in_linear_light(cut_project):
     from lungecuta import color
     from lungecuta.media import Project
-    from lungecuta.render import blended
+    from lungecuta.compose import blended
 
     project = Project.load(cut_project)
     settings = project.file.color
@@ -321,7 +321,7 @@ def test_a_remapped_and_blended_comp_renders_and_verifies(cut_project, keys):
 def test_audio_gain_and_fades_shape_the_mix(cut_project):
     from lungecuta.comp import load_comp, resolve
     from lungecuta.media import Project
-    from lungecuta.render import mix
+    from lungecuta.mixdown import mix
 
     comp = comp_json()
     comp["layers"][0] |= {"start": "0.25s", "in": "0.25s", "out": "5s"}  # heard from 0.5 s, the first beat, to 5.25 s

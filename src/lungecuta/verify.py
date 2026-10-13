@@ -12,10 +12,11 @@ from typing import Any
 import numpy as np
 
 from .comp import load_comp, resolve
+from .compose import frame_at, overlay_pages
 from .decode import Layout, frame_rgb, read_raw, read_rgb
 from .encode import PRESETS
 from .media import Project
-from .render import comp_samples, frame_at, mastered, overlay_pages
+from .mixdown import comp_samples, mastered
 from .ticks import format_rate, parse_rate
 from .tools import run
 

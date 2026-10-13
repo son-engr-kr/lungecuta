@@ -34,7 +34,7 @@ def test_a_dissolve_extends_both_layers_and_ramps_the_upper_one(cut_project):
     assert (shot2.first, shot1.end) == (61, 76)
     assert shot2.ramps == ((61, 76, 0.0, 1.0),) and shot1.ramps == ()
     assert shot2.opacity_at(61) == 0 and shot2.opacity_at(66) == pytest.approx(1 / 3) and shot2.opacity_at(76) == 1
-    from lungecuta.render import frame_at
+    from lungecuta.compose import frame_at
 
     project_plain, plain = resolved(cut_project, [])
     before = {f: frame_at(project_plain, plain, f) for f in (61, 76)}

@@ -29,6 +29,7 @@ from typing import Any
 import numpy as np
 from urllib.parse import urlencode
 
+from .encode import TAGS
 from .ticks import format_rate
 from .tools import run, tool
 
@@ -38,7 +39,6 @@ CHROMIUM_ARGS = ["--use-angle=metal", "--ignore-gpu-blocklist", "--enable-gpu-ra
 READY_TIMEOUT_MS = 120_000  # what the past renderer waited for `window.ready`
 TO_YCBCR = "scale=out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int"
 # The frames carry their own colour properties into the encoder, so they are set on the frames.
-TAGS = "setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709:range=tv"
 
 
 class _Quiet(http.server.SimpleHTTPRequestHandler):

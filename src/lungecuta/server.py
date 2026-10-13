@@ -36,7 +36,7 @@ from .media import Project
 from .music import wav_bytes
 from .preview import Preview
 from .encode import PRESETS
-from .render import mastered
+from .mixdown import mastered
 from .ticks import TICKS_PER_SECOND, format_rate, ticks_per_frame
 
 WEB_DIR = Path(__file__).parent / "web"

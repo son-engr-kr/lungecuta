@@ -36,7 +36,7 @@ the Phase 0 media tests need samples of your own (see Conventions).
 - **M2 has started**: `lc render` renders Phase 0's comp format (one picture track of cuts
   at constant speed, music) to `master-prores-hq`, `web-h264`, `web-hevc10` or `prores-4444-alpha`
   (straight alpha, no audio) with a version manifest,
-  and `lc verify` checks a render against its comp (`render.py`, `encode.py`,
+  and `lc verify` checks a render against its comp (`compose.py`, `mixdown.py`, `render.py`, `encode.py`,
   `verify.py`), with layer transforms and eased keyframes (`keyframes.py`, `geometry.py`),
   overlapping layers composited in stack order, graphics layers as top overlays (also
   written to FCPXML as ProRes 4444), frames rendered several at a time, time remap keys

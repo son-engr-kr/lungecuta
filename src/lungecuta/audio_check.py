@@ -22,7 +22,7 @@ import numpy as np
 from .comp import MIX_RATE, Resolved, load_comp, resolve
 from .literals import Field, parse_literal, resolve_position
 from .media import Project
-from .render import mix
+from .mixdown import mix
 from .ticks import TICKS_PER_SECOND, ticks_per_frame
 
 ONSETS = "not written: the onset detector waits for its paper (SuperFlux, Boeck and Widmer, DAFx 2013)"

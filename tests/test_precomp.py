@@ -9,7 +9,7 @@ from clips import TITLE, comp_json, put_comp
 from lungecuta.cli import main
 from lungecuta.comp import load_comp, resolve
 from lungecuta.media import Project
-from lungecuta.render import frame_at
+from lungecuta.compose import frame_at
 
 
 def inner(rate="30000/1001", **changes):

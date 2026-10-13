@@ -27,7 +27,7 @@ from .files import content_hash, content_hash_text
 from .geometry import mask_alpha, place
 from .media import Project
 from .schema.comp import StyleTime
-from .render import composite_alpha, shown
+from .compose import composite_alpha, shown
 from .ticks import ticks_per_frame
 
 VIEWER_DISPLAY = "sRGB - Display"  # what Chrome expects, encoding the same light (01-architecture.md)

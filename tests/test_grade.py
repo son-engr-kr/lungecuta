@@ -94,7 +94,7 @@ def test_grade_ops_are_checked():
 
 def test_a_graded_layer_renders_brighter_and_validate_builds_grades(cut_project):
     from lungecuta.comp import load_comp, resolve
-    from lungecuta.render import frame_at
+    from lungecuta.compose import frame_at
 
     project = Project.load(cut_project)
     before = frame_at(project, resolve(project, load_comp(project, "main")), 20)

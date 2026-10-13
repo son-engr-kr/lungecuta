@@ -206,7 +206,7 @@ def test_audio_gain_takes_keys_and_fades_take_spans(cut_project):
 
 def test_a_rotation_key_turns_the_rendered_layer(cut_project):
     from lungecuta.comp import load_comp, resolve
-    from lungecuta.render import frame_at
+    from lungecuta.compose import frame_at
 
     project = Project.load(cut_project)
     still = frame_at(project, resolve(project, load_comp(project, "main")), 30)
