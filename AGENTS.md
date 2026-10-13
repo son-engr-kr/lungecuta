@@ -63,7 +63,10 @@ the Phase 0 media tests need samples of your own (see Conventions).
   node graph, the graph editor for transform curves.
 - **The agent sees a comp without rendering it**: `lc still COMP --at P`, `lc sheet COMP
   --every b:1` and `lc scope COMP --at P` show the frame the render delivers, labelled with
-  its beat and the layers on screen (`look.py`).
+  its beat and the layers on screen (`look.py`). `lc init` writes a project's own
+  `AGENTS.md` and `CLAUDE.md`, the guide Codex and Claude Code read there, and
+  `lc guide --write` updates it (`guide.py`); keep it in step with the CLI, which
+  `tests/test_guide.py` checks.
 - **M5 and M7 have started**: transitions (`dissolve`, `dip`, `fade_in`, `fade_out` in
   the working space, `lc op transition`), precomps (`comp` layers, recursive, composited
   in the working space), layer rotation, masks (rectangles and ellipses, feathered,

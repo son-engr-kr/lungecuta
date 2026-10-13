@@ -4,6 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .files import json_text, write_atomic
+from .guide import write_guide
 from .schema import ColorSettings, ProjectFile
 
 PROJECT_FILE = "project.json"
@@ -44,6 +45,7 @@ def init_project(directory: Path) -> Path:
     write_atomic(directory / PROJECT_FILE, json_text(new_project().model_dump(mode="json")))
     write_atomic(directory / ROOTS_FILE, json_text({}))
     write_atomic(directory / ".gitignore", GITIGNORE)
+    write_guide(directory)
     return directory.resolve()
 
 

@@ -10,7 +10,8 @@ server, if one is added, is a thin wrapper over the same commands.
 
 | command | output |
 | --- | --- |
-| `lc init DIR` | a new project directory: `project.json` with the colour defaults of [03-project-format.md](03-project-format.md#projectjson), `proxy_height` 540, `media_roots` `[]`, `comps` `[]`, `deliver` `[]`; empty `media/`, `comps/`, `grades/`, `styles/`, `graphics/`, `luts/`, `cache/`; `roots.local.json` `{}` and a `.gitignore` naming it and `cache/`; refuses a non-empty directory. The `.lc` suffix is a convention, not required |
+| `lc init DIR` | a new project directory: `project.json` with the colour defaults of [03-project-format.md](03-project-format.md#projectjson), `proxy_height` 540, `media_roots` `[]`, `comps` `[]`, `deliver` `[]`; empty `media/`, `comps/`, `grades/`, `styles/`, `graphics/`, `luts/`, `cache/`; `roots.local.json` `{}` and a `.gitignore` naming it and `cache/`; the agent guide (`AGENTS.md`, `CLAUDE.md`); refuses a non-empty directory. The `.lc` suffix is a convention, not required |
+| `lc guide [--write]` | the guide a coding agent reads in a project (below); `--write` puts it into the project's `AGENTS.md` between its markers and makes `CLAUDE.md` import it |
 | `lc import FILES...` | media records, one file each under `media/`: probe, rates and timecode, colour decision with evidence, decoder check, proxy, PCM WAV and beat map for music. Each file must lie under a root named with `--root NAME` |
 | `lc beats KEY` | runs the beat analysis of a music record again on its WAV and writes the new times only if every beat and downbeat index is kept; otherwise lists the inserted and removed beats and exits with status 1, and `--replace` applies it anyway ([03-project-format.md](03-project-format.md#beat-maps)) |
 | `lc root NAME DIR` | lists media root NAME in `project.json` and places it at DIR in `roots.local.json` |
@@ -55,6 +56,19 @@ server, if one is added, is a thin wrapper over the same commands.
 - **Schemas:** `lc schema --write` regenerates `schema/*.json` from the pydantic models; a
   test fails when the committed files differ. In Phase 0 the schema covers `project.json`,
   media records and `roots.local.json`; comps, styles and grades follow in M0 and M2.
+
+### Working in a project with Claude Code or Codex
+
+An agent opened in a project directory reads its instructions from a file there: Codex
+from `AGENTS.md`, Claude Code from `CLAUDE.md`, which can import another file with
+`@AGENTS.md`. `lc init` writes both, so the agent arrives knowing the project's files, the
+time literals, the steps of every edit (`lc changes` first, `lc op` where it can, look
+with `lc still`, `lc sheet` and `lc scope`, check with `lc audio-check` and `lc lint`,
+deliver with `lc render`, `lc verify` and `lc flash`) and what it cannot judge. The
+guide sits between two markers in `AGENTS.md`; `lc guide --write` replaces it with the
+installed version's and keeps whatever the person wrote outside them, and a test fails
+when the guide names a command or an `lc op` operation the CLI does not have
+(`src/lungecuta/guide.py`, `tests/test_guide.py`).
 
 ### Scope numbers
 

@@ -23,6 +23,8 @@ myedit.lc/
   roots.local.json      where this machine keeps each media root; never committed
   cache/                proxies, rendered frames, analysis, the UI journal; never committed
   .gitignore            written by lc init: cache/ and roots.local.json
+  AGENTS.md             the guide a coding agent reads (Codex), written by lc init and lc guide
+  CLAUDE.md             imports AGENTS.md, for Claude Code
 ```
 
 Splitting comps and styles into their own files keeps an agent's edit small and its diff

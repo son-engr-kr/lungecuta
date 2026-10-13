@@ -7,48 +7,31 @@ from typing import Any
 
 import click
 
+from . import journal, ops
+from .beats import reanalyse
 from .detect import detect as detect_clip
+from .encode import PRESETS
 from .fcpxml import export as export_fcpxml
 from .files import json_text, write_atomic
-from .beats import reanalyse
-from . import journal, ops
+from .graphics import render as render_graphic
 from .media import Project, import_file, relink as relink_root, set_root, summary
+from .patches import read_patches, write_card
 from .probe import probe
 from .project import find_project, init_project
 from .render import render as render_comp
-from .verify import verify as verify_render
-from .encode import PRESETS
-from .ticks import parse_rate
 from .schema import SCHEMAS, schema_text
-from .graphics import render as render_graphic
-from .patches import read_patches, write_card
 from .scope import scope as scope_frame
 from .sheet import COLUMNS, ROWS
 from .sheet import sheet as contact_sheet
 from .still import still as still_frame
+from .ticks import parse_rate
 from .validate import validate as validate_project
+from .verify import verify as verify_render
 
 
 def _print_json(data: Any) -> None:
     """Numbers and paths go to stdout as one JSON object, so an agent can parse them."""
     click.echo(json.dumps(data, ensure_ascii=False))
-
-
-@click.group()
-def main() -> None:
-    """lungecuta: edit short, music-driven pieces shot in log, with an AI agent."""
-
-
-@main.command()
-@click.argument("directory", type=click.Path(file_okay=False, path_type=Path))
-def init(directory: Path) -> None:
-    """Create a new project in DIRECTORY, which must be empty or not exist yet.
-
-    Writes project.json with the colour defaults, roots.local.json (empty) and a
-    .gitignore for it and cache/, and the empty media/, comps/, grades/, styles/,
-    graphics/, luts/ and cache/ directories. The .lc suffix is a convention only.
-    """
-    _print_json({"project": str(init_project(directory))})
 
 
 def _project(directory: Path | None) -> Project:
@@ -67,6 +50,41 @@ _project_option = click.option(
 _threads_option = click.option(
     "--threads", type=click.IntRange(min=1), help="OpenColorIO threads; by default the machine's core count."
 )
+
+
+@click.group()
+def main() -> None:
+    """lungecuta: edit short, music-driven pieces shot in log, with an AI agent."""
+
+
+@main.command()
+@click.argument("directory", type=click.Path(file_okay=False, path_type=Path))
+def init(directory: Path) -> None:
+    """Create a new project in DIRECTORY, which must be empty or not exist yet.
+
+    Writes project.json with the colour defaults, roots.local.json (empty) and a
+    .gitignore for it and cache/, the empty media/, comps/, grades/, styles/,
+    graphics/, luts/ and cache/ directories, and the guide a coding agent reads
+    (AGENTS.md for Codex, CLAUDE.md importing it for Claude Code; see lc guide). The
+    .lc suffix is a convention only.
+    """
+    _print_json({"project": str(init_project(directory))})
+
+
+@main.command()
+@click.option("--write", is_flag=True, help="Write the guide into the project instead of printing it.")
+@_project_option
+def guide(write: bool, project_dir: Path | None) -> None:
+    """The guide a coding agent reads in a project: its files, time literals, the steps of
+    every edit and the commands that check them. --write puts it into the project's
+    AGENTS.md (read by Codex) between its markers, keeping the rest of the file, and makes
+    CLAUDE.md import AGENTS.md (read by Claude Code); lc init already does this."""
+    from .guide import guide_text, write_guide
+
+    if write:
+        _print_json(write_guide(find_project(project_dir or Path.cwd())))
+    else:
+        _print_json({"guide": guide_text()})
 
 
 @main.command()

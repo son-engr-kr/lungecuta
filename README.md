@@ -24,7 +24,8 @@ design are in [bench/RESULTS.md](bench/RESULTS.md).
 ## Phase 0 tools
 
 ```
-lc init DIR                         a new project
+lc init DIR                         a new project, with AGENTS.md and CLAUDE.md for a coding agent
+lc guide [--write]                  that guide, printed or brought up to date in a project
 lc root NAME DIR                    where a media root is on this machine
 lc relink --root NAME DIR           find a root's moved files by size and hash
 lc import FILES --root NAME         media records: colour and time decisions with evidence,
