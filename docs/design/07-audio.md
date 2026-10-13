@@ -90,6 +90,16 @@ The set past edits needed, each a parameterized engine effect:
   layer emits (a typed character, a flash). This replaces the old `cue()` file that the
   renderer wrote and the audio builder read back.
 
+Written so far: `lc import FILES --root R --sound` imports sound alone as a sound, its WAV
+decoded as music's is and no beat map found, so it never feeds the beat grid. An audio
+layer's `anchor` (`start`, the default, `peak` or `rise`) is the point of the sound that
+lands on its `start`, the sound beginning that much earlier and its pre-roll before the
+comp's start cut. `peak` is its loudest sample on either channel; `rise` is the steepest
+rise of its 2 ms envelope, the moving mean over 96 samples of the channels' mean
+magnitude, searched over the first 0.6 s, the definition a past project's audio builder
+used (`src/lungecuta/comp.py`). Music is placed by its start. Pools and placement on
+events are not written yet.
+
 ## Music editing
 
 - Music is cut on bars of its beat map into several audio layers, with short crossfades

@@ -240,5 +240,5 @@ class MediaRecord(_Record):
             assert all(part is None for part in video) and self.proxy is None, (
                 f"{self.key}: a file without video has no time, color, decode or proxy"
             )
-            assert self.wav is not None and self.beats is not None, f"{self.key}: music needs its wav and beats"
+            assert self.wav is not None, f"{self.key}: a file without video needs its wav"  # music has beats too
         return self

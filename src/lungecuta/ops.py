@@ -657,8 +657,9 @@ def _describe(grade: list[dict] | dict) -> str:
 
 def place(project: Project, name: str, media: str, at: str, expect: str | None = None) -> dict[str, Any]:
     """Put media on the comp at position `at`, on top of the stack: footage from its first
-    frame for as long as it lasts, music from its first sample. The layer is named after
-    the media (with `.2`, `.3` for more). Music goes in as an audio layer at unity gain."""
+    frame for as long as it lasts, music or a sound from its first sample. The layer is
+    named after the media (with `.2`, `.3` for more). Sound goes in as an audio layer at
+    unity gain."""
     edit = Edit.open(project, name, expect)
     record = load_record(project, media)
     taken = {layer["id"] for layer in edit.data["layers"]}
@@ -666,15 +667,15 @@ def place(project: Project, name: str, media: str, at: str, expect: str | None =
     start = resolve_position(parse_literal(at, Field.POSITION), rate=edit.rate, grid=edit.grid)
     end = resolve_position(parse_literal(edit.data["end"], Field.POSITION), rate=edit.rate, grid=edit.grid)
     assert start < end, f"{at} is at or after the comp's end ({edit.data['end']})"
-    if record.beats is not None:
+    if record.wav is not None:
         seconds = Fraction(record.wav.samples, record.wav.rate)
     else:
         video = record.probe.video
-        assert video is not None, f"{media} has neither video nor a beat map"
+        assert video is not None, f"{media} has neither video nor sound"
         seconds = Fraction(video.frames) / parse_rate(record.time.rate)
     # As long as the media lasts, cut off at the comp's end: whole comp frames from the start.
     frames = min(int(seconds * edit.rate), (end - start) // ticks_per_frame(edit.rate))
-    kind, source = ("audio", "0s") if record.beats is not None else ("footage", "f:0")
+    kind, source = ("audio", "0s") if record.wav is not None else ("footage", "f:0")
     layer = {"id": layer_id, "type": kind, "media": media, "start": at, "source_start": source, "out": f"f:{frames}"}
     graphics = [k for k, other in enumerate(edit.data["layers"]) if other["type"] == "graphics"]
     # Footage goes under the graphics (they are top overlays); everything else on top.

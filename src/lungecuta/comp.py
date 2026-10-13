@@ -3,6 +3,7 @@ footage layer's visible frames and the source frames they show, each audio layer
 samples, and its markers (docs/design/03-project-format.md)."""
 from __future__ import annotations
 
+import functools
 import math
 from collections.abc import Iterator
 from dataclasses import dataclass, replace
@@ -23,7 +24,7 @@ from .literals import (
     resolve_source,
     resolve_span,
 )
-from .media import Project, load_record
+from .media import Project, load_record, music_wav
 from .keyframes import Track
 from .schema.comp import (
     AudioLayer,
@@ -363,10 +364,39 @@ def _music_source(layer: AudioLayer) -> int:
     return literal.ticks
 
 
-def _music_record(project: Project, layer: AudioLayer) -> MediaRecord:
+def _audio_record(project: Project, layer: AudioLayer) -> MediaRecord:
     record = load_record(project, layer.media)
-    assert record.beats is not None and record.wav is not None, f"layer {layer.id}: {layer.media} is not music"
+    assert record.wav is not None, f"layer {layer.id}: {layer.media} has no sound"
     return record
+
+
+def _music_record(project: Project, layer: AudioLayer) -> MediaRecord:
+    record = _audio_record(project, layer)
+    assert record.beats is not None, f"layer {layer.id}: {layer.media} is a sound with no beat map, not music"
+    return record
+
+
+SEARCH_SECONDS = 0.6  # a sound's rise is looked for in its first 0.6 s (a past project's audio builder)
+
+
+@functools.lru_cache(maxsize=256)
+def anchor_samples(wav: Path, kind: str, digest: str) -> int:
+    """Where a sound's anchor is, in samples from its first (07-audio.md, SFX placement):
+    `peak`, its loudest sample on either channel; `rise`, the steepest rise of its 2 ms
+    envelope, the moving mean of the channels' mean magnitude over 96 samples (2 ms at
+    48 kHz) centred on each sample, searched over its first 0.6 s, the definition a past
+    project's audio builder settled on, since impact files carry a pre-swell. `digest` is
+    the WAV's hash, for the cache."""
+    from .music import read_wav
+
+    signal, rate = read_wav(wav)
+    if kind == "peak":
+        return int(np.abs(signal).max(axis=1).argmax())
+    assert kind == "rise", f"unknown anchor {kind!r}"
+    window = round(0.002 * rate)
+    magnitude = np.abs(signal).mean(axis=1)[:round(SEARCH_SECONDS * rate)]
+    envelope = np.convolve(magnitude, np.ones(window) / window, mode="same")
+    return int(np.argmax(np.diff(envelope)))
 
 
 def beat_grid(project: Project, comp: CompFile, rate: Fraction) -> BeatGrid | None:
@@ -608,8 +638,13 @@ def _transitions(comp: CompFile, cuts: list[Cut], rate: Fraction, grid: BeatGrid
 
 
 def _sound(project: Project, layer: AudioLayer, rate: Fraction, grid: BeatGrid | None) -> Sound:
-    record = _music_record(project, layer)
+    record = _audio_record(project, layer)
     start, visible_in, visible_out = _placed(layer, rate, grid)
+    if layer.anchor != "start":  # `start` is where the anchor lands: the sound begins that much before
+        assert record.beats is None, f"layer {layer.id}: music is placed by its start, not a {layer.anchor}"
+        offset = anchor_samples(music_wav(project, record), layer.anchor, record.wav.hash) * ticks_per_sample(MIX_RATE)
+        start, visible_in, visible_out = start - offset, max(0, visible_in - offset), visible_out - offset
+        assert visible_in < visible_out, f"layer {layer.id} plays nothing after its pre-roll is cut"
     source = _music_source(layer)
     first, end = nearest_sample(visible_in, MIX_RATE), nearest_sample(visible_out, MIX_RATE)
     at_in = source + visible_in - start

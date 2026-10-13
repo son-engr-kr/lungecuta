@@ -267,6 +267,9 @@ class AudioLayer(_MediaLayer):
                                 "rises from silence (linear in amplitude)", json_schema_extra={"x-time": "layer"})
     fade_out: str | None = Field(default=None, description="a span before the visible out point over which it "
                                  "falls to silence (linear in amplitude)", json_schema_extra={"x-time": "layer"})
+    anchor: Literal["start", "peak", "rise"] = Field(
+        default="start", description="the point of the sound that lands on `start`: its first sample, its loudest, or "
+        "the steepest rise of its 2 ms envelope (07-audio.md, SFX placement); pre-roll before the comp's start is cut")
 
     @model_validator(mode="after")
     def _gain(self) -> AudioLayer:

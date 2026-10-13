@@ -88,7 +88,7 @@ def original(project: Project, record: MediaRecord) -> Path:
     return path
 
 
-def import_file(project: Project, file: Path, *, root: str, key: str | None = None) -> MediaRecord:
+def import_file(project: Project, file: Path, *, root: str, key: str | None = None, sound: bool = False) -> MediaRecord:
     file = file.resolve()
     assert file.is_file(), f"{file} is not a file"
     key = key or file.stem
@@ -108,8 +108,9 @@ def import_file(project: Project, file: Path, *, root: str, key: str | None = No
         probe=probed, derived_from=None,
     )
     if video is None:
-        record = _music(project, file, key, probed, common)
+        record = _music(project, file, key, probed, common, sound)
     else:
+        assert not sound, f"{file.name} has video; only a file of sound alone imports as a sound"
         detection = detect(file, probed)
         decode = decoder_check(file, pix_fmt=video.pix_fmt, frames=video.frames)
         proxy = _proxy(project, file, key, detection.color, video)
@@ -120,11 +121,13 @@ def import_file(project: Project, file: Path, *, root: str, key: str | None = No
     return record
 
 
-def _music(project: Project, file: Path, key: str, probed: Probe, common: dict[str, Any]) -> MediaRecord:
-    """A file without video is music: decoded once to the WAV, and its beat map found in it."""
+def _music(project: Project, file: Path, key: str, probed: Probe, common: dict[str, Any],
+           sound: bool = False) -> MediaRecord:
+    """A file without video is music, decoded once to the WAV and its beat map found in it;
+    or, asked for, a sound (an effect, a voice) decoded the same way with no beat map."""
     assert len(probed.audio) == 1, f"{file.name} has {len(probed.audio)} audio streams; music has one"
     wav, signal = music.write_wav(project.directory, key, file, probed.audio[0])
-    beats = music.analyse(signal, wav.rate)
+    beats = None if sound else music.analyse(signal, wav.rate)
     return MediaRecord(**common, time=None, color=None, decode=None, proxy=None, wav=wav, beats=beats)
 
 
@@ -186,6 +189,9 @@ def summary(record: MediaRecord) -> dict[str, Any]:
             "tempo": music.tempo(record.beats),
             "peak": record.wav.peak,
         }
+    if record.wav is not None:
+        return {"key": record.key, "wav": record.wav.path, "sound": True, "seconds": record.wav.samples / record.wav.rate,
+                "peak": record.wav.peak}
     return {
         "key": record.key,
         "color": record.color.status,

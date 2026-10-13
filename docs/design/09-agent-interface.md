@@ -19,7 +19,7 @@ that fails returns its error and traceback as the tool's error; the server keeps
 | `lc commands` | every command as data: its summary, arguments and options (flags, types, defaults, choices, whether required), the `op` group's operations among them, so an agent reads the CLI without parsing help text |
 | `lc mcp [--project DIR]` | every command above (but `serve`) as an MCP tool on stdio, defaulting to the project; the guide is the server's instructions; a project's `.mcp.json` starts it for Claude Code |
 | `lc guide [--write]` | the guide a coding agent reads in a project (below); `--write` puts it into the project's `AGENTS.md` between its markers and makes `CLAUDE.md` import it |
-| `lc import FILES...` | media records, one file each under `media/`: probe, rates and timecode, colour decision with evidence, decoder check, proxy, PCM WAV and beat map for music. Each file must lie under a root named with `--root NAME` |
+| `lc import FILES...` | media records, one file each under `media/`: probe, rates and timecode, colour decision with evidence, decoder check, proxy, PCM WAV and beat map for music, or with `--sound` a PCM WAV and no beat map (effects, voices). Each file must lie under a root named with `--root NAME` |
 | `lc beats KEY` | runs the beat analysis of a music record again on its WAV and writes the new times only if every beat and downbeat index is kept; otherwise lists the inserted and removed beats and exits with status 1, and `--replace` applies it anyway ([03-project-format.md](03-project-format.md#beat-maps)) |
 | `lc root NAME DIR` | lists media root NAME in `project.json` and places it at DIR in `roots.local.json` |
 | `lc relink --root NAME DIR` | finds missing media under a new directory by size, then hash, and points the root or the record at it |
@@ -35,7 +35,7 @@ that fails returns its error and traceback as the tool's error; the server keeps
 | `lc graphic PAGE --size WxH --rate R --frames N --out F.mov` | a web page with the past pages' contract (`window.ready`, `window.renderAt(t)`) rendered frame by frame to ProRes 4444 with alpha, BT.709 limited range, tagged 1-1-1; the page is served only its own directory (Phase 0's graphics, [05-motion-graphics.md](05-motion-graphics.md#phase-0-graphics-for-resolve)) |
 | `lc patch-card DIR --size WxH --rate R` | a card of 27 known colour patches as `card.json`, `card.html` and `card.mov`, its own file read back first |
 | `lc patches FILE --card card.json --at N` | the mean R'G'B' of each patch's middle in a frame of FILE (an export from Resolve), against the card's codes |
-| `lc lint COMP` | taste and rights rules (below) as warnings. Written so far: graphics on screen at least `lint.graphics_min_seconds`, no source frame shown by two layers, a licence record on every music file (`lc licence KEY --name --source --checked`); the report lists the rules not checked yet |
+| `lc lint COMP` | taste and rights rules (below) as warnings. Written so far: graphics on screen at least `lint.graphics_min_seconds`, no source frame shown by two layers, a licence record on every music file and sound (`lc licence KEY --name --source --checked`), the same sound not twice in a row; the report lists the rules not checked yet |
 | `lc scope COMP --at P` / `lc scope --media KEY --at f:N` | waveform, RGB parade and vectorscope images, plus the numbers defined below: one PNG with the luma waveform and the vectorscope above and the parade below, from the frame `lc still` gives at the same size |
 | `lc audio-check COMP [--from P --to P]` | integrated and per-section loudness, true peak, spectrogram image, cue alignment. Written so far: every cut's offset in ms to the nearest beat (and whether it is a downbeat) and to the nearest onset of the mix (SuperFlux), the onsets in the span, the mix's RMS per half beat with its slope in dB per beat ([07-audio.md](07-audio.md#analysis-and-checks)) |
 | `lc render COMP --preset P` | the deliverable, with `FILE.manifest.json` (comp and media hashes, colour settings, versions); in its first form Phase 0's part of the comp format: one picture track of cuts at constant speed, music mixed at unity gain, presets `master-prores-hq` and `web-h264` |
@@ -137,7 +137,7 @@ until the user chooses otherwise.
 | text cards are readable | a text layer is on screen at least 0.6 s |
 | flashes are not strobing | no more than three general flashes a second over a quarter of a 10 degree field (`lc flash` on the render) |
 | montage shots do not repeat | no source range is used twice in a comp |
-| SFX vary | the same sample is not on consecutive cuts |
+| SFX vary | the same sound is not on two consecutive sound layers (`lint.sfx_vary`) |
 | no dead gap before the hit | no silence or black between the crescendo and the hit marker |
 | on-screen claims have sources | a text layer containing a number carries a `source` note |
 | fonts are licensed | every font used is in the font registry with a licence that allows it (SF Pro was dropped for this reason) |

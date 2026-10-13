@@ -35,7 +35,9 @@ class LintSettings(BaseModel):
                                                "least this long (text cards are readable)")
     repeated_source: bool = Field(default=True, description="no source frame is shown by two layers (montage "
                                   "shots do not repeat)")
-    music_licence: bool = Field(default=True, description="every music file in a comp carries a licence record")
+    music_licence: bool = Field(default=True, description="every music file and sound in a comp carries a licence "
+                                "record")
+    sfx_vary: bool = Field(default=True, description="the same sound is not on two consecutive sound layers")
 
 
 class ProjectFile(BaseModel):

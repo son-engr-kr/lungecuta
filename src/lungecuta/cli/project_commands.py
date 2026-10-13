@@ -98,13 +98,15 @@ def relink(name: str, place: Path, project_dir: Path | None) -> None:
 @click.argument("files", nargs=-1, required=True, type=click.Path(exists=True, dir_okay=False, path_type=Path))
 @click.option("--root", "root_name", required=True, help="The media root the files lie under.")
 @click.option("--key", help="The media key, for a single file whose stem is taken already.")
+@click.option("--sound", is_flag=True, help="Files of sound alone are sounds (effects, voices): their WAV, no beat map.")
 @project_option
-def import_(files: tuple[Path, ...], root_name: str, key: str | None, project_dir: Path | None) -> None:
+def import_(files: tuple[Path, ...], root_name: str, key: str | None, sound: bool, project_dir: Path | None) -> None:
     """Import FILES as media records under media/: probe, rates and timecode, colour
-    decision with evidence, decoder check, proxy with its parity test."""
+    decision with evidence, decoder check, proxy with its parity test; music decoded to
+    a 48 kHz WAV with its beat map, or with --sound without one."""
     assert key is None or len(files) == 1, "--key names one file"
     project = project_of(project_dir)
-    imported = [summary(import_file(project, file, root=root_name, key=key)) for file in files]
+    imported = [summary(import_file(project, file, root=root_name, key=key, sound=sound)) for file in files]
     print_json({"imported": imported})
 
 

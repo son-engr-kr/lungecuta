@@ -61,8 +61,14 @@
         },
         "music_licence": {
           "default": true,
-          "description": "every music file in a comp carries a licence record",
+          "description": "every music file and sound in a comp carries a licence record",
           "title": "Music Licence",
+          "type": "boolean"
+        },
+        "sfx_vary": {
+          "default": true,
+          "description": "the same sound is not on two consecutive sound layers",
+          "title": "Sfx Vary",
           "type": "boolean"
         }
       },

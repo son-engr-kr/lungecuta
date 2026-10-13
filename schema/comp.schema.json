@@ -90,6 +90,17 @@
           "description": "a span before the visible out point over which it falls to silence (linear in amplitude)",
           "title": "Fade Out",
           "x-time": "layer"
+        },
+        "anchor": {
+          "default": "start",
+          "description": "the point of the sound that lands on `start`: its first sample, its loudest, or the steepest rise of its 2 ms envelope (07-audio.md, SFX placement); pre-roll before the comp's start is cut",
+          "enum": [
+            "start",
+            "peak",
+            "rise"
+          ],
+          "title": "Anchor",
+          "type": "string"
         }
       },
       "required": [
