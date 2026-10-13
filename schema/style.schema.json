@@ -1,0 +1,148 @@
+{
+  "$defs": {
+    "Param": {
+      "additionalProperties": false,
+      "properties": {
+        "default": {
+          "type": "number",
+          "title": "Default"
+        },
+        "min": {
+          "title": "Min",
+          "type": "number"
+        },
+        "max": {
+          "title": "Max",
+          "type": "number"
+        }
+      },
+      "required": [
+        "default",
+        "min",
+        "max"
+      ],
+      "title": "Param",
+      "type": "object"
+    },
+    "StyleKey": {
+      "additionalProperties": false,
+      "description": "A key at a time relative to the style's anchor (negative before it).",
+      "properties": {
+        "at": {
+          "description": "a span from the anchor, negative before it",
+          "title": "At",
+          "type": "string",
+          "x-time": "style"
+        },
+        "v": {
+          "title": "V",
+          "type": "number"
+        },
+        "ease": {
+          "anyOf": [
+            {
+              "enum": [
+                "in",
+                "out",
+                "in_out",
+                "hold"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ease"
+        }
+      },
+      "required": [
+        "at",
+        "v"
+      ],
+      "title": "StyleKey",
+      "type": "object"
+    },
+    "Tracks": {
+      "additionalProperties": false,
+      "properties": {
+        "speed": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/StyleKey"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "source seconds per layer second; 1 outside the track",
+          "title": "Speed"
+        },
+        "scale": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/StyleKey"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "a multiplier on the layer's scale; 1 outside the track",
+          "title": "Scale"
+        }
+      },
+      "title": "Tracks",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "anchor": {
+      "const": "beat",
+      "description": "a style is placed at a beat literal, `at` on its layer",
+      "title": "Anchor",
+      "type": "string"
+    },
+    "params": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Param"
+      },
+      "propertyNames": {
+        "const": "intensity"
+      },
+      "title": "Params",
+      "type": "object"
+    },
+    "tracks": {
+      "$ref": "#/$defs/Tracks"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "anchor",
+    "tracks"
+  ],
+  "title": "StyleFile",
+  "type": "object"
+}

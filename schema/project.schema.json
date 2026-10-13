@@ -1,0 +1,128 @@
+{
+  "$defs": {
+    "ColorSettings": {
+      "additionalProperties": false,
+      "description": "The OpenColorIO config and the colour spaces a project renders through.",
+      "properties": {
+        "config": {
+          "title": "Config",
+          "type": "string"
+        },
+        "working": {
+          "title": "Working",
+          "type": "string"
+        },
+        "linear": {
+          "title": "Linear",
+          "type": "string"
+        },
+        "display": {
+          "title": "Display",
+          "type": "string"
+        },
+        "view": {
+          "title": "View",
+          "type": "string"
+        }
+      },
+      "required": [
+        "config",
+        "working",
+        "linear",
+        "display",
+        "view"
+      ],
+      "title": "ColorSettings",
+      "type": "object"
+    },
+    "LintSettings": {
+      "additionalProperties": false,
+      "description": "`lc lint`'s thresholds (09-agent-interface.md, Lint), each from the past projects'\nreview rules; `null` or `false` turns a rule off.",
+      "properties": {
+        "graphics_min_seconds": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 0.6,
+          "description": "a graphics layer is on screen at least this long (text cards are readable)",
+          "title": "Graphics Min Seconds"
+        },
+        "repeated_source": {
+          "default": true,
+          "description": "no source frame is shown by two layers (montage shots do not repeat)",
+          "title": "Repeated Source",
+          "type": "boolean"
+        },
+        "music_licence": {
+          "default": true,
+          "description": "every music file in a comp carries a licence record",
+          "title": "Music Licence",
+          "type": "boolean"
+        }
+      },
+      "title": "LintSettings",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "`project.json`: settings, colour management, media roots and the comp index.",
+  "properties": {
+    "format": {
+      "const": 1,
+      "title": "Format",
+      "type": "integer"
+    },
+    "color": {
+      "$ref": "#/$defs/ColorSettings"
+    },
+    "media_roots": {
+      "description": "names of the media roots the project uses; roots.local.json places them",
+      "items": {
+        "pattern": "^[a-z][a-z0-9-]*$",
+        "type": "string"
+      },
+      "title": "Media Roots",
+      "type": "array"
+    },
+    "comps": {
+      "items": {
+        "pattern": "^comps/[A-Za-z0-9._-]+\\.json$",
+        "type": "string"
+      },
+      "title": "Comps",
+      "type": "array"
+    },
+    "proxy_height": {
+      "description": "proxy height in lines of the coded frame",
+      "exclusiveMinimum": 0,
+      "title": "Proxy Height",
+      "type": "integer"
+    },
+    "deliver": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Deliver",
+      "type": "array"
+    },
+    "lint": {
+      "$ref": "#/$defs/LintSettings"
+    }
+  },
+  "required": [
+    "format",
+    "color",
+    "media_roots",
+    "comps",
+    "proxy_height",
+    "deliver"
+  ],
+  "title": "ProjectFile",
+  "type": "object"
+}

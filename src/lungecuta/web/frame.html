@@ -1,0 +1,32 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>graphics</title>
+<style>html,body{margin:0;background:transparent;overflow:hidden}iframe{border:0;position:absolute;left:0;top:0;width:100%;height:100%;background:transparent}</style>
+</head><body>
+<iframe id="page" allowtransparency="true"></iframe>
+<script>
+// Served from the graphics origin, not the editor's: it holds a project's graphics page and
+// passes the editor's "draw layer time t" on to the page's renderAt, which the editor cannot
+// call across origins. The page's contract is the past projects': window.ready and
+// window.renderAt(t) (docs/design/05-motion-graphics.md).
+const query = new URLSearchParams(location.search);
+const page = document.getElementById("page");
+const params = query.get("params");
+page.src = query.get("page") + (params ? "?params=" + encodeURIComponent(params) : "");
+let ready = false;
+let pending = null;
+function waitForPage() {
+  if (page.contentWindow && page.contentWindow.ready === true) {
+    ready = true;
+    parent.postMessage({ lc: "ready", id: query.get("id") }, "*");
+    if (pending !== null) page.contentWindow.renderAt(pending);
+  } else {
+    setTimeout(waitForPage, 20);
+  }
+}
+page.addEventListener("load", waitForPage);
+window.addEventListener("message", (event) => {
+  if (!event.data || event.data.lc !== "at") return;
+  if (ready) page.contentWindow.renderAt(event.data.t);
+  else pending = event.data.t;
+});
+</script></body></html>

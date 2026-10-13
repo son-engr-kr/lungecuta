@@ -1,0 +1,1015 @@
+{
+  "$defs": {
+    "Analyzer": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "const": "beat_this",
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        },
+        "checkpoint": {
+          "title": "Checkpoint",
+          "type": "string"
+        },
+        "checkpoint_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Checkpoint Hash",
+          "type": "string"
+        },
+        "postprocessing": {
+          "const": "minimal",
+          "title": "Postprocessing",
+          "type": "string"
+        },
+        "device": {
+          "const": "cpu",
+          "title": "Device",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version",
+        "checkpoint",
+        "checkpoint_hash",
+        "postprocessing",
+        "device"
+      ],
+      "title": "Analyzer",
+      "type": "object"
+    },
+    "AudioProbe": {
+      "additionalProperties": false,
+      "properties": {
+        "codec": {
+          "title": "Codec",
+          "type": "string"
+        },
+        "channels": {
+          "title": "Channels",
+          "type": "integer"
+        },
+        "layout": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Layout"
+        },
+        "rate": {
+          "title": "Rate",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "codec",
+        "channels",
+        "layout",
+        "rate"
+      ],
+      "title": "AudioProbe",
+      "type": "object"
+    },
+    "BeatMap": {
+      "additionalProperties": false,
+      "description": "Beats of a music file, in seconds from the first sample of its WAV\n(docs/design/03-project-format.md#beat-maps).",
+      "properties": {
+        "analyzer": {
+          "$ref": "#/$defs/Analyzer"
+        },
+        "times": {
+          "items": {
+            "type": "number"
+          },
+          "title": "Times",
+          "type": "array"
+        },
+        "downbeats": {
+          "description": "indices into times",
+          "items": {
+            "type": "integer"
+          },
+          "title": "Downbeats",
+          "type": "array"
+        },
+        "manual": {
+          "description": "beats moved by hand, which re-analysis keeps",
+          "items": {
+            "$ref": "#/$defs/ManualBeat"
+          },
+          "title": "Manual",
+          "type": "array"
+        }
+      },
+      "required": [
+        "analyzer",
+        "times",
+        "downbeats",
+        "manual"
+      ],
+      "title": "BeatMap",
+      "type": "object"
+    },
+    "ColorDecided": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "decided",
+          "title": "Status",
+          "type": "string"
+        },
+        "space": {
+          "description": "an OpenColorIO colour space of the project's config",
+          "title": "Space",
+          "type": "string"
+        },
+        "matrix": {
+          "const": "bt709",
+          "title": "Matrix",
+          "type": "string"
+        },
+        "range": {
+          "enum": [
+            "full",
+            "limited"
+          ],
+          "title": "Range",
+          "type": "string"
+        },
+        "evidence": {
+          "additionalProperties": true,
+          "title": "Evidence",
+          "type": "object"
+        }
+      },
+      "required": [
+        "status",
+        "space",
+        "matrix",
+        "range",
+        "evidence"
+      ],
+      "title": "ColorDecided",
+      "type": "object"
+    },
+    "ColorUndecided": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "undecided",
+          "title": "Status",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "evidence": {
+          "additionalProperties": true,
+          "title": "Evidence",
+          "type": "object"
+        }
+      },
+      "required": [
+        "status",
+        "reason",
+        "evidence"
+      ],
+      "title": "ColorUndecided",
+      "type": "object"
+    },
+    "DecodeRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "decoder": {
+          "enum": [
+            "software",
+            "videotoolbox"
+          ],
+          "title": "Decoder",
+          "type": "string"
+        },
+        "checked": {
+          "$ref": "#/$defs/DecoderCheck"
+        }
+      },
+      "required": [
+        "decoder",
+        "checked"
+      ],
+      "title": "DecodeRecord",
+      "type": "object"
+    },
+    "DecoderCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "method": {
+          "const": "framemd5",
+          "title": "Method",
+          "type": "string"
+        },
+        "frames": {
+          "title": "Frames",
+          "type": "integer"
+        },
+        "against": {
+          "const": "videotoolbox",
+          "title": "Against",
+          "type": "string"
+        },
+        "result": {
+          "enum": [
+            "identical",
+            "different",
+            "failed",
+            "unchecked"
+          ],
+          "title": "Result",
+          "type": "string"
+        },
+        "detail": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Detail"
+        }
+      },
+      "required": [
+        "method",
+        "frames",
+        "against",
+        "result",
+        "detail"
+      ],
+      "title": "DecoderCheck",
+      "type": "object"
+    },
+    "FileStat": {
+      "additionalProperties": false,
+      "description": "What `lc` compares on open to decide whether a file must be hashed again.",
+      "properties": {
+        "size": {
+          "title": "Size",
+          "type": "integer"
+        },
+        "mtime_ns": {
+          "title": "Mtime Ns",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "size",
+        "mtime_ns"
+      ],
+      "title": "FileStat",
+      "type": "object"
+    },
+    "Licence": {
+      "additionalProperties": false,
+      "description": "Under what terms a file may be used, as checked by a person (09-agent-interface.md,\n\"music is cleared\": checked on the source's page, not a search filter).",
+      "properties": {
+        "name": {
+          "description": "the licence, as the source states it (CC0, a stock licence and its number)",
+          "title": "Name",
+          "type": "string"
+        },
+        "source": {
+          "description": "where it was checked: the page that states it",
+          "title": "Source",
+          "type": "string"
+        },
+        "checked": {
+          "description": "the date it was checked, YYYY-MM-DD",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "title": "Checked",
+          "type": "string"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        }
+      },
+      "required": [
+        "name",
+        "source",
+        "checked"
+      ],
+      "title": "Licence",
+      "type": "object"
+    },
+    "ManualBeat": {
+      "additionalProperties": false,
+      "properties": {
+        "index": {
+          "minimum": 0,
+          "title": "Index",
+          "type": "integer"
+        },
+        "time": {
+          "title": "Time",
+          "type": "number"
+        }
+      },
+      "required": [
+        "index",
+        "time"
+      ],
+      "title": "ManualBeat",
+      "type": "object"
+    },
+    "MediaPath": {
+      "additionalProperties": false,
+      "description": "A file as a path relative to a named media root (`project` is the project itself).",
+      "properties": {
+        "root": {
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "title": "Root",
+          "type": "string"
+        },
+        "rel": {
+          "title": "Rel",
+          "type": "string"
+        }
+      },
+      "required": [
+        "root",
+        "rel"
+      ],
+      "title": "MediaPath",
+      "type": "object"
+    },
+    "Parity": {
+      "additionalProperties": false,
+      "description": "The proxy's parity test (docs/design/02-media.md#proxies). The gate is `codes`, in\nthe file's own R'G'B' codes (provisional); `di` is recorded for the open decision.",
+      "properties": {
+        "frames": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Frames",
+          "type": "array"
+        },
+        "codes": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ParityNumbers"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "di": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ParityNumbers"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "why there are no numbers yet",
+          "title": "Reason"
+        }
+      },
+      "required": [
+        "frames",
+        "codes",
+        "di",
+        "reason"
+      ],
+      "title": "Parity",
+      "type": "object"
+    },
+    "ParityNumbers": {
+      "additionalProperties": false,
+      "description": "|proxy - area-downscaled original| over every pixel and channel, in 10-bit codes.",
+      "properties": {
+        "p99": {
+          "title": "P99",
+          "type": "number"
+        },
+        "max": {
+          "title": "Max",
+          "type": "number"
+        },
+        "bias": {
+          "description": "mean signed difference per channel",
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Bias",
+          "type": "array"
+        },
+        "p99_blocks": {
+          "description": "p99 after averaging 4x4 blocks: level rather than noise",
+          "title": "P99 Blocks",
+          "type": "number"
+        }
+      },
+      "required": [
+        "p99",
+        "max",
+        "bias",
+        "p99_blocks"
+      ],
+      "title": "ParityNumbers",
+      "type": "object"
+    },
+    "Probe": {
+      "additionalProperties": false,
+      "properties": {
+        "video": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VideoProbe"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "audio": {
+          "items": {
+            "$ref": "#/$defs/AudioProbe"
+          },
+          "title": "Audio",
+          "type": "array"
+        },
+        "data_streams": {
+          "title": "Data Streams",
+          "type": "integer"
+        },
+        "timecode": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Timecode"
+        },
+        "creation_time": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Creation Time"
+        }
+      },
+      "required": [
+        "video",
+        "audio",
+        "data_streams",
+        "timecode",
+        "creation_time"
+      ],
+      "title": "Probe",
+      "type": "object"
+    },
+    "ProxyRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "profile": {
+          "enum": [
+            "ffv1-444",
+            "ffv1-422",
+            "prores-proxy",
+            "prores-lt",
+            "prores-hq",
+            "prores-4444"
+          ],
+          "title": "Profile",
+          "type": "string"
+        },
+        "pix_fmt": {
+          "enum": [
+            "yuv444p10le",
+            "yuv422p10le",
+            "yuv444p12le"
+          ],
+          "title": "Pix Fmt",
+          "type": "string"
+        },
+        "size": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "title": "Size",
+          "type": "array"
+        },
+        "matrix": {
+          "anyOf": [
+            {
+              "const": "bt709",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the original's matrix, once it is decided",
+          "title": "Matrix"
+        },
+        "range": {
+          "description": "the original's range, kept without conversion",
+          "enum": [
+            "full",
+            "limited"
+          ],
+          "title": "Range",
+          "type": "string"
+        },
+        "parity": {
+          "$ref": "#/$defs/Parity"
+        }
+      },
+      "required": [
+        "path",
+        "profile",
+        "pix_fmt",
+        "size",
+        "matrix",
+        "range",
+        "parity"
+      ],
+      "title": "ProxyRecord",
+      "type": "object"
+    },
+    "StreamTags": {
+      "additionalProperties": false,
+      "description": "The stream's colour tags as ffprobe names them; `unknown` where the stream has none.",
+      "properties": {
+        "color_range": {
+          "title": "Color Range",
+          "type": "string"
+        },
+        "color_space": {
+          "title": "Color Space",
+          "type": "string"
+        },
+        "color_transfer": {
+          "title": "Color Transfer",
+          "type": "string"
+        },
+        "color_primaries": {
+          "title": "Color Primaries",
+          "type": "string"
+        }
+      },
+      "required": [
+        "color_range",
+        "color_space",
+        "color_transfer",
+        "color_primaries"
+      ],
+      "title": "StreamTags",
+      "type": "object"
+    },
+    "TimeDecided": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "decided",
+          "title": "Status",
+          "type": "string"
+        },
+        "rate": {
+          "pattern": "^[1-9]\\d*(/[1-9]\\d*)?$",
+          "title": "Rate",
+          "type": "string"
+        },
+        "capture_rate": {
+          "anyOf": [
+            {
+              "pattern": "^[1-9]\\d*(/[1-9]\\d*)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the camera's capture rate, when a sidecar states it",
+          "title": "Capture Rate"
+        },
+        "start_tc": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Start Tc"
+        },
+        "evidence": {
+          "additionalProperties": true,
+          "title": "Evidence",
+          "type": "object"
+        }
+      },
+      "required": [
+        "status",
+        "rate",
+        "capture_rate",
+        "start_tc",
+        "evidence"
+      ],
+      "title": "TimeDecided",
+      "type": "object"
+    },
+    "TimeUndecided": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "undecided",
+          "title": "Status",
+          "type": "string"
+        },
+        "rate": {
+          "pattern": "^[1-9]\\d*(/[1-9]\\d*)?$",
+          "title": "Rate",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "start_tc": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Start Tc"
+        },
+        "evidence": {
+          "additionalProperties": true,
+          "title": "Evidence",
+          "type": "object"
+        }
+      },
+      "required": [
+        "status",
+        "rate",
+        "reason",
+        "start_tc",
+        "evidence"
+      ],
+      "title": "TimeUndecided",
+      "type": "object"
+    },
+    "VideoProbe": {
+      "additionalProperties": false,
+      "properties": {
+        "codec": {
+          "title": "Codec",
+          "type": "string"
+        },
+        "profile": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Profile"
+        },
+        "pix_fmt": {
+          "title": "Pix Fmt",
+          "type": "string"
+        },
+        "size": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "title": "Size",
+          "type": "array"
+        },
+        "rate": {
+          "pattern": "^[1-9]\\d*(/[1-9]\\d*)?$",
+          "title": "Rate",
+          "type": "string"
+        },
+        "frames": {
+          "title": "Frames",
+          "type": "integer"
+        },
+        "tags": {
+          "$ref": "#/$defs/StreamTags"
+        },
+        "chroma_location": {
+          "description": "where chroma samples sit, as ffprobe names it; unspecified when not stated",
+          "title": "Chroma Location",
+          "type": "string"
+        },
+        "rotation": {
+          "title": "Rotation",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "codec",
+        "profile",
+        "pix_fmt",
+        "size",
+        "rate",
+        "frames",
+        "tags",
+        "chroma_location",
+        "rotation"
+      ],
+      "title": "VideoProbe",
+      "type": "object"
+    },
+    "WavRecord": {
+      "additionalProperties": false,
+      "description": "Music decoded once at import to a 48 kHz float WAV in the cache, which the beat\nanalysis, the mix and the Phase 0 FCPXML all read (D14).",
+      "properties": {
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "rate": {
+          "const": 48000,
+          "title": "Rate",
+          "type": "integer"
+        },
+        "channels": {
+          "exclusiveMinimum": 0,
+          "title": "Channels",
+          "type": "integer"
+        },
+        "format": {
+          "const": "pcm_f32le",
+          "title": "Format",
+          "type": "string"
+        },
+        "samples": {
+          "description": "sample frames per channel",
+          "exclusiveMinimum": 0,
+          "title": "Samples",
+          "type": "integer"
+        },
+        "hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Hash",
+          "type": "string"
+        },
+        "peak": {
+          "description": "largest absolute sample; above 1 the decode goes over full scale",
+          "title": "Peak",
+          "type": "number"
+        },
+        "resampled_from": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the original's rate, when it was not 48 kHz",
+          "title": "Resampled From"
+        }
+      },
+      "required": [
+        "path",
+        "rate",
+        "channels",
+        "format",
+        "samples",
+        "hash",
+        "peak",
+        "resampled_from"
+      ],
+      "title": "WavRecord",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "`media/KEY.json`: one imported file, its decisions and the evidence for them. A file\nwith a video stream has `time`, `color` and `decode` (and a proxy); a music file has\n`wav` and `beats` instead.",
+  "properties": {
+    "key": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+      "title": "Key",
+      "type": "string"
+    },
+    "path": {
+      "$ref": "#/$defs/MediaPath"
+    },
+    "hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Hash",
+      "type": "string"
+    },
+    "stat": {
+      "$ref": "#/$defs/FileStat"
+    },
+    "probe": {
+      "$ref": "#/$defs/Probe"
+    },
+    "time": {
+      "anyOf": [
+        {
+          "discriminator": {
+            "mapping": {
+              "decided": "#/$defs/TimeDecided",
+              "undecided": "#/$defs/TimeUndecided"
+            },
+            "propertyName": "status"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/TimeDecided"
+            },
+            {
+              "$ref": "#/$defs/TimeUndecided"
+            }
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Time"
+    },
+    "color": {
+      "anyOf": [
+        {
+          "discriminator": {
+            "mapping": {
+              "decided": "#/$defs/ColorDecided",
+              "undecided": "#/$defs/ColorUndecided"
+            },
+            "propertyName": "status"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ColorDecided"
+            },
+            {
+              "$ref": "#/$defs/ColorUndecided"
+            }
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Color"
+    },
+    "decode": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DecodeRecord"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "proxy": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ProxyRecord"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "wav": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/WavRecord"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "beats": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/BeatMap"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "derived_from": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Derived From"
+    },
+    "licence": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Licence"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "key",
+    "path",
+    "hash",
+    "stat",
+    "probe",
+    "time",
+    "color",
+    "decode",
+    "proxy",
+    "wav",
+    "beats",
+    "derived_from"
+  ],
+  "title": "MediaRecord",
+  "type": "object"
+}

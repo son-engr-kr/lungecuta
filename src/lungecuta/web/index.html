@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>lungecuta</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header id="bar">
+  <span id="title">lungecuta</span>
+  <label>comp <select id="comp"></select></label>
+  <button id="undo" title="Undo (Cmd+Z)">Undo</button>
+  <button id="redo" title="Redo (Shift+Cmd+Z)">Redo</button>
+  <span id="status" role="status"></span>
+</header>
+<main>
+  <div id="top">
+    <section id="viewer">
+      <div id="stage">
+        <canvas id="picture"></canvas>
+        <div id="overlays"></div>
+        <div id="missing" hidden>rendering</div>
+      </div>
+      <figure id="scopes" hidden>
+        <img id="scope-image" alt="waveform, vectorscope and parade of the frame on screen">
+        <figcaption id="scope-numbers"></figcaption>
+      </figure>
+    </section>
+    <aside id="inspector"><p class="dim">Select a layer to see its properties.</p></aside>
+  </div>
+  <section id="transport">
+    <button id="play" title="Play or pause (Space)">Play</button>
+    <span id="time">f:0</span>
+    <span id="beat"></span>
+    <span id="selection"></span>
+    <label>media <select id="media"></select></label>
+    <button id="place" title="Put the media on the comp at the playhead">Add at playhead</button>
+    <button id="scope-toggle" title="Waveform, vectorscope and parade of the frame on screen, computed on its proxy">Scopes</button>
+    <span id="hint">drag a layer to move it (Cmd to slide), its edges to trim; Alt for frames instead of beats; S splits, Delete ripples</span>
+  </section>
+  <section id="timeline-box">
+    <canvas id="timeline"></canvas>
+  </section>
+  <section id="graph-box" hidden>
+    <div id="graph-bar">
+      <span id="graph-title"></span>
+      <label><input type="radio" name="graph" value="speed" checked> speed</label>
+      <label><input type="radio" name="graph" value="source"> source time</label>
+      <span class="dim" id="graph-hint"></span>
+    </div>
+    <canvas id="graph"></canvas>
+  </section>
+  <section id="log"><ol id="journal"></ol></section>
+</main>
+<script src="/static/app.js"></script>
+</body>
+</html>

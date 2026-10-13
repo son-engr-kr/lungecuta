@@ -1,0 +1,67 @@
+:root {
+  --bg: #111317;
+  --panel: #1a1d23;
+  --line: #2a2f38;
+  --text: #d9dde4;
+  --dim: #8a919d;
+  --accent: #ffb547;
+  --footage: #3d6fb6;
+  --audio: #3f9a6b;
+  --graphics: #b8763a;
+  --error: #ff6b5b;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+             font: 13px/1.4 -apple-system, "Helvetica Neue", Arial, sans-serif; }
+#bar { display: flex; gap: 12px; align-items: center; padding: 6px 12px; background: var(--panel);
+       border-bottom: 1px solid var(--line); }
+#title { font-weight: 600; letter-spacing: 0.02em; }
+#status { margin-left: auto; color: var(--dim); }
+#status.error { color: var(--error); }
+button, select { background: #252a33; color: var(--text); border: 1px solid var(--line); border-radius: 4px;
+                 padding: 3px 10px; font: inherit; }
+button:hover { border-color: var(--dim); }
+main { display: grid; grid-template-rows: minmax(200px, 1fr) auto auto auto 90px; height: calc(100% - 37px); }
+#top { display: grid; grid-template-columns: 1fr 300px; min-height: 0; }
+#viewer { position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden;
+          background: #000; min-width: 0; }
+#scopes { position: absolute; right: 8px; bottom: 8px; margin: 0; width: min(46%, 520px); background: rgba(0,0,0,0.85);
+          border: 1px solid var(--line); border-radius: 4px; padding: 4px; }
+#scopes img { display: block; width: 100%; image-rendering: pixelated; }
+#scopes figcaption { color: var(--dim); font-size: 11px; font-variant-numeric: tabular-nums; padding: 2px 2px 0; }
+#inspector { overflow-y: auto; background: var(--panel); border-left: 1px solid var(--line); padding: 8px 12px; }
+#inspector h3 { margin: 10px 0 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+                color: var(--dim); }
+#inspector h2 { margin: 2px 0 6px; font-size: 13px; }
+#inspector .row { display: grid; grid-template-columns: 74px 1fr auto auto; gap: 4px; align-items: center; margin: 3px 0; }
+#inspector .row input[type=number] { width: 100%; }
+#inspector .row input[type=range] { width: 100%; accent-color: var(--accent); }
+#inspector .row.grade { grid-template-columns: 74px 1fr 64px auto; }
+#inspector input[type=number], #inspector input[type=text], #inspector select { background: #252a33; color: var(--text); border: 1px solid var(--line);
+                                                  border-radius: 4px; padding: 2px 4px; font: inherit; min-width: 0; }
+#inspector .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+#inspector button.key { padding: 1px 6px; color: var(--dim); }
+#inspector button.key.on { color: var(--accent); border-color: var(--accent); }
+#inspector .actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; }
+.dim { color: var(--dim); }
+#graph-box { background: var(--bg); border-top: 1px solid var(--line); }
+#graph-bar { display: flex; gap: 14px; align-items: center; padding: 3px 12px; background: var(--panel); font-size: 12px; }
+#graph { display: block; width: 100%; height: 140px; }
+#stage { position: relative; }
+#picture { display: block; }
+#overlays { position: absolute; left: 0; top: 0; pointer-events: none; overflow: hidden; }
+#overlays iframe { position: absolute; left: 0; top: 0; border: 0; background: transparent; transform-origin: 0 0; }
+#missing { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+           background: rgba(0, 0, 0, 0.55); color: var(--dim); letter-spacing: 0.1em; text-transform: uppercase; }
+#transport { display: flex; gap: 14px; align-items: center; padding: 6px 12px; background: var(--panel);
+             border-top: 1px solid var(--line); }
+#time { font-variant-numeric: tabular-nums; min-width: 190px; }
+#beat, #selection { color: var(--dim); font-variant-numeric: tabular-nums; }
+#hint { margin-left: auto; color: var(--dim); font-size: 12px; }
+#timeline-box { overflow-x: auto; overflow-y: hidden; background: var(--bg); border-top: 1px solid var(--line); }
+#timeline { display: block; }
+#log { overflow-y: auto; background: var(--panel); border-top: 1px solid var(--line); padding: 4px 12px; }
+#journal { margin: 0; padding-left: 20px; color: var(--dim); font-size: 12px; }
+#journal li.new { color: var(--text); }
+/* `hidden` has to win over the display these elements are given above. */
+#missing[hidden], #overlays iframe[hidden], #graph-box[hidden], #scopes[hidden] { display: none; }

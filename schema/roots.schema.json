@@ -1,0 +1,10 @@
+{
+  "description": "`roots.local.json`: where this machine keeps each media root. Never committed.",
+  "patternProperties": {
+    "^[a-z][a-z0-9-]*$": {
+      "type": "string"
+    }
+  },
+  "title": "RootsFile",
+  "type": "object"
+}

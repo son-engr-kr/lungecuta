@@ -1,0 +1,1419 @@
+{
+  "$defs": {
+    "AudioLayer": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "media": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+          "title": "Media",
+          "type": "string"
+        },
+        "start": {
+          "description": "the comp position of the layer's own time 0",
+          "title": "Start",
+          "type": "string",
+          "x-time": "position"
+        },
+        "in": {
+          "default": "0s",
+          "description": "a span from start: where the layer becomes visible",
+          "title": "In",
+          "type": "string",
+          "x-time": "layer"
+        },
+        "out": {
+          "description": "a span from start: where the layer ends",
+          "title": "Out",
+          "type": "string",
+          "x-time": "layer"
+        },
+        "markers": {
+          "items": {
+            "$ref": "#/$defs/Marker"
+          },
+          "title": "Markers",
+          "type": "array"
+        },
+        "type": {
+          "const": "audio",
+          "title": "Type",
+          "type": "string"
+        },
+        "source_start": {
+          "description": "the source time at layer time 0, in seconds",
+          "title": "Source Start",
+          "type": "string",
+          "x-time": "source"
+        },
+        "gain": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/$defs/Keys"
+            }
+          ],
+          "default": 0.0,
+          "description": "dB, a constant or keys in layer time",
+          "title": "Gain"
+        },
+        "fade_in": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "a span from the visible in point over which the layer rises from silence (linear in amplitude)",
+          "title": "Fade In",
+          "x-time": "layer"
+        },
+        "fade_out": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "a span before the visible out point over which it falls to silence (linear in amplitude)",
+          "title": "Fade Out",
+          "x-time": "layer"
+        }
+      },
+      "required": [
+        "id",
+        "media",
+        "start",
+        "out",
+        "type",
+        "source_start"
+      ],
+      "title": "AudioLayer",
+      "type": "object"
+    },
+    "BeatsFrom": {
+      "additionalProperties": false,
+      "properties": {
+        "from_layers": {
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "From Layers",
+          "type": "array"
+        }
+      },
+      "required": [
+        "from_layers"
+      ],
+      "title": "BeatsFrom",
+      "type": "object"
+    },
+    "Cdl": {
+      "additionalProperties": false,
+      "description": "An ASC CDL by OCIO's CDLTransform, on the working space's code values.",
+      "properties": {
+        "op": {
+          "const": "cdl",
+          "title": "Op",
+          "type": "string"
+        },
+        "slope": {
+          "default": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Slope",
+          "type": "array"
+        },
+        "offset": {
+          "default": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Offset",
+          "type": "array"
+        },
+        "power": {
+          "default": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Power",
+          "type": "array"
+        },
+        "saturation": {
+          "default": 1.0,
+          "description": "the CDL's, with Rec.709 weights by its definition",
+          "minimum": 0,
+          "title": "Saturation",
+          "type": "number"
+        },
+        "clamp": {
+          "default": true,
+          "description": "ASC v1.2 clamps to 0 to 1; false is OCIO's no-clamp style",
+          "title": "Clamp",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "title": "Cdl",
+      "type": "object"
+    },
+    "FootageLayer": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "media": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+          "title": "Media",
+          "type": "string"
+        },
+        "start": {
+          "description": "the comp position of the layer's own time 0",
+          "title": "Start",
+          "type": "string",
+          "x-time": "position"
+        },
+        "in": {
+          "default": "0s",
+          "description": "a span from start: where the layer becomes visible",
+          "title": "In",
+          "type": "string",
+          "x-time": "layer"
+        },
+        "out": {
+          "description": "a span from start: where the layer ends",
+          "title": "Out",
+          "type": "string",
+          "x-time": "layer"
+        },
+        "markers": {
+          "items": {
+            "$ref": "#/$defs/Marker"
+          },
+          "title": "Markers",
+          "type": "array"
+        },
+        "type": {
+          "const": "footage",
+          "title": "Type",
+          "type": "string"
+        },
+        "source_start": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the source time at layer time 0; none when `time` gives remap keys",
+          "title": "Source Start",
+          "x-time": "source"
+        },
+        "time": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Speed"
+            },
+            {
+              "$ref": "#/$defs/Remap"
+            },
+            {
+              "$ref": "#/$defs/StyleTime"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Time"
+        },
+        "retime": {
+          "anyOf": [
+            {
+              "enum": [
+                "nearest",
+                "blend"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "a source time between frames: absent shows the frame that holds it, `nearest` the closest one, `blend` the two neighbours mixed in linear light",
+          "title": "Retime"
+        },
+        "transform": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Transform"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "grade": {
+          "anyOf": [
+            {
+              "items": {
+                "discriminator": {
+                  "mapping": {
+                    "cdl": "#/$defs/Cdl",
+                    "lut": "#/$defs/Lut",
+                    "primary": "#/$defs/Primary"
+                  },
+                  "propertyName": "op"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/Primary"
+                  },
+                  {
+                    "$ref": "#/$defs/Cdl"
+                  },
+                  {
+                    "$ref": "#/$defs/Lut"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/$defs/GradeGraph"
+            }
+          ],
+          "description": "operations in order, in the working space, after the input transform and before the layer is placed; or a graph of serial nodes",
+          "title": "Grade"
+        },
+        "masks": {
+          "description": "in order; the layer is seen only where they leave it, none showing the whole layer",
+          "items": {
+            "$ref": "#/$defs/Mask"
+          },
+          "title": "Masks",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "media",
+        "start",
+        "out",
+        "type"
+      ],
+      "title": "FootageLayer",
+      "type": "object"
+    },
+    "GradeGraph": {
+      "additionalProperties": false,
+      "properties": {
+        "nodes": {
+          "description": "serial: each node grades the one before's output",
+          "items": {
+            "$ref": "#/$defs/Node"
+          },
+          "minItems": 1,
+          "title": "Nodes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "nodes"
+      ],
+      "title": "GradeGraph",
+      "type": "object"
+    },
+    "GraphicsLayer": {
+      "additionalProperties": false,
+      "description": "A web page drawn over the comp (05-motion-graphics.md): Phase 0's contract, a page in\n`graphics/` that sets `window.ready` and draws layer time t in `window.renderAt(t)`. Its\n`params` reach the page as the JSON in its `params` query parameter. Only `display`\nspace for now: its codes are the deliverable's codes, composited after the output\nview as a top overlay (01-architecture.md).",
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "graphics",
+          "title": "Type",
+          "type": "string"
+        },
+        "page": {
+          "pattern": "^graphics/[A-Za-z0-9._-]+\\.html$",
+          "title": "Page",
+          "type": "string"
+        },
+        "space": {
+          "const": "display",
+          "title": "Space",
+          "type": "string"
+        },
+        "start": {
+          "description": "the comp position of the layer's own time 0",
+          "title": "Start",
+          "type": "string",
+          "x-time": "position"
+        },
+        "in": {
+          "default": "0s",
+          "description": "a span from start: where the layer becomes visible",
+          "title": "In",
+          "type": "string",
+          "x-time": "layer"
+        },
+        "out": {
+          "description": "a span from start: where the layer ends",
+          "title": "Out",
+          "type": "string",
+          "x-time": "layer"
+        },
+        "params": {
+          "additionalProperties": true,
+          "title": "Params",
+          "type": "object"
+        },
+        "markers": {
+          "items": {
+            "$ref": "#/$defs/Marker"
+          },
+          "title": "Markers",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "page",
+        "space",
+        "start",
+        "out"
+      ],
+      "title": "GraphicsLayer",
+      "type": "object"
+    },
+    "HueRange": {
+      "additionalProperties": false,
+      "properties": {
+        "centre": {
+          "description": "OCIO's hue: magenta 0, red 1/6, green 1/2, blue 5/6",
+          "exclusiveMaximum": 1,
+          "minimum": 0,
+          "title": "Centre",
+          "type": "number"
+        },
+        "width": {
+          "description": "the whole range, in hue",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "title": "Width",
+          "type": "number"
+        },
+        "soft": {
+          "default": 0.0,
+          "description": "beyond each edge, the key falls to 0 over this much",
+          "minimum": 0,
+          "title": "Soft",
+          "type": "number"
+        }
+      },
+      "required": [
+        "centre",
+        "width"
+      ],
+      "title": "HueRange",
+      "type": "object"
+    },
+    "Key": {
+      "additionalProperties": false,
+      "description": "A keyframe: at layer time `t`, value `v`; `ease` shapes the segment arriving at it\n(`in`, `out`, `in_out`, `hold`; none is linear), src/lungecuta/keyframes.py.",
+      "properties": {
+        "t": {
+          "description": "a span from the layer's start",
+          "title": "T",
+          "type": "string",
+          "x-time": "layer"
+        },
+        "v": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            }
+          ],
+          "title": "V"
+        },
+        "ease": {
+          "anyOf": [
+            {
+              "enum": [
+                "in",
+                "out",
+                "in_out",
+                "hold"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ease"
+        }
+      },
+      "required": [
+        "t",
+        "v"
+      ],
+      "title": "Key",
+      "type": "object"
+    },
+    "Keys": {
+      "additionalProperties": false,
+      "properties": {
+        "keys": {
+          "items": {
+            "$ref": "#/$defs/Key"
+          },
+          "minItems": 1,
+          "title": "Keys",
+          "type": "array"
+        }
+      },
+      "required": [
+        "keys"
+      ],
+      "title": "Keys",
+      "type": "object"
+    },
+    "LevelRange": {
+      "additionalProperties": false,
+      "properties": {
+        "low": {
+          "title": "Low",
+          "type": "number"
+        },
+        "high": {
+          "title": "High",
+          "type": "number"
+        },
+        "soft": {
+          "default": 0.0,
+          "description": "beyond each edge, the key falls to 0 over this much",
+          "minimum": 0,
+          "title": "Soft",
+          "type": "number"
+        }
+      },
+      "required": [
+        "low",
+        "high"
+      ],
+      "title": "LevelRange",
+      "type": "object"
+    },
+    "Lut": {
+      "additionalProperties": false,
+      "description": "A LUT file under `luts/`, with the spaces it expects and produces declared, since a\n`.cube` declares neither.",
+      "properties": {
+        "op": {
+          "const": "lut",
+          "title": "Op",
+          "type": "string"
+        },
+        "path": {
+          "pattern": "^luts/[A-Za-z0-9._-]+\\.(cube|3dl|csp|spi1d|spi3d|clf|ctf)$",
+          "title": "Path",
+          "type": "string"
+        },
+        "space": {
+          "description": "the OCIO colour space the LUT's input is in",
+          "title": "Space",
+          "type": "string"
+        },
+        "out": {
+          "description": "the OCIO colour space of what it returns",
+          "title": "Out",
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "path",
+        "space",
+        "out"
+      ],
+      "title": "Lut",
+      "type": "object"
+    },
+    "Marker": {
+      "additionalProperties": false,
+      "description": "A note at a time: in comp time on a comp, in layer time on a layer (06-editing.md#markers).",
+      "properties": {
+        "t": {
+          "description": "a comp position on a comp, a span from the layer's start on a layer",
+          "title": "T",
+          "type": "string",
+          "x-time": "position or layer"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        }
+      },
+      "required": [
+        "t",
+        "name"
+      ],
+      "title": "Marker",
+      "type": "object"
+    },
+    "Mask": {
+      "additionalProperties": false,
+      "description": "A shape that cuts the layer, in its own frame as shown (fractions of its width and\nheight), as After Effects' masks are in layer space.",
+      "properties": {
+        "shape": {
+          "enum": [
+            "rectangle",
+            "ellipse"
+          ],
+          "title": "Shape",
+          "type": "string"
+        },
+        "centre": {
+          "default": [
+            0.5,
+            0.5
+          ],
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Centre",
+          "type": "array"
+        },
+        "size": {
+          "description": "width and height, fractions of the layer's",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Size",
+          "type": "array"
+        },
+        "feather": {
+          "default": 0.0,
+          "description": "the edge's ramp, a fraction of the layer's height",
+          "minimum": 0,
+          "title": "Feather",
+          "type": "number"
+        },
+        "invert": {
+          "default": false,
+          "title": "Invert",
+          "type": "boolean"
+        },
+        "mode": {
+          "default": "add",
+          "enum": [
+            "add",
+            "subtract",
+            "intersect"
+          ],
+          "title": "Mode",
+          "type": "string"
+        }
+      },
+      "required": [
+        "shape",
+        "size"
+      ],
+      "title": "Mask",
+      "type": "object"
+    },
+    "Node": {
+      "additionalProperties": false,
+      "description": "A node of a clip's grade (04-color.md, Node graph): its operations in order, an\noptional window that keys them (shapes as a mask's, in the clip's frame as shown), and\nhow much of the result is mixed over the node's input.",
+      "properties": {
+        "ops": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "cdl": "#/$defs/Cdl",
+                "lut": "#/$defs/Lut",
+                "primary": "#/$defs/Primary"
+              },
+              "propertyName": "op"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/Primary"
+              },
+              {
+                "$ref": "#/$defs/Cdl"
+              },
+              {
+                "$ref": "#/$defs/Lut"
+              }
+            ]
+          },
+          "minItems": 1,
+          "title": "Ops",
+          "type": "array"
+        },
+        "window": {
+          "description": "where the node applies; none is everywhere",
+          "items": {
+            "$ref": "#/$defs/Mask"
+          },
+          "title": "Window",
+          "type": "array"
+        },
+        "key": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Qualifier"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "which colours the node applies to, with the window"
+        },
+        "mix": {
+          "default": 1.0,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Mix",
+          "type": "number"
+        }
+      },
+      "required": [
+        "ops"
+      ],
+      "title": "Node",
+      "type": "object"
+    },
+    "PrecompLayer": {
+      "additionalProperties": false,
+      "description": "Another comp placed as a layer (03-project-format.md, layer types): its layer time is\nthe precomp's own time, as in After Effects; transparent where the precomp has nothing,\nplaced and masked like footage.",
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "comp",
+          "title": "Type",
+          "type": "string"
+        },
+        "comp": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+          "title": "Comp",
+          "type": "string"
+        },
+        "start": {
+          "description": "the comp position of the layer's own time 0, the precomp's 0s",
+          "title": "Start",
+          "type": "string",
+          "x-time": "position"
+        },
+        "in": {
+          "default": "0s",
+          "description": "a span from start: where the layer becomes visible",
+          "title": "In",
+          "type": "string",
+          "x-time": "layer"
+        },
+        "out": {
+          "description": "a span from start: where the layer ends",
+          "title": "Out",
+          "type": "string",
+          "x-time": "layer"
+        },
+        "transform": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Transform"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "masks": {
+          "items": {
+            "$ref": "#/$defs/Mask"
+          },
+          "title": "Masks",
+          "type": "array"
+        },
+        "markers": {
+          "items": {
+            "$ref": "#/$defs/Marker"
+          },
+          "title": "Markers",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "comp",
+        "start",
+        "out"
+      ],
+      "title": "PrecompLayer",
+      "type": "object"
+    },
+    "Primary": {
+      "additionalProperties": false,
+      "description": "OCIO's GradingPrimaryTransform in its LOG style, on the working space's code values\n(04-color.md, Operations come from OpenColorIO).",
+      "properties": {
+        "op": {
+          "const": "primary",
+          "title": "Op",
+          "type": "string"
+        },
+        "offset": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            }
+          ],
+          "default": 0.0,
+          "description": "added to the working-space code values (OCIO's LOG brightness, of which one unit adds 6.25/1023)",
+          "title": "Offset"
+        },
+        "contrast": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            }
+          ],
+          "default": 1.0,
+          "description": "a multiplier on the distance from the pivot",
+          "title": "Contrast"
+        },
+        "pivot": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the working-space code value contrast turns around; absent, the working space's 18 % grey (0.336043 in DaVinci Intermediate)",
+          "title": "Pivot"
+        },
+        "gamma": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            }
+          ],
+          "default": 1.0,
+          "description": "OCIO's LOG gamma: code values from 0 to 1 raised to 1/gamma, so above 1 lifts the middle",
+          "title": "Gamma"
+        },
+        "saturation": {
+          "default": 1.0,
+          "description": "OCIO's, around a luma with Rec.709 weights",
+          "minimum": 0,
+          "title": "Saturation",
+          "type": "number"
+        },
+        "clamp": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "black and white clip, in code values",
+          "title": "Clamp"
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "title": "Primary",
+      "type": "object"
+    },
+    "Qualifier": {
+      "additionalProperties": false,
+      "description": "An HSL key on a node's input, in OCIO's LOG-style HSY (the hue, saturation and luma\n`GradingHueCurveTransform` uses, so a curve and a key agree on what a colour is).",
+      "properties": {
+        "hue": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HueRange"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "sat": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LevelRange"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "OCIO's LOG saturation: 4 times the sum of each channel's distance from luma; a pure red in DI codes reads about 4.85"
+        },
+        "luma": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LevelRange"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Rec.709-weighted luma of the working-space codes"
+        },
+        "invert": {
+          "default": false,
+          "title": "Invert",
+          "type": "boolean"
+        }
+      },
+      "title": "Qualifier",
+      "type": "object"
+    },
+    "Remap": {
+      "additionalProperties": false,
+      "description": "Source time against layer time, After Effects' time remap (03-project-format.md#time-remap).",
+      "properties": {
+        "remap": {
+          "items": {
+            "$ref": "#/$defs/RemapKey"
+          },
+          "minItems": 2,
+          "title": "Remap",
+          "type": "array"
+        }
+      },
+      "required": [
+        "remap"
+      ],
+      "title": "Remap",
+      "type": "object"
+    },
+    "RemapKey": {
+      "additionalProperties": false,
+      "description": "A time-remap key: at layer time `t`, source time `v` (seconds or f: at the media's\nrate); between keys the source time follows the keys' easing, as any property does.",
+      "properties": {
+        "t": {
+          "description": "a span from the layer's start",
+          "title": "T",
+          "type": "string",
+          "x-time": "layer"
+        },
+        "v": {
+          "description": "the source time shown at t",
+          "title": "V",
+          "type": "string",
+          "x-time": "source"
+        },
+        "ease": {
+          "anyOf": [
+            {
+              "enum": [
+                "in",
+                "out",
+                "in_out",
+                "hold"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ease"
+        }
+      },
+      "required": [
+        "t",
+        "v"
+      ],
+      "title": "RemapKey",
+      "type": "object"
+    },
+    "Speed": {
+      "additionalProperties": false,
+      "description": "Constant speed from `source_start`, shorthand for a straight remap line.",
+      "properties": {
+        "speed": {
+          "description": "source seconds per layer second; 1 plays at 100 %",
+          "exclusiveMinimum": 0,
+          "title": "Speed",
+          "type": "number"
+        }
+      },
+      "required": [
+        "speed"
+      ],
+      "title": "Speed",
+      "type": "object"
+    },
+    "StyleTime": {
+      "additionalProperties": false,
+      "description": "A style instance (03-project-format.md#styles): the style's tracks placed at `at`\nin layer time, speed 1 from `source_start` outside its speed track.",
+      "properties": {
+        "style": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+          "title": "Style",
+          "type": "string"
+        },
+        "at": {
+          "description": "a span from the layer's start: where the style's anchor lands",
+          "title": "At",
+          "type": "string",
+          "x-time": "layer"
+        },
+        "overrides": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "propertyNames": {
+            "const": "intensity"
+          },
+          "title": "Overrides",
+          "type": "object"
+        }
+      },
+      "required": [
+        "style",
+        "at"
+      ],
+      "title": "StyleTime",
+      "type": "object"
+    },
+    "Transform": {
+      "additionalProperties": false,
+      "description": "Where a layer's frame lands in the comp (*proposed* units): `position` of the layer's\n`anchor` as fractions of the comp's width and height, `anchor` as fractions of the\nlayer's frame as shown, `scale` relative to the layer's own pixels (one number, or x\nand y), `opacity` from 0 to 1. A missing transform puts the layer at its own size in the\nmiddle of the comp, as After Effects does.",
+      "properties": {
+        "position": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "$ref": "#/$defs/Keys"
+            }
+          ],
+          "default": [
+            0.5,
+            0.5
+          ],
+          "title": "Position"
+        },
+        "anchor": {
+          "default": [
+            0.5,
+            0.5
+          ],
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Anchor",
+          "type": "array"
+        },
+        "scale": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "$ref": "#/$defs/Keys"
+            }
+          ],
+          "default": 1.0,
+          "title": "Scale"
+        },
+        "opacity": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/$defs/Keys"
+            }
+          ],
+          "default": 1.0,
+          "title": "Opacity"
+        },
+        "rotation": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/$defs/Keys"
+            }
+          ],
+          "default": 0.0,
+          "description": "degrees, clockwise on screen about the anchor, as in After Effects",
+          "title": "Rotation"
+        }
+      },
+      "title": "Transform",
+      "type": "object"
+    },
+    "Transition": {
+      "additionalProperties": false,
+      "description": "A transition on a cut point, Resolve style, expanded into opacity on its layers when\nthe comp is resolved (06-editing.md#transitions): `dissolve` from the first layer to\nthe second, centred on the cut between them, each extended into its handles; `dip`\nthrough black, the first fading out before the cut and the second in after it;\n`fade_in` and `fade_out` on one layer, from and to black.",
+      "properties": {
+        "type": {
+          "enum": [
+            "dissolve",
+            "dip",
+            "fade_in",
+            "fade_out"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "layers": {
+          "description": "the outgoing and incoming footage layers; one for a fade",
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+            "type": "string"
+          },
+          "maxItems": 2,
+          "minItems": 1,
+          "title": "Layers",
+          "type": "array"
+        },
+        "length": {
+          "description": "how long, centred on the cut for a dissolve and a dip",
+          "title": "Length",
+          "type": "string",
+          "x-time": "layer"
+        },
+        "space": {
+          "const": "working",
+          "default": "working",
+          "description": "where it blends: the working space (DaVinci Intermediate, Resolve's behaviour); `linear` is not written yet",
+          "title": "Space",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "layers",
+        "length"
+      ],
+      "title": "Transition",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "`comps/ID.json`: a comp's size, rate, end, beat grid and layers, in stack order.",
+  "properties": {
+    "id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+      "title": "Id",
+      "type": "string"
+    },
+    "size": {
+      "maxItems": 2,
+      "minItems": 2,
+      "prefixItems": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "integer"
+        }
+      ],
+      "title": "Size",
+      "type": "array"
+    },
+    "rate": {
+      "pattern": "^[1-9]\\d*(/[1-9]\\d*)?$",
+      "title": "Rate",
+      "type": "string"
+    },
+    "end": {
+      "description": "where the comp ends; every comp starts at 0s",
+      "title": "End",
+      "type": "string",
+      "x-time": "position"
+    },
+    "beats": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/BeatsFrom"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "markers": {
+      "items": {
+        "$ref": "#/$defs/Marker"
+      },
+      "title": "Markers",
+      "type": "array"
+    },
+    "layers": {
+      "description": "in stack order: a later layer is drawn over an earlier one",
+      "items": {
+        "discriminator": {
+          "mapping": {
+            "audio": "#/$defs/AudioLayer",
+            "comp": "#/$defs/PrecompLayer",
+            "footage": "#/$defs/FootageLayer",
+            "graphics": "#/$defs/GraphicsLayer"
+          },
+          "propertyName": "type"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/FootageLayer"
+          },
+          {
+            "$ref": "#/$defs/AudioLayer"
+          },
+          {
+            "$ref": "#/$defs/GraphicsLayer"
+          },
+          {
+            "$ref": "#/$defs/PrecompLayer"
+          }
+        ]
+      },
+      "title": "Layers",
+      "type": "array"
+    },
+    "transitions": {
+      "items": {
+        "$ref": "#/$defs/Transition"
+      },
+      "title": "Transitions",
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "size",
+    "rate",
+    "end",
+    "layers"
+  ],
+  "title": "CompFile",
+  "type": "object"
+}

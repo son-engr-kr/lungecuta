@@ -1,0 +1,50 @@
+[project]
+name = "lungecuta"
+version = "0.1.0"
+description = "A video editor for short, music-driven pieces shot in log, edited by a person and an AI agent together"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Hyoungseo Son" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "av>=19.0.1",
+    "beat-this>=1.1.0",
+    "click>=8.5.0",
+    "fastapi>=0.143.0",
+    "numpy>=2.5.4",
+    "opencolorio>=2.6.0",
+    "pillow>=12.3.0",
+    "playwright>=1.63.0",
+    "pydantic>=2.14.1",
+    "pyloudnorm>=0.2.0",
+    "scipy>=1.18.1",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[dependency-groups]
+dev = [
+    "httpx2>=2.13.1",
+    "pytest>=9.1.1",
+]
+
+[project.scripts]
+lc = "lungecuta.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/son-engr-kr/lungecuta"
+
+[build-system]
+requires = ["uv_build>=0.11.7,<0.12.0"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+# Tests that read sample media are marked `media` and run only with `-m media`, and tests
+# that fetch a published document are marked `network` (AGENTS.md, "Conventions"); a later
+# -m on the command line replaces this one.
+addopts = "-m 'not media and not network'"
+markers = [
+    "media: reads sample media from the directory named by LUNGECUTA_SAMPLES",
+    "network: fetches a published document (Apple's FCPXML DTD)",
+]

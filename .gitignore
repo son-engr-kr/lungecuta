@@ -16,3 +16,6 @@ AGENTS.local.md
 CLAUDE.md
 
 .DS_Store
+
+# which sample file plays each role in the media tests (AGENTS.md, Conventions)
+tests/samples.local.json
