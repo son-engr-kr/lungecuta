@@ -15,7 +15,7 @@ Which fields each operation changes follows After Effects
 `start` and carries its keyframes; a trim changes `in` or `out` and a slip changes the
 source offset, and both leave keyframes where they are in the comp.
 
-Written so far (`src/lungecuta/ops.py`, `lc op OP COMP ...`): move, trim, slip, roll, ripple
+Written so far (`src/lungecuta/ops/`, one module an area, and `lc op OP COMP ...`): move, trim, slip, roll, ripple
 delete, split and snap to beats. Amounts are signed spans (`f:-3`, `-0.5s`, `b:1`,
 `b:-0.5`), a beat amount counted on the grid from where it applies. The new time is
 computed in ticks and written back in the unit the field was written in, so a beat
