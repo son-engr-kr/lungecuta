@@ -21,7 +21,8 @@ beat of a clip whose length `place` wrote in frames is written in beats. A split
 named after the layer with the next free number (`shot.2`, `shot.3`). `place` puts media
 on the comp from a source in point (`--source`, its first frame by default) for a length
 (`--for`, written as given) or as long as it lasts up to the comp's last frame, so one
-`place` per shot builds a cut; it scales footage of another size to fit the comp, all of
+`place` per shot builds a cut (`graphic` puts a page from `graphics/` on top the same way,
+at a position for a length, with its params); it scales footage of another size to fit the comp, all of
 it seen, as Resolve does by default (`--size fill` crops to fill it, `own` leaves it at
 its own size), writing the scale out. When no unit holds a footage layer's new in or out
 point exactly (a beat cut on a layer that starts at 0 s, before the first beat), it is

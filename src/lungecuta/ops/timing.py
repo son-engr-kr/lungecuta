@@ -221,3 +221,27 @@ def place(project: Project, name: str, media: str, at: str, size: str = "fit", l
                         + (f", scaled {layer['transform']['scale']} to {size} the comp" if "transform" in layer else ""))
     _resolves(project, edit)  # every frame it shows is in the media
     return edit.save()
+
+
+def graphic(project: Project, name: str, page: str, at: str, length: str, params: dict[str, Any] | None = None,
+            expect: str | None = None) -> dict[str, Any]:
+    """Put the web page `page` (`graphics/NAME.html`, 05-motion-graphics.md) on top of the
+    comp at position `at` for `length` (a span, written as given), drawn in display space
+    over everything, with `params` handed to the page. The layer is named after the page
+    (with `.2`, `.3` for more)."""
+    edit = Edit.open(project, name, expect)
+    assert (project.directory / page).is_file(), f"{page} is not in the project"
+    base = page.removeprefix("graphics/").removesuffix(".html")
+    taken = {layer["id"] for layer in edit.data["layers"]}
+    layer_id = base if base not in taken else next(f"{base}.{k}" for k in range(2, 1000) if f"{base}.{k}" not in taken)
+    start = resolve_position(parse_literal(at, Field.POSITION), rate=edit.rate, grid=edit.grid)
+    span = resolve_span(parse_literal(length, Field.LAYER), anchor=start, rate=edit.rate, grid=edit.grid)
+    assert span > 0, f"a layer {length} long shows nothing"
+    layer = {"id": layer_id, "type": "graphics", "page": page, "space": "display", "start": at, "out": length}
+    if params:
+        layer["params"] = params
+    edit.data["layers"].append(layer)
+    edit.changes.append(f"{page} placed at {at} as {layer_id}, {length} long"
+                        + (f", with {', '.join(sorted(params))}" if params else ""))
+    _resolves(project, edit)
+    return edit.save()

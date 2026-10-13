@@ -334,3 +334,22 @@ def test_a_shot_is_placed_from_a_source_in_point_for_a_length(cut_project):
         ops.place(Project.load(cut_project), "main", "C0001", "b:4", source="f:70")
     with pytest.raises(AssertionError, match="in seconds, not f:3"):
         ops.place(Project.load(cut_project), "main", "track", "b:4", source="f:3")
+
+
+def test_a_graphic_goes_on_top_for_its_length(cut_project):
+    from clips import TITLE
+
+    (cut_project / "graphics" / "title.html").write_text(TITLE)
+    result = ops.graphic(Project.load(cut_project), "main", "graphics/title.html", "b:1", "b:2", {"colour": "#ff0000"})
+    assert result["changes"] == ["graphics/title.html placed at b:1 as title, b:2 long, with colour"]
+    comp = json.loads((cut_project / "comps" / "main.json").read_text())
+    assert comp["layers"][-1] == {"id": "title", "type": "graphics", "page": "graphics/title.html", "space": "display",
+                                  "start": "b:1", "out": "b:2", "params": {"colour": "#ff0000"}}
+    ops.graphic(Project.load(cut_project), "main", "graphics/title.html", "b:4", "1s")
+    assert layers(cut_project)["title.2"]["out"] == "1s"
+    # footage placed afterwards still goes under the graphics
+    ops.place(Project.load(cut_project), "main", "C0001", "b:8", length="b:1")
+    order = [layer["id"] for layer in json.loads((cut_project / "comps" / "main.json").read_text())["layers"]]
+    assert order[-3:] == ["C0001", "title", "title.2"]
+    with pytest.raises(AssertionError, match="graphics/none.html is not in the project"):
+        ops.graphic(Project.load(cut_project), "main", "graphics/none.html", "b:1", "b:1")

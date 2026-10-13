@@ -160,6 +160,24 @@ def op_place(comp: str, media: str, at: str, length: str | None, source: str | N
     print_json(ops.place(project_of(project_dir), comp, media, at, size, length, source))
 
 
+@op.command("graphic")
+@click.argument("comp")
+@click.argument("page")
+@click.option("--at", required=True, help="The comp position the layer starts at.")
+@click.option("--for", "length", required=True, help="How long it runs, a span from --at (b:2, 1.5s), written as given.")
+@click.option("--params", help="A JSON object handed to the page as its params.")
+@project_option
+def op_graphic(comp: str, page: str, at: str, length: str, params: str | None, project_dir: Path | None) -> None:
+    """Put the web page PAGE (graphics/NAME.html: it sets window.ready and draws layer time
+    t in window.renderAt(t)) on top of the comp at a position for a length, in display
+    space over everything, with --params handed to it."""
+    import json
+
+    given = None if params is None else json.loads(params)
+    assert given is None or isinstance(given, dict), f"--params is a JSON object, not {params}"
+    print_json(ops.graphic(project_of(project_dir), comp, page, at, length, given))
+
+
 @op.command("snap")
 @click.argument("comp")
 @click.argument("layer")

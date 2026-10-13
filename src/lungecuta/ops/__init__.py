@@ -18,7 +18,7 @@ from .grading import look, set_grade, unlook
 from .properties import KEYED, LAYER_OF, key, key_position, move_key, remap, set_masks, set_value, unkey
 from .sounds import EVENTS, ROTATION, sfx
 from .styles import style, transition, unstyle, untransition
-from .timing import move, place, ripple_delete, roll, slide, slip, snap, split, trim
+from .timing import graphic, move, place, ripple_delete, roll, slide, slip, snap, split, trim
 
 
 # Every edit operation by the name `lc op` and the editor give it: the one table both use.
@@ -27,6 +27,7 @@ OPERATIONS = {
     "split": split, "snap": snap, "place": place, "style": style, "unstyle": unstyle, "key": key, "unkey": unkey,
     "set": set_value, "remap": remap, "grade": set_grade, "masks": set_masks, "transition": transition,
     "untransition": untransition, "look": look, "unlook": unlook, "sfx": sfx, "move-key": move_key,
+    "graphic": graphic,
 }
 
-__all__ = ['EVENTS', 'Edit', 'KEYED', 'LAYER_OF', 'ROTATION', 'key', 'key_position', 'look', 'move', 'move_key', 'new_comp', 'place', 'remap', 'ripple_delete', 'roll', 'set_grade', 'set_masks', 'set_value', 'sfx', 'slide', 'slip', 'snap', 'split', 'style', 'transition', 'trim', 'unkey', 'unlook', 'unstyle', 'untransition', 'OPERATIONS']
+__all__ = ['EVENTS', 'Edit', 'KEYED', 'LAYER_OF', 'ROTATION', 'graphic', 'key', 'key_position', 'look', 'move', 'move_key', 'new_comp', 'place', 'remap', 'ripple_delete', 'roll', 'set_grade', 'set_masks', 'set_value', 'sfx', 'slide', 'slip', 'snap', 'split', 'style', 'transition', 'trim', 'unkey', 'unlook', 'unstyle', 'untransition', 'OPERATIONS']
