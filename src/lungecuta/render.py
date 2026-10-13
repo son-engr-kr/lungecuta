@@ -46,7 +46,10 @@ def manifest(project: Project, resolved: Resolved, preset: Preset, out: Path, cl
         "media": sorted({(c.record.key, c.record.hash) for c in resolved.every_cut()}
                         | {(s.record.key, s.record.wav.hash) for s in resolved.every_sound()}),
         "luts": sorted({(op.path, content_hash(project.directory / op.path))
-                        for c in resolved.every_cut() for op in grade.operations(c.layer.grade) if op.op == "lut"}),
+                        for c in resolved.every_cut() for op in grade.operations(project, c.layer.grade)
+                        if op.op == "lut"}),
+        "looks": sorted({(name, content_hash(project.directory / "styles" / f"{name}.json"))
+                         for c in resolved.every_cut() for name in grade.looks(project, c.layer.grade)}),
         "color": settings.model_dump(),
         "versions": {"lungecuta": version("lungecuta"), "opencolorio": version("opencolorio"),
                      "numpy": np.__version__, "ffmpeg": ffmpeg, "python": platform.python_version()},

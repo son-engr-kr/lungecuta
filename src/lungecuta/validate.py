@@ -29,7 +29,8 @@ def validate(project: Project) -> dict[str, Any]:
         resolved = resolve(project, load_comp(project, Path(path).stem))
         for cut in resolved.cuts:  # every grade builds: LUTs found, spaces known, values in OCIO's ranges
             for node in grade.nodes(cut.layer.grade):
-                grade.processor(project, node.ops)
+                for inner in grade.nodes(grade.look(project, node.look)) if node.look else [node]:
+                    grade.processor(project, inner.ops)
         comps.append({
             "comp": resolved.comp.id,
             "frames": resolved.end,

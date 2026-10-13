@@ -602,7 +602,10 @@ that it fits wherever it is placed.
   cannot show.
 - A look is a style whose tracks are grade nodes and LUT references; each LUT reference
   names its input and output colour spaces, because a `.cube` file declares neither.
-  Linking gives what Resolve gets from shared nodes and colour groups.
+  Linking gives what Resolve gets from shared nodes and colour groups. Written: a style's
+  `grade` (with `tracks` optional, and one of the two required), used by a clip's grade
+  node `{ "look": ID }` ([04-color.md](04-color.md#node-graph)); its grade is static, not
+  yet keyed in time.
 - A style can only use effects the engine already has. When a style needs a new kind of
   effect, that effect is added to the engine as code with a test, and the style refers to
   it by name. Styles stay data the UI can edit.

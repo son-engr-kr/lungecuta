@@ -51,8 +51,8 @@ cache still matches its comp. `lc validate` checks every file.
 1. `lc changes` before you edit: what the person did in the editor since you last asked.
    Never write over it.
 2. Prefer `lc op OP COMP ...` (move, trim, slip, slide, roll, ripple-delete, split, snap,
-   place, key, unkey, set, remap, style, unstyle, grade, masks, transition,
-   untransition): the editor's own functions, written only if the file is still the one
+   place, key, unkey, set, remap, style, unstyle, grade, look, unlook, masks,
+   transition, untransition): the editor's own functions, written only if the file is still the one
    read, the change printed in editing terms. Edit the JSON for anything else, then run
    `lc validate`.
 3. Look at what you changed. `lc sheet COMP --every b:1 --from P --to P` over the range,

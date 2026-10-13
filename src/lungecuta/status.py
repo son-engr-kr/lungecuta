@@ -70,6 +70,14 @@ def _renders(project: Project) -> list[dict[str, Any]]:
             precomp = project.directory / "comps" / f"{name}.json"
             if not precomp.is_file() or content_hash(precomp) != hash_:
                 stale.append(f"precomp {name} changed")
+        for name, hash_ in manifest.get("looks", []):
+            style = project.directory / "styles" / f"{name}.json"
+            if not style.is_file() or content_hash(style) != hash_:
+                stale.append(f"look {name} changed")
+        for path, hash_ in manifest.get("luts", []):
+            lut = project.directory / path
+            if not lut.is_file() or content_hash(lut) != hash_:
+                stale.append(f"{path} changed")
         for key, hash_ in manifest["media"]:
             record_path = project.directory / "media" / f"{key}.json"
             if not record_path.is_file():

@@ -460,6 +460,7 @@ def _style_tracks(project: Project, layer: FootageLayer, start: int, rate: Fract
     anchor and its values moved from 1 towards the style's by the intensity."""
     instance = layer.time
     style = load_style(project, instance.style)
+    assert style.tracks is not None, f"layer {layer.id}: style {style.id} is a look, with no tracks to place in time"
     assert _is_beat(instance.at, Field.LAYER), (
         f"layer {layer.id}: style {style.id} is anchored on a beat, and {instance.at} is not a beat literal"
     )

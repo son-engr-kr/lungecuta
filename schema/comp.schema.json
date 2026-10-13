@@ -737,7 +737,7 @@
     },
     "Node": {
       "additionalProperties": false,
-      "description": "A node of a clip's grade (04-color.md, Node graph): its operations in order, an\noptional window that keys them (shapes as a mask's, in the clip's frame as shown), and\nhow much of the result is mixed over the node's input.",
+      "description": "A node of a clip's grade (04-color.md, Node graph): its operations in order, or a\nlook (a style holding a grade, linked: editing the style changes every clip that uses\nit), an optional window that keys them (shapes as a mask's, in the clip's frame as\nshown), and how much of the result is mixed over the node's input.",
       "properties": {
         "ops": {
           "items": {
@@ -761,9 +761,22 @@
               }
             ]
           },
-          "minItems": 1,
           "title": "Ops",
           "type": "array"
+        },
+        "look": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "a style in styles/ whose grade this node applies, instead of ops",
+          "title": "Look"
         },
         "window": {
           "description": "where the node applies; none is everywhere",
@@ -793,9 +806,6 @@
           "type": "number"
         }
       },
-      "required": [
-        "ops"
-      ],
       "title": "Node",
       "type": "object"
     },

@@ -125,9 +125,26 @@ def nodes(grade) -> list[Node]:
     return [Node(ops=list(grade))] if grade else []
 
 
-def operations(grade) -> list:
-    """Every operation of a grade, in order, its nodes' included."""
-    return [op for node in nodes(grade) for op in node.ops]
+def look(project, name: str):
+    """The grade of look `name`, a style in styles/ with a grade."""
+    from .comp import load_style
+
+    style = load_style(project, name)
+    assert style.grade, f"style {name} is not a look: it has no grade"
+    return style.grade
+
+
+def looks(project, grade) -> list[str]:
+    """The looks a grade's nodes name, in order."""
+    return [node.look for node in nodes(grade) if node.look is not None]
+
+
+def operations(project, grade) -> list:
+    """Every operation of a grade, in order, its nodes' and their looks' included."""
+    out = []
+    for node in nodes(grade):
+        out += operations(project, look(project, node.look)) if node.look is not None else node.ops
+    return out
 
 
 @functools.cache
@@ -168,17 +185,24 @@ def qualifier_key(key, frame: np.ndarray, threads: int | None = None) -> np.ndar
 def apply(project, grade, frame: np.ndarray, threads: int | None = None) -> np.ndarray:
     """`frame` (working space, float32 HxWx3, the clip's frame as shown) through its
     grade: node by node, each node's operations applied, keyed by its qualifier and its
-    window and mixed over its input, `input + mix * key * window * (graded - input)`."""
+    window and mixed over its input, `input + mix * key * window * (graded - input)`. A
+    look's node grades its input with the look's whole grade, as one node."""
     for node in nodes(grade):
-        graded = processor(project, node.ops)
-        if graded is None:
-            continue
         frame = np.ascontiguousarray(frame)
-        if not node.window and node.key is None and node.mix == 1:
-            color.apply(graded, frame, threads)
-            continue
-        out = frame.copy()
-        color.apply(graded, out, threads)
+        if node.look is not None:
+            out = apply(project, look(project, node.look), frame.copy(), threads)
+            if not node.window and node.key is None and node.mix == 1:
+                frame = out
+                continue
+        else:
+            graded = processor(project, node.ops)
+            if graded is None:
+                continue
+            if not node.window and node.key is None and node.mix == 1:
+                color.apply(graded, frame, threads)
+                continue
+            out = frame.copy()
+            color.apply(graded, out, threads)
         key = np.float32(node.mix)
         if node.key is not None:  # keyed on the node's input
             key = key * qualifier_key(node.key, frame, threads)

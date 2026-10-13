@@ -285,3 +285,27 @@ def op_remap(comp: str, layer: str, project_dir: Path | None) -> None:
 def op_grade(comp: str, layer: str, operations: str, project_dir: Path | None) -> None:
     """Replace LAYER's grade (docs/design/04-color.md): primary, cdl and lut operations."""
     print_json(ops.set_grade(project_of(project_dir), comp, layer, json.loads(operations)))
+
+
+@op.command("look")
+@click.argument("comp")
+@click.argument("layer")
+@click.argument("look")
+@click.option("--mix", type=click.FloatRange(0, 1), default=1.0, show_default=True,
+              help="How much of the look is mixed over the layer's own grade.")
+@project_option
+def op_look(comp: str, layer: str, look: str, mix: float, project_dir: Path | None) -> None:
+    """Grade LAYER with LOOK, a style in styles/ holding a grade, as a node after the
+    layer's own; linked, so editing the style changes every layer using it. The look
+    already on the layer takes the new mix instead of a second node."""
+    print_json(ops.look(project_of(project_dir), comp, layer, look, mix))
+
+
+@op.command("unlook")
+@click.argument("comp")
+@click.argument("layer")
+@click.argument("look")
+@project_option
+def op_unlook(comp: str, layer: str, look: str, project_dir: Path | None) -> None:
+    """Take LOOK off LAYER's grade."""
+    print_json(ops.unlook(project_of(project_dir), comp, layer, look))

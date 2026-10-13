@@ -66,6 +66,7 @@ function message(m) {
     // on screen already read at that hash (a reload got there first) needs nothing.
     if (state.tl && m.file === `comps/${state.tl.name}.json` && m.hash === state.tl.hash) return;
     status(`${m.file} changed on disk; reloading`);
+    if (m.file.startsWith("styles/")) api("/api/styles").then((styles) => { state.styles = styles; renderInspector(); });
     // any comp, since the one shown may place it as a precomp
     if (state.tl && (m.file === "project.json"
                      || ["comps/", "media/", "styles/", "luts/"].some((prefix) => m.file.startsWith(prefix)))) {
@@ -569,10 +570,11 @@ function timeSection(layer) {
     box.append(el("p", {}, layer.speed === 1 ? "plays at 100 %" : `constant speed ${round(layer.speed * 100, 2)} %`));
     actions.append(el("button", { onclick: () => edit("remap", { layer_id: layer.id }) }, "Enable time remap"));
   }
-  if (!layer.remapped && (layer.speed === 1 || layer.style) && state.styles.length && state.tl.beats.length) {
-    const select = el("select", {}, ...state.styles.map((st) => el("option", { value: st.id }, st.name)));
+  const timed = state.styles.filter((st) => st.tracks);  // a look alone has nothing to place in time
+  if (!layer.remapped && (layer.speed === 1 || layer.style) && timed.length && state.tl.beats.length) {
+    const select = el("select", {}, ...timed.map((st) => el("option", { value: st.id }, st.name)));
     const intensity = el("input", { type: "number", step: 0.05, title: "intensity" });
-    const param = () => state.styles.find((st) => st.id === select.value)?.params?.intensity;
+    const param = () => timed.find((st) => st.id === select.value)?.params?.intensity;
     const fit = () => {
       // Only a style with an intensity parameter takes one, within its range.
       const p = param();
@@ -643,13 +645,30 @@ const PRIMARY = [
   ["gamma", 0.5, 2, 0.01, 1], ["saturation", 0, 2, 0.01, 1],
 ];
 
+function looksRow(layer) {
+  // The looks (styles holding a grade) the project has, put on the layer as a linked node.
+  const looks = (state.styles || []).filter((style) => style.grade);
+  if (!looks.length) return el("p", { class: "dim" }, "no looks yet: a style in styles/ with a grade is one");
+  const select = el("select", {}, ...looks.map((style) => el("option", { value: style.id }, `${style.id}: ${style.name}`)));
+  const mix = el("input", { type: "number", min: 0, max: 1, step: 0.05, value: 1, title: "mix" });
+  return el("div", { class: "row" }, el("span", {}, "look"), select, mix,
+    el("button", { onclick: () => edit("look", { layer_id: layer.id, look_id: select.value, mix: Number(mix.value) }) },
+       "Add look"));
+}
+
 function gradeSection(layer) {
   if (layer.grade && !Array.isArray(layer.grade)) {
-    // A node graph: shown, not edited here yet (lc op grade writes one).
+    // A node graph: shown, its looks added and taken off here (lc op grade writes the rest).
     const box = el("div");
-    layer.grade.nodes.forEach((node, k) => box.append(el("p", { class: "dim" },
-      `node ${k + 1}: ${node.ops.map((op) => op.op).join(", ")}${node.window?.length ? `, ${node.window.length} window shapes` : ""}` +
-      `${node.mix !== undefined && node.mix !== 1 ? `, mix ${node.mix}` : ""}`)));
+    layer.grade.nodes.forEach((node, k) => {
+      const what = node.look ? `look ${node.look}` : node.ops.map((op) => op.op).join(", ");
+      const line = el("p", { class: "dim" }, `node ${k + 1}: ${what}${node.window?.length ? `, ${node.window.length} window shapes` : ""}` +
+        `${node.mix !== undefined && node.mix !== 1 ? `, mix ${node.mix}` : ""}`);
+      if (node.look) line.append(" ", el("button", { onclick: () => edit("unlook", { layer_id: layer.id, look_id: node.look }) },
+                                           "Remove"));
+      box.append(line);
+    });
+    box.append(looksRow(layer));
     box.append(el("div", { class: "actions" },
       el("button", { onclick: () => edit("grade", { layer_id: layer.id, grade: [] }) }, "Remove grade")));
     return box;
@@ -680,6 +699,7 @@ function gradeSection(layer) {
   for (const op of grade.filter((o) => o.op !== "primary")) {
     box.append(el("p", { class: "dim" }, `${op.op}: ${JSON.stringify(op)}`));
   }
+  box.append(looksRow(layer));
   if (grade.length) box.append(el("div", { class: "actions" },
     el("button", { onclick: () => edit("grade", { layer_id: layer.id, grade: [] }) }, "Remove grade")));
   return box;

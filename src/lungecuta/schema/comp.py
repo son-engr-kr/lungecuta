@@ -185,14 +185,22 @@ class Qualifier(_Part):
 
 
 class Node(_Part):
-    """A node of a clip's grade (04-color.md, Node graph): its operations in order, an
-    optional window that keys them (shapes as a mask's, in the clip's frame as shown), and
-    how much of the result is mixed over the node's input."""
+    """A node of a clip's grade (04-color.md, Node graph): its operations in order, or a
+    look (a style holding a grade, linked: editing the style changes every clip that uses
+    it), an optional window that keys them (shapes as a mask's, in the clip's frame as
+    shown), and how much of the result is mixed over the node's input."""
 
-    ops: list[GradeOp] = Field(min_length=1)
+    ops: list[GradeOp] = Field(default_factory=list)
+    look: Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]*$")] | None = Field(
+        default=None, description="a style in styles/ whose grade this node applies, instead of ops")
     window: list[Mask] = Field(default_factory=list, description="where the node applies; none is everywhere")
     key: Qualifier | None = Field(default=None, description="which colours the node applies to, with the window")
     mix: float = Field(default=1.0, ge=0, le=1)
+
+    @model_validator(mode="after")
+    def _ops_or_look(self) -> Node:
+        assert bool(self.ops) != (self.look is not None), "a node has operations or a look, not both and not neither"
+        return self
 
 
 class GradeGraph(_Part):

@@ -137,7 +137,7 @@ def test_nodes_run_in_order_keyed_by_their_window_and_mixed(cut_project):
     np.testing.assert_allclose(out[:, 20:], 0.4, atol=1e-6)  # outside it, untouched
     half = GRAPH.validate_python({"nodes": [{"ops": [lift], "mix": 0.5}]})
     np.testing.assert_allclose(grade.apply(project, half, frame.copy()), 0.45, atol=1e-5)
-    assert [op.op for op in grade.operations(serial)] == ["primary", "primary"]
+    assert [op.op for op in grade.operations(project, serial)] == ["primary", "primary"]
 
 
 def test_lc_op_grade_takes_a_node_graph(cut_project):

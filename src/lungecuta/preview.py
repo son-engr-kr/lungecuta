@@ -111,7 +111,8 @@ class Preview:
         for cut in self.resolved.every_cut():
             if isinstance(cut.layer.time, StyleTime):
                 paths.add(f"styles/{cut.layer.time.style}.json")
-            paths.update(op.path for op in grade.operations(cut.layer.grade) if op.op == "lut")
+            paths.update(f"styles/{name}.json" for name in grade.looks(self.project, cut.layer.grade))
+            paths.update(op.path for op in grade.operations(self.project, cut.layer.grade) if op.op == "lut")
         stats = []
         for relative in sorted(paths):
             stat = (self.project.directory / relative).stat()

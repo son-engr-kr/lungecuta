@@ -1,5 +1,360 @@
 {
   "$defs": {
+    "Cdl": {
+      "additionalProperties": false,
+      "description": "An ASC CDL by OCIO's CDLTransform, on the working space's code values.",
+      "properties": {
+        "op": {
+          "const": "cdl",
+          "title": "Op",
+          "type": "string"
+        },
+        "slope": {
+          "default": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Slope",
+          "type": "array"
+        },
+        "offset": {
+          "default": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Offset",
+          "type": "array"
+        },
+        "power": {
+          "default": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Power",
+          "type": "array"
+        },
+        "saturation": {
+          "default": 1.0,
+          "description": "the CDL's, with Rec.709 weights by its definition",
+          "minimum": 0,
+          "title": "Saturation",
+          "type": "number"
+        },
+        "clamp": {
+          "default": true,
+          "description": "ASC v1.2 clamps to 0 to 1; false is OCIO's no-clamp style",
+          "title": "Clamp",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "title": "Cdl",
+      "type": "object"
+    },
+    "GradeGraph": {
+      "additionalProperties": false,
+      "properties": {
+        "nodes": {
+          "description": "serial: each node grades the one before's output",
+          "items": {
+            "$ref": "#/$defs/Node"
+          },
+          "minItems": 1,
+          "title": "Nodes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "nodes"
+      ],
+      "title": "GradeGraph",
+      "type": "object"
+    },
+    "HueRange": {
+      "additionalProperties": false,
+      "properties": {
+        "centre": {
+          "description": "OCIO's hue: magenta 0, red 1/6, green 1/2, blue 5/6",
+          "exclusiveMaximum": 1,
+          "minimum": 0,
+          "title": "Centre",
+          "type": "number"
+        },
+        "width": {
+          "description": "the whole range, in hue",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "title": "Width",
+          "type": "number"
+        },
+        "soft": {
+          "default": 0.0,
+          "description": "beyond each edge, the key falls to 0 over this much",
+          "minimum": 0,
+          "title": "Soft",
+          "type": "number"
+        }
+      },
+      "required": [
+        "centre",
+        "width"
+      ],
+      "title": "HueRange",
+      "type": "object"
+    },
+    "LevelRange": {
+      "additionalProperties": false,
+      "properties": {
+        "low": {
+          "title": "Low",
+          "type": "number"
+        },
+        "high": {
+          "title": "High",
+          "type": "number"
+        },
+        "soft": {
+          "default": 0.0,
+          "description": "beyond each edge, the key falls to 0 over this much",
+          "minimum": 0,
+          "title": "Soft",
+          "type": "number"
+        }
+      },
+      "required": [
+        "low",
+        "high"
+      ],
+      "title": "LevelRange",
+      "type": "object"
+    },
+    "Lut": {
+      "additionalProperties": false,
+      "description": "A LUT file under `luts/`, with the spaces it expects and produces declared, since a\n`.cube` declares neither.",
+      "properties": {
+        "op": {
+          "const": "lut",
+          "title": "Op",
+          "type": "string"
+        },
+        "path": {
+          "pattern": "^luts/[A-Za-z0-9._-]+\\.(cube|3dl|csp|spi1d|spi3d|clf|ctf)$",
+          "title": "Path",
+          "type": "string"
+        },
+        "space": {
+          "description": "the OCIO colour space the LUT's input is in",
+          "title": "Space",
+          "type": "string"
+        },
+        "out": {
+          "description": "the OCIO colour space of what it returns",
+          "title": "Out",
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "path",
+        "space",
+        "out"
+      ],
+      "title": "Lut",
+      "type": "object"
+    },
+    "Mask": {
+      "additionalProperties": false,
+      "description": "A shape that cuts the layer, in its own frame as shown (fractions of its width and\nheight), as After Effects' masks are in layer space.",
+      "properties": {
+        "shape": {
+          "enum": [
+            "rectangle",
+            "ellipse"
+          ],
+          "title": "Shape",
+          "type": "string"
+        },
+        "centre": {
+          "default": [
+            0.5,
+            0.5
+          ],
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Centre",
+          "type": "array"
+        },
+        "size": {
+          "description": "width and height, fractions of the layer's",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Size",
+          "type": "array"
+        },
+        "feather": {
+          "default": 0.0,
+          "description": "the edge's ramp, a fraction of the layer's height",
+          "minimum": 0,
+          "title": "Feather",
+          "type": "number"
+        },
+        "invert": {
+          "default": false,
+          "title": "Invert",
+          "type": "boolean"
+        },
+        "mode": {
+          "default": "add",
+          "enum": [
+            "add",
+            "subtract",
+            "intersect"
+          ],
+          "title": "Mode",
+          "type": "string"
+        }
+      },
+      "required": [
+        "shape",
+        "size"
+      ],
+      "title": "Mask",
+      "type": "object"
+    },
+    "Node": {
+      "additionalProperties": false,
+      "description": "A node of a clip's grade (04-color.md, Node graph): its operations in order, or a\nlook (a style holding a grade, linked: editing the style changes every clip that uses\nit), an optional window that keys them (shapes as a mask's, in the clip's frame as\nshown), and how much of the result is mixed over the node's input.",
+      "properties": {
+        "ops": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "cdl": "#/$defs/Cdl",
+                "lut": "#/$defs/Lut",
+                "primary": "#/$defs/Primary"
+              },
+              "propertyName": "op"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/Primary"
+              },
+              {
+                "$ref": "#/$defs/Cdl"
+              },
+              {
+                "$ref": "#/$defs/Lut"
+              }
+            ]
+          },
+          "title": "Ops",
+          "type": "array"
+        },
+        "look": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "a style in styles/ whose grade this node applies, instead of ops",
+          "title": "Look"
+        },
+        "window": {
+          "description": "where the node applies; none is everywhere",
+          "items": {
+            "$ref": "#/$defs/Mask"
+          },
+          "title": "Window",
+          "type": "array"
+        },
+        "key": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Qualifier"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "which colours the node applies to, with the window"
+        },
+        "mix": {
+          "default": 1.0,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Mix",
+          "type": "number"
+        }
+      },
+      "title": "Node",
+      "type": "object"
+    },
     "Param": {
       "additionalProperties": false,
       "properties": {
@@ -22,6 +377,191 @@
         "max"
       ],
       "title": "Param",
+      "type": "object"
+    },
+    "Primary": {
+      "additionalProperties": false,
+      "description": "OCIO's GradingPrimaryTransform in its LOG style, on the working space's code values\n(04-color.md, Operations come from OpenColorIO).",
+      "properties": {
+        "op": {
+          "const": "primary",
+          "title": "Op",
+          "type": "string"
+        },
+        "offset": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            }
+          ],
+          "default": 0.0,
+          "description": "added to the working-space code values (OCIO's LOG brightness, of which one unit adds 6.25/1023)",
+          "title": "Offset"
+        },
+        "contrast": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            }
+          ],
+          "default": 1.0,
+          "description": "a multiplier on the distance from the pivot",
+          "title": "Contrast"
+        },
+        "pivot": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the working-space code value contrast turns around; absent, the working space's 18 % grey (0.336043 in DaVinci Intermediate)",
+          "title": "Pivot"
+        },
+        "gamma": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            }
+          ],
+          "default": 1.0,
+          "description": "OCIO's LOG gamma: code values from 0 to 1 raised to 1/gamma, so above 1 lifts the middle",
+          "title": "Gamma"
+        },
+        "saturation": {
+          "default": 1.0,
+          "description": "OCIO's, around a luma with Rec.709 weights",
+          "minimum": 0,
+          "title": "Saturation",
+          "type": "number"
+        },
+        "clamp": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "black and white clip, in code values",
+          "title": "Clamp"
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "title": "Primary",
+      "type": "object"
+    },
+    "Qualifier": {
+      "additionalProperties": false,
+      "description": "An HSL key on a node's input, in OCIO's LOG-style HSY (the hue, saturation and luma\n`GradingHueCurveTransform` uses, so a curve and a key agree on what a colour is).",
+      "properties": {
+        "hue": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HueRange"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "sat": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LevelRange"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "OCIO's LOG saturation: 4 times the sum of each channel's distance from luma; a pure red in DI codes reads about 4.85"
+        },
+        "luma": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LevelRange"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Rec.709-weighted luma of the working-space codes"
+        },
+        "invert": {
+          "default": false,
+          "title": "Invert",
+          "type": "boolean"
+        }
+      },
+      "title": "Qualifier",
       "type": "object"
     },
     "StyleKey": {
@@ -119,6 +659,7 @@
     },
     "anchor": {
       "const": "beat",
+      "default": "beat",
       "description": "a style is placed at a beat literal, `at` on its layer",
       "title": "Anchor",
       "type": "string"
@@ -134,14 +675,57 @@
       "type": "object"
     },
     "tracks": {
-      "$ref": "#/$defs/Tracks"
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Tracks"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "grade": {
+      "anyOf": [
+        {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "cdl": "#/$defs/Cdl",
+                "lut": "#/$defs/Lut",
+                "primary": "#/$defs/Primary"
+              },
+              "propertyName": "op"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/Primary"
+              },
+              {
+                "$ref": "#/$defs/Cdl"
+              },
+              {
+                "$ref": "#/$defs/Lut"
+              }
+            ]
+          },
+          "type": "array"
+        },
+        {
+          "$ref": "#/$defs/GradeGraph"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "a look: the grade a clip's node applies when it names this style",
+      "title": "Grade"
     }
   },
   "required": [
     "id",
-    "name",
-    "anchor",
-    "tracks"
+    "name"
   ],
   "title": "StyleFile",
   "type": "object"

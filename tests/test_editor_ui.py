@@ -224,3 +224,18 @@ def test_a_position_key_is_dragged_in_the_graph(page, cut_project):
           "the dragged position key")
     keys = shot1(cut_project)["transform"]["position"]["keys"]
     assert keys[0]["v"] == [0.5, 0.5] and keys[1]["v"][0] == 0.5 and keys[1]["v"][1] < 0.5  # only y, and down
+
+
+def test_a_look_is_added_and_taken_off_in_the_inspector(page, cut_project):
+    (cut_project / "styles" / "warm.json").write_text(json.dumps(
+        {"id": "warm", "name": "warm", "grade": [{"op": "primary", "offset": 0.05}]}))
+    page.wait_for_function("state.styles.some(s => s.id === 'warm')", timeout=10000)
+    click_layer(page, "shot1")
+    page.wait_for_function("document.querySelector('#inspector h2')?.textContent.startsWith('shot1')")
+    assert page.evaluate("[...document.querySelectorAll('#inspector select option')].some(o => o.value === 'dip')")
+    page.get_by_role("button", name="Add look").click()
+    until(page, cut_project, lambda layer: "grade" in layer, "the look")
+    assert shot1(cut_project)["grade"] == {"nodes": [{"look": "warm"}]}
+    page.wait_for_function("document.getElementById('inspector').textContent.includes('node 1: look warm')")
+    page.get_by_role("button", name="Remove").first.click()
+    until(page, cut_project, lambda layer: "grade" not in layer, "taking the look off")

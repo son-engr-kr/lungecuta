@@ -3,12 +3,17 @@
 M2's part: a style holds a speed track and a scale track, each in beats (or seconds or
 frames) relative to the anchor it is placed at, and an `intensity` that moves every value
 from neutral (1) towards the style's. Tracks for properties the engine does not have yet
-(the motion-blur shutter, M6) are validation errors, not ignored."""
+(the motion-blur shutter, M6) are validation errors, not ignored.
+
+A look is a style with a `grade` (operations, or serial nodes of them), which a clip's
+grade uses as a node; it may have tracks too, and a style needs tracks or a grade."""
 from __future__ import annotations
 
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+
+from .comp import GradeGraph, GradeOp
 
 StyleId = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]*$")]
 
@@ -49,13 +54,24 @@ class Tracks(_Part):
             assert key.v >= 0, f"a speed of {key.v}: a style's speed track cannot run backwards"
         for key in self.scale or []:
             assert key.v > 0, f"a scale of {key.v}"
-        assert self.speed or self.scale, "a style needs a track"
+        assert self.speed or self.scale, "a style's tracks need a track"
         return self
 
 
 class StyleFile(_Part):
     id: StyleId
     name: str
-    anchor: Literal["beat"] = Field(description="a style is placed at a beat literal, `at` on its layer")
+    anchor: Literal["beat"] = Field(default="beat", description="a style is placed at a beat literal, `at` on its layer")
     params: dict[Literal["intensity"], Param] = Field(default_factory=dict)
-    tracks: Tracks
+    tracks: Tracks | None = None
+    grade: list[GradeOp] | GradeGraph | None = Field(
+        default=None, description="a look: the grade a clip's node applies when it names this style")
+
+    @model_validator(mode="after")
+    def _something(self) -> StyleFile:
+        assert self.tracks is not None or self.grade, "a style needs tracks, a grade (a look), or both"
+        if isinstance(self.grade, GradeGraph):
+            assert all(node.look is None for node in self.grade.nodes), (
+                f"look {self.id}: its nodes hold operations, not other looks"
+            )
+        return self
