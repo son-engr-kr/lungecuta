@@ -469,6 +469,21 @@ Parity with 1, 2, 4, 8 and 15 reads at once: 8.6, 5.1, **4.1**, 4.4 and 4.3 s, t
 numbers each time; so `PARITY_READS = 4`. Each read is an ffmpeg seek, mostly a decode from
 the keyframe before.
 
+## What `lc verify` costs: `uv run python bench/verify_cost.py PROJECT COMP FILE PRESET`
+
+The dry run's web-h264 render below (1080p, 462 frames, eight cuts, 18 frames sampled),
+2026-10-13. It took 34 s: 25 s of it reading the 4K original by seek to render reference
+frames, each rendered twice (once for itself, once as the frame across its cut from the
+other side), 38 renders for 18 frames. Each reference is now rendered once, and a run of
+consecutive sampled frames is one job:
+
+| jobs at once | 1 | 2 | **4** | 8 | 15 |
+| --- | --- | --- | --- | --- | --- |
+| s | 19.4 | 10.8 | **8.7** | 9.2 | 8.4 |
+
+Every report identical to the one-job report and to the report before the change; so
+`VERIFY_JOBS = 4`, past which the time stays flat while the frames held grow.
+
 ## An edit made as an agent makes one: `sh bench/dry_run.sh FOOTAGE MUSIC WORKDIR`
 
 The S-Log3 sample and the music sample, 2026-10-13, every stage through `lc` from an empty

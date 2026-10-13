@@ -12,11 +12,12 @@ from typing import Any
 import numpy as np
 
 from .comp import load_comp, resolve
-from .compose import frame_at, overlay_pages
+from .compose import captured, finish, footage_at, overlay_pages
 from .decode import Layout, frame_rgb, read_raw, read_rgb
 from .encode import PRESETS
 from .media import Project
 from .mixdown import comp_samples, mastered
+from .parallel import in_order
 from .ticks import format_rate, parse_rate
 from .tools import run
 
@@ -30,6 +31,7 @@ LOUDNESS_TOLERANCE = 0.2  # LU
 # decoder gives it back at 12 bits, a quarter of a code a step: the limit allows two such
 # steps on top. Measured on a 4K render with a feathered mask: 0.685 (bench/RESULTS.md).
 ALPHA_LIMIT = 1.0  # 10-bit codes
+VERIFY_JOBS = 4
 
 
 def _check(name: str, expected: Any, found: Any) -> dict[str, Any]:
@@ -107,10 +109,9 @@ def verify(project: Project, name: str, file: Path, preset_name: str, *, threads
             else:
                 across.setdefault(inside, None)
     with overlay_pages(project, resolved) as pages:
-        errors, cuts, alpha_error = _sample(project, resolved, file, video, preset, across, threads, pages)
-    every = np.concatenate(errors)
-    bias = [round(float(b), 3) for b in every.mean(axis=0)]
-    mse = float(np.mean(every ** 2))
+        totals, cuts, alpha_error = _sample(project, resolved, file, video, preset, across, threads, pages)
+    bias = [round(float(b), 3) for b in totals["sum"] / totals["pixels"]]
+    mse = float(totals["squares"].sum() / (3 * totals["pixels"]))
     psnr = None if mse == 0 else round(10 * np.log10(1023 ** 2 / mse), 2)
     checks.append({"check": "picture bias, 10-bit codes per channel", "expected": f"within {BIAS_LIMIT}",
                    "found": bias, "ok": max(abs(b) for b in bias) <= BIAS_LIMIT})
@@ -146,35 +147,65 @@ def _decoded(file: Path, index: int, resolved, video: dict, preset) -> tuple[np.
     return colour * alpha, alpha
 
 
-def _reference(project: Project, resolved, index: int, threads, pages, preset) -> tuple[np.ndarray, np.ndarray | None]:
+def _reference(project: Project, resolved, index: int, threads, captures, preset) -> tuple[np.ndarray, np.ndarray | None]:
+    footage = footage_at(project, resolved, index, threads)
     if not preset.alpha:
-        return np.clip(frame_at(project, resolved, index, threads, pages), 0, 1), None
-    rgba = frame_at(project, resolved, index, threads, pages, alpha=True)
+        return np.clip(finish(project, resolved, index, footage, captures, threads), 0, 1), None
+    rgba = finish(project, resolved, index, footage, captures, threads, alpha=True)
     return np.clip(rgba[..., :3], 0, 1) * rgba[..., 3:], rgba[..., 3:]
 
 
+def _runs(indices: list[int]) -> list[list[int]]:
+    """Sorted frame indices in runs of consecutive ones: a frame and the one across its cut
+    are always in the same run."""
+    runs: list[list[int]] = []
+    for index in indices:
+        if runs and runs[-1][-1] == index - 1:
+            runs[-1].append(index)
+        else:
+            runs.append([index])
+    return runs
+
+
 def _sample(project: Project, resolved, file: Path, video: dict, preset, across: dict, threads,
-            pages) -> tuple[list, list, float | None]:
+            pages) -> tuple[dict, list, float | None]:
     """Each sampled frame of the file against its reference and the frame across its cut;
     with alpha, colour is compared over black, and the alpha's largest error in codes is
-    returned too."""
-    errors, cuts = [], []
-    alpha_error = None
-    for index in sorted(across):
-        decoded, alpha = _decoded(file, index, resolved, video, preset)
-        reference, reference_alpha = _reference(project, resolved, index, threads, pages, preset)
-        if alpha is not None:
-            off = float(np.abs(alpha - reference_alpha).max()) * 1023
-            alpha_error = off if alpha_error is None else max(alpha_error, off)
-        signed = (decoded - reference) * 1023
-        errors.append(signed.reshape(-1, 3))
-        rmse = float(np.sqrt(np.mean(signed ** 2)))
-        other = across[index]
-        if other is None:
-            cuts.append({"frame": index, "rmse": round(rmse, 3), "across_the_cut": None, "ok": True})
-            continue
-        neighbour, _ = _reference(project, resolved, other, threads, pages, preset)
-        to_other = float(np.sqrt(np.mean(((decoded - neighbour) * 1023) ** 2)))
-        cuts.append({"frame": index, "rmse": round(rmse, 3), "across_the_cut": other,
-                     "rmse_to_it": round(to_other, 3), "ok": rmse < to_other})
-    return errors, cuts, alpha_error
+    returned too. Each reference is rendered once. A run of consecutive frames is one job
+    and several run at once, since rendering a reference mostly waits on ffmpeg seeking
+    into the originals (VERIFY_JOBS, bench/RESULTS.md); graphics are captured here, in
+    order, since a page captures one frame at a time."""
+
+    def measured(run: list[int], captures: dict[int, dict]) -> tuple[dict, list, float | None]:
+        decoded = {index: _decoded(file, index, resolved, video, preset) for index in run}
+        references = {index: _reference(project, resolved, index, threads, captures[index], preset) for index in run}
+        totals = {"sum": np.zeros(3), "squares": np.zeros(3), "pixels": 0}
+        cuts, alpha_error = [], None
+        for index in run:
+            (frame, alpha), (reference, reference_alpha) = decoded[index], references[index]
+            if alpha is not None:
+                off = float(np.abs(alpha - reference_alpha).max()) * 1023
+                alpha_error = off if alpha_error is None else max(alpha_error, off)
+            signed = ((frame - reference) * 1023).reshape(-1, 3).astype(np.float64)
+            totals["sum"] += signed.sum(axis=0)
+            totals["squares"] += (signed ** 2).sum(axis=0)
+            totals["pixels"] += signed.shape[0]
+            rmse = float(np.sqrt(np.mean(signed ** 2)))
+            other = across[index]
+            if other is None:
+                cuts.append({"frame": index, "rmse": round(rmse, 3), "across_the_cut": None, "ok": True})
+                continue
+            to_other = float(np.sqrt(np.mean(((frame - references[other][0]) * 1023) ** 2)))
+            cuts.append({"frame": index, "rmse": round(rmse, 3), "across_the_cut": other,
+                         "rmse_to_it": round(to_other, 3), "ok": rmse < to_other})
+        return totals, cuts, alpha_error
+
+    jobs = ((run, {index: captured(resolved, index, pages) for index in run}) for run in _runs(sorted(across)))
+    totals = {"sum": np.zeros(3), "squares": np.zeros(3), "pixels": 0}
+    cuts, alpha_error = [], None
+    for part, run_cuts, run_alpha in in_order(measured, jobs, workers=VERIFY_JOBS, ahead=VERIFY_JOBS):
+        totals = {key: totals[key] + part[key] for key in totals}
+        cuts += run_cuts
+        if run_alpha is not None:
+            alpha_error = run_alpha if alpha_error is None else max(alpha_error, run_alpha)
+    return totals, cuts, alpha_error
