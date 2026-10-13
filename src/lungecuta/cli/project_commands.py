@@ -256,3 +256,18 @@ def commands() -> None:
     its summary, its arguments and its options (flags, types, defaults, choices, whether
     required), the op group's operations among them."""
     print_json({"commands": [_described(command, f"lc {name}") for name, command in sorted(main.commands.items())]})
+
+
+@main.command()
+@project_option
+def mcp(project_dir: Path | None) -> None:
+    """Serve every lc command as a tool over the Model Context Protocol on stdio, for Claude
+    Code, Codex or any MCP client: each tool's input schema is its command's arguments and
+    options, a call returns what the command prints, and the pictures it writes come back
+    as images. Tools default to this project (--project, or the nearest project.json above
+    the current directory, if there is one); the project guide is the server's
+    instructions. A project's .mcp.json (lc init writes it) starts it for Claude Code."""
+    from ..mcp_server import run
+    from ..project import nearest_project
+
+    run(main, project_dir.resolve() if project_dir else nearest_project(Path.cwd()))

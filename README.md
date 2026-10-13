@@ -21,6 +21,24 @@ real edit. Agents working on the repository start with [AGENTS.md](AGENTS.md). S
 with [docs/design/00-overview.md](docs/design/00-overview.md); measurements behind the
 design are in [bench/RESULTS.md](bench/RESULTS.md).
 
+## Working with Claude Code or Codex
+
+Install the `lc` command where an agent can run it (`uv tool install --editable .` from
+this repository puts it on the PATH), then make a project with `lc init DIR`. The project
+gets the guide the agent reads (`AGENTS.md`, imported by `CLAUDE.md`) and a `.mcp.json`
+that starts `lc mcp`, so Claude Code opened in the project offers every command as an MCP
+tool, with frames and sheets returned as images. For Codex, add the server to
+`~/.codex/config.toml`:
+
+```toml
+[mcp_servers.lungecuta]
+command = "lc"
+args = ["mcp", "--project", "/path/to/edit.lc"]
+```
+
+Without MCP the agent runs `lc` in a shell: every command prints one JSON object, and
+`lc commands` describes them all.
+
 ## Phase 0 tools
 
 ```
@@ -28,6 +46,7 @@ lc init DIR                         a new project, with AGENTS.md and CLAUDE.md 
 lc guide [--write]                  that guide, printed or brought up to date in a project
 lc status                           what is in a project: media, comps, unseen edits, stale renders
 lc commands                         every command, its arguments and options, as JSON
+lc mcp                              every command as an MCP tool on stdio, pictures as images
 lc root NAME DIR                    where a media root is on this machine
 lc relink --root NAME DIR           find a root's moved files by size and hash
 lc import FILES --root NAME         media records: colour and time decisions with evidence,

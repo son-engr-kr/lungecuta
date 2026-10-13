@@ -3,8 +3,12 @@
 The agent edits the project's JSON files directly; nothing about that needs a special
 protocol. What it needs from lungecuta is **eyes and checks**: ways to see a frame, a
 stretch of timeline, a scope or a loudness curve, and ways to find out whether the
-project still means what it should. Everything here is a CLI command first. An MCP
-server, if one is added, is a thin wrapper over the same commands.
+project still means what it should. Everything here is a CLI command first, and `lc mcp`
+is a thin wrapper over the same commands: each an MCP tool over stdio, its input schema
+its arguments and options, its result what it prints, and the pictures it writes returned
+as images no larger than 1568 pixels on the long side, the size Anthropic's vision
+documentation scales larger images down to (`src/lungecuta/mcp_server.py`). A command
+that fails returns its error and traceback as the tool's error; the server keeps running.
 
 ## Commands
 
@@ -13,6 +17,7 @@ server, if one is added, is a thin wrapper over the same commands.
 | `lc init DIR` | a new project directory: `project.json` with the colour defaults of [03-project-format.md](03-project-format.md#projectjson), `proxy_height` 540, `media_roots` `[]`, `comps` `[]`, `deliver` `[]`; empty `media/`, `comps/`, `grades/`, `styles/`, `graphics/`, `luts/`, `cache/`; `roots.local.json` `{}` and a `.gitignore` naming it and `cache/`; the agent guide (`AGENTS.md`, `CLAUDE.md`); refuses a non-empty directory. The `.lc` suffix is a convention, not required |
 | `lc status` | what is in the project for an agent arriving: media (footage with its colour space and whether it is usable, music with its tempo and licence), comps (size, rate, length, layers by type, markers, transitions), the editor changes `lc changes` has not shown, and each render in the cache with whether its comp and media still match (`src/lungecuta/status.py`) |
 | `lc commands` | every command as data: its summary, arguments and options (flags, types, defaults, choices, whether required), the `op` group's operations among them, so an agent reads the CLI without parsing help text |
+| `lc mcp [--project DIR]` | every command above (but `serve`) as an MCP tool on stdio, defaulting to the project; the guide is the server's instructions; a project's `.mcp.json` starts it for Claude Code |
 | `lc guide [--write]` | the guide a coding agent reads in a project (below); `--write` puts it into the project's `AGENTS.md` between its markers and makes `CLAUDE.md` import it |
 | `lc import FILES...` | media records, one file each under `media/`: probe, rates and timecode, colour decision with evidence, decoder check, proxy, PCM WAV and beat map for music. Each file must lie under a root named with `--root NAME` |
 | `lc beats KEY` | runs the beat analysis of a music record again on its WAV and writes the new times only if every beat and downbeat index is kept; otherwise lists the inserted and removed beats and exits with status 1, and `--replace` applies it anyway ([03-project-format.md](03-project-format.md#beat-maps)) |
@@ -63,7 +68,8 @@ server, if one is added, is a thin wrapper over the same commands.
 
 An agent opened in a project directory reads its instructions from a file there: Codex
 from `AGENTS.md`, Claude Code from `CLAUDE.md`, which can import another file with
-`@AGENTS.md`. `lc init` writes both, so the agent arrives knowing the project's files, the
+`@AGENTS.md`. `lc init` writes both, and a `.mcp.json` that starts `lc mcp` for Claude
+Code (keeping any other server the file lists), so the agent arrives knowing the project's files, the
 time literals, the steps of every edit (`lc changes` first, `lc op` where it can, look
 with `lc still`, `lc sheet` and `lc scope`, check with `lc audio-check` and `lc lint`,
 deliver with `lc render`, `lc verify` and `lc flash`) and what it cannot judge. The

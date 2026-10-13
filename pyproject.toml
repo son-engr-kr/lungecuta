@@ -13,6 +13,7 @@ dependencies = [
     "beat-this>=1.1.0",
     "click>=8.5.0",
     "fastapi>=0.143.0",
+    "mcp>=2.3.0",
     "numpy>=2.5.4",
     "opencolorio>=2.6.0",
     "pillow>=12.3.0",

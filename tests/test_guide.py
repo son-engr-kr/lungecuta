@@ -21,6 +21,8 @@ def test_lc_init_writes_the_guide_for_codex_and_claude_code(tmp_path):
     agents = (directory / "AGENTS.md").read_text()
     assert agents.startswith(START) and agents.rstrip().endswith(END) and guide_text() in agents
     assert (directory / "CLAUDE.md").read_text() == IMPORT + "\n"
+    assert json.loads((directory / ".mcp.json").read_text()) == {"mcpServers": {"lungecuta": {"command": "lc",
+                                                                                              "args": ["mcp"]}}}
 
 
 def test_the_guide_names_only_commands_that_exist():
@@ -43,12 +45,13 @@ def test_writing_the_guide_again_keeps_what_the_person_wrote(tmp_path):
     agents.write_text("# Our notes\n\nCut on the snare.\n\n" + old + "\nMore notes.\n")
     (directory / "CLAUDE.md").write_text("Speak Korean.\n")
     printed = run("guide", "--write", "--project", str(directory))
-    assert printed["files"] == {"AGENTS.md": "updated", "CLAUDE.md": "updated"}
+    assert printed["files"] == {"AGENTS.md": "updated", "CLAUDE.md": "updated", ".mcp.json": "unchanged"}
     text = agents.read_text()
     assert text.startswith("# Our notes\n\nCut on the snare.\n\n") and text.endswith("\nMore notes.\n")
     assert "an older guide" not in text and text.count(START) == 1 and guide_text() in text
     assert (directory / "CLAUDE.md").read_text() == "Speak Korean.\n\n" + IMPORT + "\n"
-    assert write_guide(directory)["files"] == {"AGENTS.md": "unchanged", "CLAUDE.md": "unchanged"}
+    assert write_guide(directory)["files"] == {"AGENTS.md": "unchanged", "CLAUDE.md": "unchanged",
+                                               ".mcp.json": "unchanged"}
 
 
 def test_a_guide_is_added_to_an_agents_file_without_one(tmp_path):
@@ -74,3 +77,10 @@ def test_lc_commands_describes_every_command_and_operation():
     preset = next(o for o in render["options"] if o["flags"] == ["--preset"])
     assert "web-hevc10" in preset["choices"]
     assert "  " not in sheet["summary"] and sheet["summary"].startswith("A contact sheet")
+
+
+def test_an_mcp_config_keeps_the_other_servers_it_lists(tmp_path):
+    (tmp_path / ".mcp.json").write_text(json.dumps({"mcpServers": {"other": {"command": "x"}}}))
+    assert write_guide(tmp_path)["files"][".mcp.json"] == "updated"
+    servers = json.loads((tmp_path / ".mcp.json").read_text())["mcpServers"]
+    assert set(servers) == {"other", "lungecuta"}

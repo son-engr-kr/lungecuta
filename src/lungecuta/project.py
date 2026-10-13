@@ -49,11 +49,15 @@ def init_project(directory: Path) -> Path:
     return directory.resolve()
 
 
-def find_project(start: Path) -> Path:
+def nearest_project(start: Path) -> Path | None:
     """The nearest directory holding `project.json`, from `start` upwards, as git finds a
-    repository."""
+    repository; None when there is none."""
     start = start.resolve()
-    for directory in (start, *start.parents):
-        if (directory / PROJECT_FILE).is_file():
-            return directory
-    raise AssertionError(f"no {PROJECT_FILE} in {start} or any directory above it")
+    return next((directory for directory in (start, *start.parents) if (directory / PROJECT_FILE).is_file()), None)
+
+
+def find_project(start: Path) -> Path:
+    """`nearest_project`, which must exist."""
+    found = nearest_project(start)
+    assert found is not None, f"no {PROJECT_FILE} in {start.resolve()} or any directory above it"
+    return found

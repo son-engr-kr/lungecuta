@@ -1,19 +1,22 @@
 """The guide a coding agent reads in a project (docs/design/09-agent-interface.md, Working
 in a project): `AGENTS.md`, which Codex reads, and `CLAUDE.md`, which Claude Code reads and
-which imports `AGENTS.md`. `lc init` writes both; `lc guide --write` brings the guide up to
-this version of lungecuta. The guide sits between two markers in `AGENTS.md`, so whatever
-the person writes outside them is kept."""
+which imports `AGENTS.md`; and `.mcp.json`, which starts `lc mcp` for Claude Code. `lc init`
+writes them; `lc guide --write` brings the guide up to this version of lungecuta. The guide
+sits between two markers in `AGENTS.md`, so whatever the person writes outside them is
+kept, and `.mcp.json` keeps the other servers it lists."""
 from __future__ import annotations
 
+import json
 from importlib.metadata import version
 from pathlib import Path
 from typing import Any
 
-from .files import write_atomic
+from .files import json_text, write_atomic
 
 START = "<!-- lc:guide start: written by lc guide --write; edit outside these markers -->"
 END = "<!-- lc:guide end -->"
 IMPORT = "@AGENTS.md"
+SERVER = {"command": "lc", "args": ["mcp"]}  # lc on the PATH; it finds the project from where it starts
 
 GUIDE = """\
 # Working in this lungecuta project (lungecuta {version})
@@ -23,7 +26,9 @@ you, an agent, and a person edit together. The person watches and listens in the
 (`lc serve`); you read and write the files and use `lc` to see and check what they mean.
 Every `lc` command prints one JSON object; `lc COMMAND --help` says exactly what it does,
 `lc commands` lists every command with its arguments and options as JSON, and
-`lc schema` prints the JSON Schema of every file.
+`lc schema` prints the JSON Schema of every file. The same commands are MCP tools when
+`lc mcp` runs (this project's `.mcp.json` starts it for Claude Code): `lc_still`,
+`lc_op_move` and so on, with the pictures they write returned as images.
 
 ## Files
 
@@ -122,4 +127,12 @@ def write_guide(directory: Path) -> dict[str, Any]:
         written["CLAUDE.md"] = "updated"
     else:
         written["CLAUDE.md"] = "unchanged"
+    config = directory / ".mcp.json"
+    servers = json.loads(config.read_text()) if config.exists() else {}
+    if servers.get("mcpServers", {}).get("lungecuta") is None:
+        servers.setdefault("mcpServers", {})["lungecuta"] = SERVER
+        write_atomic(config, json_text(servers))
+        written[".mcp.json"] = "updated" if len(servers["mcpServers"]) > 1 else "created"
+    else:
+        written[".mcp.json"] = "unchanged"
     return {"directory": str(directory), "files": written, "lungecuta": version("lungecuta")}

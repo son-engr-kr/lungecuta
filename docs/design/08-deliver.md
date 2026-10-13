@@ -127,6 +127,8 @@ weights), PyTorch (BSD-3-Clause with Apache-2.0 and other permissive parts), tor
 loaded library, which an MIT-licensed tool can depend on); for the editor and the master
 chain, FastAPI (MIT), Starlette and uvicorn (BSD-3-Clause), Playwright (Apache-2.0), PyAV
 (BSD-3-Clause; its wheels bundle FFmpeg libraries, under a licence not checked here),
-pyloudnorm (MIT) and SciPy (BSD-3-Clause). The labels on sheets and scopes use the Aileron
+pyloudnorm (MIT) and SciPy (BSD-3-Clause); for `lc mcp`, the MCP Python SDK `mcp` and
+`mcp-types` (MIT) with what they bring (anyio, jsonschema, PyJWT: MIT; httpx2, Starlette,
+sse-starlette: BSD-3-Clause; OpenTelemetry API, python-multipart: Apache-2.0). The labels on sheets and scopes use the Aileron
 Regular subset that Pillow bundles, which its author releases under CC0 ("Aileron is No
 Rights Reserved", dotcolon.net, checked 2026-10-13).
