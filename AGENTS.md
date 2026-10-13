@@ -230,7 +230,7 @@ describes.
    written one per file under `media/`, with paths relative to a named root; the rates,
    recording mode and start timecode come from the XML too
    ([rates and timecode](docs/design/02-media.md#rates-and-timecode)). Include the
-   per-clip decoder check (first 300 frames, framemd5, software against VideoToolbox) and
+   per-clip decoder check (first 300 frames compared byte for byte, software against VideoToolbox) and
    the proxy with its own decode record. Run the proxy parity test on ProRes Proxy, LT and
    4444 at 540p on both samples before fixing the profile
    ([proxies](docs/design/02-media.md#proxies)), and put the results in `bench/RESULTS.md`.

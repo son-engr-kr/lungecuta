@@ -293,9 +293,9 @@ and `stat`, which are left out:
                                    "color_transfer": "unknown", "color_primaries": "unknown" } }
   },
   "decode": { "decoder": "software",
-              "checked": { "method": "framemd5", "frames": 300, "against": "videotoolbox",
+              "checked": { "method": "bytes", "frames": 1, "against": "videotoolbox",
                            "result": "failed",
-                           "detail": "300 of 300 frames; videotoolbox reported: h264: hardware accelerator failed to decode picture" } },
+                           "detail": "videotoolbox at frame 0: h264: hardware accelerator failed to decode picture" } },
   "proxy": { "path": "cache/proxy/C0001.mkv", "profile": "ffv1-444", "pix_fmt": "yuv444p10le",
              "size": [960, 540], "matrix": "bt709", "range": "full",
              "parity": { "frames": [0, 70, 140, 211, 281, 352, 422, 492, 563, 633, 704],

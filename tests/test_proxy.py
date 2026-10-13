@@ -78,9 +78,9 @@ def test_a_proxy_built_from_lcs_decode_decodes_to_the_downscaled_original(tmp_pa
     common = dict(size=(64, 36), coded_size=(256, 144), source_pix_fmt="yuv422p10le", source_chroma_location="left",
                   source_range="limited", frames=4, rate=Fraction(25))
     build_proxy(clip, proxy, profile="ffv1-444", proxy_range="limited", **common)
-    numbers = parity(clip, proxy, indices=[0, 3], rate=Fraction(25), coded_size=(256, 144), size=(64, 36),
-                     source_pix_fmt="yuv422p10le", source_chroma_location="left", proxy_pix_fmt="yuv444p10le",
-                     matrix="bt709", source_range="limited", proxy_range="limited", config=CONFIG, space=None)
+    numbers, = parity(clip, proxy, indices=[0, 3], rate=Fraction(25), coded_size=(256, 144), size=(64, 36),
+                      source_pix_fmt="yuv422p10le", source_chroma_location="left", proxy_pix_fmt="yuv444p10le",
+                      matrix="bt709", source_range="limited", proxy_range="limited", config=CONFIG, spaces=[None])
     # Only the rounding of each plane to 10-bit codes separates them. Half a code of Y and of
     # Cr moves R by at most 0.5 * 1023/876 + 2 (1 - KR) * 0.5 * 1023/896, and B by the same
     # with KB: 1.48 and 1.64 codes in limited range (H.273 equations 30 to 32 and 45 to 47).

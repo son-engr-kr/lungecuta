@@ -10,10 +10,12 @@ from fractions import Fraction
 from pathlib import Path
 
 import numpy as np
+from scipy import sparse
 
 from . import color
 from .decode import CHROMA_OFFSET, Layout, linear_resample, planes, raw_frames, read_rgb
 from .geometry import _area_weights, area_resize
+from .parallel import in_order, prefetched
 from .schema.media import ParityNumbers
 from .ticks import format_rate
 from .tools import run, tool
@@ -44,6 +46,7 @@ PROFILES = {
     "ffv1-444": ProxyProfile(".mkv", ("-c:v", "ffv1", "-level", "3", "-g", "1", "-slices", "16"), "yuv444p10le", "yuv444p10le", True),
 }
 PARITY_FRAMES = 11
+PARITY_READS = 4
 # The provisional gate (bench/RESULTS.md, "Proxy parity"): in the file's own R'G'B' codes,
 # p99 at most 2 and no channel biased by more than half a code. *proposed*
 PARITY_P99 = 2.0
@@ -140,6 +143,9 @@ def build_proxy(
     partial = target.with_name(f".{target.stem}.partial{target.suffix}")
     layout = Layout.of(source_pix_fmt)
     (rows, columns), (rows_c, columns_c) = downscale_operators(layout, source_chroma_location, coded_size, size)
+    # Each output pixel takes a few source pixels, so the operators are applied as sparse
+    # matrices: the same products as dense ones, without the zeros (4 times faster at 4K).
+    rows, columns_t, rows_c, columns_c_t = (sparse.csr_array(m) for m in (rows, columns.T, rows_c, columns_c.T))
     width, height = size
     encoded = Layout.of(chosen.pix_fmt)
     assert encoded.bits == 10 and encoded.sub_y == 1, f"{chosen.pix_fmt} is not a 10-bit 4:4:4 or 4:2:2 format"
@@ -149,9 +155,9 @@ def build_proxy(
         *chosen.codec, "-pix_fmt", chosen.pix_fmt, "-color_range", _FFMPEG_RANGE[proxy_range], str(partial),
     ], stdin=subprocess.PIPE, stderr=subprocess.PIPE)
     top = np.float32(1023)
-    for data in raw_frames(source, pix_fmt=source_pix_fmt, size=coded_size, count=frames):
+    for data in prefetched(raw_frames(source, pix_fmt=source_pix_fmt, size=coded_size, count=frames)):
         y, cb, cr = planes(data, coded_size, layout)
-        small = (rows @ y @ columns.T, rows_c @ cb @ columns_c.T, rows_c @ cr @ columns_c.T)
+        small = (rows @ y @ columns_t, rows_c @ cb @ columns_c_t, rows_c @ cr @ columns_c_t)
         small = recode(*small, bits=layout.bits, range_=source_range, to_bits=10, to_range=proxy_range)
         if encoded.sub_x > 1:
             small = (small[0], *(cosited_half(plane) for plane in small[1:]))
@@ -193,30 +199,45 @@ def parity(
     source_range: str,
     proxy_range: str,
     config: str,
-    space: str | None,
-) -> ParityNumbers:
-    """The parity test on the frames `indices`: in DaVinci Intermediate when `space`
-    names the clip's colour space, in the file's own R'G'B' codes when it is None."""
-    processor = color.cpu_processor(config, space, color.DAVINCI_INTERMEDIATE) if space else None
-    differences, blocks = [], []
-    for index in indices:
+    spaces: list[str | None],
+) -> list[ParityNumbers]:
+    """The parity test on the frames `indices`, once for each of `spaces`: in DaVinci
+    Intermediate for a space that names the clip's colour space, in the file's own R'G'B'
+    codes for None. Each frame is read once for all of them."""
+    processors = [color.cpu_processor(config, space, color.DAVINCI_INTERMEDIATE) if space else None
+                  for space in spaces]
+    differences = [[] for _ in spaces]
+    blocks = [[] for _ in spaces]
+    def frames(index: int) -> tuple[np.ndarray, np.ndarray]:
         reference = read_rgb(original, index, rate=rate, size=coded_size, pix_fmt=source_pix_fmt, matrix=matrix,
                              range_=source_range, chroma_location=source_chroma_location)
         candidate = read_rgb(proxy, index, rate=rate, size=size, pix_fmt=proxy_pix_fmt, matrix=matrix,
                              range_=proxy_range, chroma_location=proxy_chroma_location)
-        if processor is not None:
-            color.apply(processor, reference)
-            color.apply(processor, candidate)
-        signed = (candidate - area_resize(reference, size)) * 1023
-        differences.append(signed.reshape(-1, 3))
-        blocks.append(np.abs(area_resize(np.ascontiguousarray(signed), (size[0] // 4, size[1] // 4))).ravel())
-    every = np.concatenate(differences)
+        return reference, candidate
+
+    # Each read is an ffmpeg seek, mostly waiting on a decode from the keyframe before, so
+    # several run at once (PARITY_READS, bench/RESULTS.md).
+    for reference, candidate in in_order(frames, ((index,) for index in indices), workers=PARITY_READS,
+                                         ahead=PARITY_READS):
+        for processor, found, block in zip(processors, differences, blocks):
+            ours, theirs = reference, candidate
+            if processor is not None:
+                ours, theirs = reference.copy(), candidate.copy()
+                color.apply(processor, ours)
+                color.apply(processor, theirs)
+            signed = (theirs - area_resize(ours, size)) * 1023
+            found.append(signed.reshape(-1, 3))
+            block.append(np.abs(area_resize(np.ascontiguousarray(signed), (size[0] // 4, size[1] // 4))).ravel())
+    return [_numbers(np.concatenate(found), np.concatenate(block)) for found, block in zip(differences, blocks)]
+
+
+def _numbers(every: np.ndarray, blocks: np.ndarray) -> ParityNumbers:
     absolute = np.abs(every)
     return ParityNumbers(
         p99=round(float(np.percentile(absolute, 99)), 4),
         max=round(float(absolute.max()), 4),
         bias=tuple(round(float(b), 4) for b in every.mean(axis=0)),
-        p99_blocks=round(float(np.percentile(np.concatenate(blocks), 99)), 4),
+        p99_blocks=round(float(np.percentile(blocks, 99)), 4),
     )
 
 

@@ -213,7 +213,10 @@
       "additionalProperties": false,
       "properties": {
         "method": {
-          "const": "framemd5",
+          "enum": [
+            "bytes",
+            "framemd5"
+          ],
           "title": "Method",
           "type": "string"
         },

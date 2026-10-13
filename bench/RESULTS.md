@@ -32,9 +32,10 @@ Latest run; an earlier run agreed within 3 %:
 
 Findings:
 
-- **VideoToolbox on 4:2:2 10-bit H.264 is a correctness failure, not a slow path.** It
-  outputs 693 frames for 705 packets ("hardware accelerator failed to decode picture" on
-  every frame). An earlier version of this script divided the packet count by the time
+- **VideoToolbox on clip A's 4:2:2 10-bit H.264 is a correctness failure, not a slow
+  path.** It outputs 693 frames for 705 packets ("hardware accelerator failed to decode
+  picture" on every frame). It is that stream, not the format: libx264's progressive
+  4:2:2 10-bit decodes identically in VideoToolbox (`tests/test_decode.py`, 2026-10-13). An earlier version of this script divided the packet count by the time
   and reported 70.4 fps for that broken decode; the script now hashes every frame
   (`framemd5`) and compares decoders.
 - **For HEVC, VideoToolbox is bit-exact and nearly free on the CPU** (0.2 to 0.3 cores against
@@ -446,6 +447,27 @@ last bass note's cut-off click is found and nothing else, each 5 or 10 ms before
 (`tests/test_onsets.py`). `lc audio-check check` on the Phase 0 check comp: cuts 0.5 to
 31 ms after their beats and -14 to +38 ms from their nearest onsets, 102 onsets in the
 comp's 15.9 s.
+
+## What a footage import costs: `uv run python bench/import_cost.py PROJECT KEY`
+
+The S-Log3 sample (4K 4:2:2 10-bit H.264, 705 frames), 2026-10-13, after `lc import` had
+made its record and proxy. `lc import` took 64 s; profiled by stage, 23.3 s went to the
+decoder check (two ffmpeg `framemd5` runs of 300 frames: 11.8 s each, at 234 % CPU,
+against 3.5 s for decoding all 705 frames to raw output, so the time was the md5 of
+33 MB a frame), 21.8 s to the proxy build (12 s of dense matrix products whose operators
+are almost all zeros, 6 s reading the pipe) and 8.7 s to each of the two parity tests,
+which read the same eleven frames.
+
+| stage | before | after | the output |
+| --- | --- | --- | --- |
+| decoder check: both decoders at once, raw frames compared byte for byte, stopping at the first that is not identical | 23.3 s | 0.6 s | the same verdict (failed); `framemd5` and the byte comparison agree on HEVC (identical) and ProRes (different) |
+| proxy build: sparse operators, the pipe read ahead on a thread | 21.8 s | 9.2 s | identical, every frame (framemd5 of the two proxies) |
+| parity: each frame read once for both spaces, reads overlapped | 17.4 s | 4.1 s | the same numbers, to the four decimals recorded |
+| whole `lc import` | 64 s | 19.9 s | |
+
+Parity with 1, 2, 4, 8 and 15 reads at once: 8.6, 5.1, **4.1**, 4.4 and 4.3 s, the same
+numbers each time; so `PARITY_READS = 4`. Each read is an ffmpeg seek, mostly a decode from
+the keyframe before.
 
 ## An edit made as an agent makes one: `sh bench/dry_run.sh FOOTAGE MUSIC WORKDIR`
 

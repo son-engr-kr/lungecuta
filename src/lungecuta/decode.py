@@ -2,8 +2,10 @@
 (docs/design/02-media.md#decode)."""
 from __future__ import annotations
 
+import os
 import re
 import subprocess
+import tempfile
 from collections.abc import Iterator
 from dataclasses import dataclass
 from fractions import Fraction
@@ -21,41 +23,76 @@ VIDEOTOOLBOX_DOWNLOAD = {"yuv422p10le": "p210le", "yuv420p10le": "p010le", "yuv4
 SWS_FLAGS = "accurate_rnd+full_chroma_int+full_chroma_inp"
 
 
-def _framemd5(args: list[str]) -> tuple[list[str], str, int]:
-    done = subprocess.run([tool("ffmpeg"), *args, "-f", "framemd5", "-"], capture_output=True, stdin=subprocess.DEVNULL)
-    lines = done.stdout.decode().splitlines()
-    hashes = [line.rsplit(",", 1)[-1].strip() for line in lines if line and not line.startswith("#")]
-    return hashes, done.stderr.decode(errors="replace").strip(), done.returncode
+def _decoding(args: list[str], log) -> subprocess.Popen:
+    """ffmpeg decoding to raw frames on its stdout, its messages written to `log` (a file,
+    so a decoder that reports an error on every frame cannot fill a pipe and stall)."""
+    return subprocess.Popen([tool("ffmpeg"), "-v", "error", "-noautorotate", *args], stdin=subprocess.DEVNULL,
+                            stdout=subprocess.PIPE, stderr=log)
 
 
-def decoder_check(path: Path, *, pix_fmt: str, frames: int) -> DecodeRecord:
-    """Decode the first 300 frames (or all) in software and with VideoToolbox and compare
-    them frame by frame; hardware is used only when it is bit-exact."""
+def _reported(log) -> str | None:
+    """The first message in `log`, without the decoder's address, which differs every run."""
+    if os.fstat(log.fileno()).st_size == 0:
+        return None
+    log.seek(0)
+    first = log.read().decode(errors="replace").strip().splitlines()[0]
+    return re.sub(r"^\[(\w+) @ 0x[0-9a-f]+\] ", r"\1: ", first)
+
+
+def decoder_check(path: Path, *, pix_fmt: str, size: tuple[int, int], frames: int) -> DecodeRecord:
+    """Decode the first 300 frames (or all) in software and with VideoToolbox at once and
+    compare them frame by frame, byte for byte, in the clip's own pixel format; hardware is
+    used only when every frame is identical. The check stops at the first frame that differs
+    or that VideoToolbox reports an error on, since one is enough to rule it out."""
     count = min(CHECK_FRAMES, frames)
-    common = ["-map", "0:v:0", "-frames:v", str(count), "-pix_fmt", pix_fmt]
-    software, error, code = _framemd5(["-v", "error", "-noautorotate", "-i", str(path), *common])
-    assert code == 0 and not error, f"software decode of {path.name} failed: {error}"
-    assert len(software) == count, f"software decode of {path.name} gave {len(software)} frames for {count}"
 
-    def record(decoder: str, result: str, detail: str | None) -> DecodeRecord:
-        check = DecoderCheck(method="framemd5", frames=count, against="videotoolbox", result=result, detail=detail)
+    def record(decoder: str, result: str, compared: int, detail: str | None) -> DecodeRecord:
+        check = DecoderCheck(method="bytes", frames=compared, against="videotoolbox", result=result, detail=detail)
         return DecodeRecord(decoder=decoder, checked=check)
 
     download = VIDEOTOOLBOX_DOWNLOAD.get(pix_fmt)
     if download is None:
-        return record("software", "unchecked", f"no VideoToolbox download format known for {pix_fmt}")
-    hardware, error, code = _framemd5([
-        "-v", "error", "-noautorotate", "-hwaccel", "videotoolbox", "-hwaccel_output_format", "videotoolbox_vld",
-        "-i", str(path), "-vf", f"hwdownload,format={download}", *common,
-    ])
-    if code != 0 or error:
-        # ffmpeg prefixes each message with the decoder's address, which differs every run.
-        first = re.sub(r"^\[(\w+) @ 0x[0-9a-f]+\] ", r"\1: ", error.splitlines()[0]) if error else f"exit code {code}"
-        return record("software", "failed", f"{len(hardware)} of {count} frames; videotoolbox reported: {first}")
-    if hardware != software:
-        differing = sum(a != b for a, b in zip(hardware, software)) + abs(len(hardware) - len(software))
-        return record("software", "different", f"{differing} of {count} frames differ")
-    return record("videotoolbox", "identical", None)
+        return record("software", "unchecked", 0, f"no VideoToolbox download format known for {pix_fmt}")
+    frame_bytes = Layout.of(pix_fmt).frame_bytes(size)
+    output = ["-map", "0:v:0", "-frames:v", str(count), "-f", "rawvideo", "-pix_fmt", pix_fmt, "-"]
+    with tempfile.TemporaryFile() as software_log, tempfile.TemporaryFile() as hardware_log:
+        with _decoding(["-i", str(path), *output], software_log) as software, _decoding([
+            "-hwaccel", "videotoolbox", "-hwaccel_output_format", "videotoolbox_vld", "-i", str(path),
+            "-vf", f"hwdownload,format={download}", *output,
+        ], hardware_log) as hardware:
+            stopped = None
+            for index in range(count):
+                reference = software.stdout.read(frame_bytes)
+                assert len(reference) == frame_bytes, (
+                    f"software decode of {path.name}: {index} of {count} frames arrived; {_reported(software_log)}"
+                )
+                candidate = hardware.stdout.read(frame_bytes)
+                if candidate != reference or _reported(hardware_log):
+                    stopped = index, len(candidate) < frame_bytes
+                    # both are ended before their pipes close, or a decoder still alive
+                    # would report the closed pipe as its error
+                    for process in (software, hardware):
+                        process.kill()
+                        process.wait()
+                    break
+            else:
+                extra = software.stdout.read(), hardware.stdout.read()
+        if stopped:
+            index, short = stopped
+            # an error VideoToolbox reported explains a difference, so it is what is recorded
+            message = _reported(hardware_log)
+            if message or short:
+                return record("software", "failed", index + 1, f"videotoolbox at frame {index}: "
+                              + (message or "no frame arrived"))
+            return record("software", "different", index + 1, f"frame {index} differs from the software decode")
+        assert software.returncode == 0 and not extra[0] and not _reported(software_log), (
+            f"software decode of {path.name} failed: {_reported(software_log)}"
+        )
+        message = _reported(hardware_log) or (f"exit code {hardware.returncode}" if hardware.returncode else None)
+        if message or extra[1]:
+            return record("software", "failed", count, f"videotoolbox after frame {count - 1}: "
+                          + (message or f"more than {count} frames"))
+    return record("videotoolbox", "identical", count, None)
 
 
 def seek_seconds(index: int, rate: Fraction) -> str:

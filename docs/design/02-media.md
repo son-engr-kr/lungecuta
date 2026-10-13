@@ -93,16 +93,24 @@ file whose original cannot be found is undecided, like any other.
 ## Decode
 
 - **The decoder is chosen per clip and verified at import.** The first 300 frames (or the
-  whole clip if shorter) are decoded in software and with VideoToolbox and compared frame
-  by frame (`framemd5`, in the clip's own pixel format); hardware is used only when it is
-  bit-exact, and the result is stored in the media record's `decode` entry
-  ([03-project-format.md](03-project-format.md#media)). With `-hwaccel videotoolbox` alone,
+  whole clip if shorter) are decoded in software and with VideoToolbox at once and compared
+  frame by frame, byte for byte, in the clip's own pixel format; hardware is used only when
+  every frame is identical, and the result is stored in the media record's `decode` entry
+  ([03-project-format.md](03-project-format.md#media)). The check stops at the first frame
+  that differs or that VideoToolbox reports an error on, and records how many frames it
+  compared. (Until 2026-10-13 each decode was hashed by ffmpeg's `framemd5`, which spent
+  most of the check's 23 s on the 4K sample hashing; records made then say
+  `"method": "framemd5"` and remain valid.) With `-hwaccel videotoolbox` alone,
   ffmpeg can fall back to software without saying so, which would make the comparison
   software against itself; the check therefore keeps frames in hardware surfaces
   (`-hwaccel_output_format videotoolbox_vld` with `hwdownload`), so that a fallback fails
   instead of passing. Checked: on the HEVC stand-in this forced path decodes all 705 frames
   bit-exact with software; on the H.264 4:2:2 clip it fails with "hardware accelerator
-  failed to decode picture". Measured (`bench/decode.sh`):
+  failed to decode picture". That failure is the camera stream's, not the format's:
+  libx264's progressive 10-bit 4:2:2 decodes identically in VideoToolbox, interlaced 4:2:2
+  is refused at setup, and ProRes differs from the software decode
+  (`tests/test_decode.py`); why the camera's stream fails is not established, which is
+  why the check is per clip. Measured (`bench/decode.sh`):
   - 4:2:2 10-bit H.264 (XAVC S): VideoToolbox outputs **693 frames for 705 packets**, so
     software decode, at about 210 fps;
   - 4:2:2 10-bit HEVC (the XAVC HS stand-in): VideoToolbox is bit-exact on all 705 frames

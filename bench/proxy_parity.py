@@ -87,7 +87,7 @@ for clip in map(Path, sys.argv[2:]):
                       source_range=source_range, proxy_range=proxy_range, config=CONFIG)
         print(f"  {profile:12s} {proxy_range:7s} build {build:5.1f} fps, {target.stat().st_size / 1e6:6.1f} MB, "
               f"decode {decode:6.1f} fps, seek {seek_ms:4.0f} ms")
-        print("    " + show("R'G'B':", parity(clip, target, space=None, **common)))
+        numbers = parity(clip, target, spaces=[None, space] if space else [None], **common)
+        print("    " + show("R'G'B':", numbers[0]))
         if space:
-            result = parity(clip, target, space=space, **common)
-            print("    " + show("DI:    ", result) + ("  -> pass" if result.p99 <= 2 else "  -> FAIL"))
+            print("    " + show("DI:    ", numbers[1]) + ("  -> pass" if numbers[1].p99 <= 2 else "  -> FAIL"))

@@ -8,8 +8,6 @@ from __future__ import annotations
 import os
 import platform
 import subprocess
-from collections import deque
-from concurrent.futures import ThreadPoolExecutor
 from importlib.metadata import version
 from pathlib import Path
 from typing import Any
@@ -23,6 +21,7 @@ from .encode import PRESETS, TAGS, Preset, frame_bytes
 from .files import content_hash, json_text, write_atomic
 from .media import Project
 from .mixdown import delivered_audio
+from .parallel import in_order
 from .ticks import TICKS_PER_SECOND, format_rate, ticks_per_frame
 from .tools import run, tool
 
@@ -113,16 +112,10 @@ def render(project: Project, name: str, preset_name: str, out: Path | None = Non
 
     # Frames are read and graphics captured in order here; their colour work runs on
     # `workers` threads (numpy and OCIO release the GIL) and they are written in order.
-    with overlay_pages(project, resolved) as pages, ThreadPoolExecutor(workers) as pool:
-        pending: deque = deque()
-        for index, raws in enumerate(raw_layers(project, resolved)):
-            pending.append(pool.submit(job, index, raws, captured(resolved, index, pages)))
-            while len(pending) > 2 * workers or (pending and pending[0].done()):
-                data, outside = pending.popleft().result()
-                encoder.stdin.write(data)
-                clipped, count = clipped + outside, count + 1
-        while pending:
-            data, outside = pending.popleft().result()
+    with overlay_pages(project, resolved) as pages:
+        jobs = ((index, raws, captured(resolved, index, pages))
+                for index, raws in enumerate(raw_layers(project, resolved)))
+        for data, outside in in_order(job, jobs, workers=workers, ahead=2 * workers):
             encoder.stdin.write(data)
             clipped, count = clipped + outside, count + 1
     encoder.stdin.close()

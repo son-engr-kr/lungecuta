@@ -112,7 +112,7 @@ def import_file(project: Project, file: Path, *, root: str, key: str | None = No
     else:
         assert not sound, f"{file.name} has video; only a file of sound alone imports as a sound"
         detection = detect(file, probed)
-        decode = decoder_check(file, pix_fmt=video.pix_fmt, frames=video.frames)
+        decode = decoder_check(file, pix_fmt=video.pix_fmt, size=video.size, frames=video.frames)
         proxy = _proxy(project, file, key, detection.color, video)
         record = MediaRecord(
             **common, time=detection.time, color=detection.color, decode=decode, proxy=proxy, wav=None, beats=None,
@@ -157,14 +157,14 @@ def _proxy(
             proxy_pix_fmt=chosen.decoded_pix_fmt, matrix=decision.matrix, source_range=source_range, proxy_range=source_range,
             config=project.file.color.config,
         )
-        codes = parity(file, target, space=None, **common)
+        codes, di = parity(file, target, spaces=[None, decision.space], **common)
         if not passes(codes):
             target.unlink()
             raise AssertionError(
                 f"proxy of {file.name} rejected: in R'G'B' codes p99 {codes.p99} (limit {PARITY_P99}), "
                 f"bias {codes.bias} (limit {PARITY_BIAS} per channel)"
             )
-        result = Parity(frames=indices, codes=codes, di=parity(file, target, space=decision.space, **common), reason=None)
+        result = Parity(frames=indices, codes=codes, di=di, reason=None)
         matrix = decision.matrix
     else:
         result = Parity(

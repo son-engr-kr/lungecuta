@@ -102,16 +102,19 @@ Mac plays it" mode; the viewing condition is chosen per project.
 (wrong: range belongs to the file), sent D-Log M through `Camera Rec.709` (which would
 tone-map DJI's rendering twice), and said no tag changes the Mac decode (1-13-1 does).
 
-## D6: decoder chosen per codec and verified; matrix and range always explicit
+## D6: decoder chosen per clip and verified; matrix and range always explicit
 
 **Decided.** At import, decode a stretch in software and with VideoToolbox and compare
-frame hashes; use hardware only when bit-exact. The YCbCr matrix and range are passed
+the frames byte for byte (by their hashes until 2026-10-13); use hardware only when
+bit-exact. The YCbCr matrix and range are passed
 explicitly from the media record; the colour space comes from the camera sidecar before
 stream tags.
 
 **Evidence** (`bench/decode.sh`, `bench/matrix_check.py`).
-- 4:2:2 10-bit H.264: VideoToolbox outputs 693 frames for 705 packets, so software
-  (about 210 fps).
+- 4:2:2 10-bit H.264 from the camera: VideoToolbox outputs 693 frames for 705 packets,
+  so software (about 210 fps). libx264's progressive 4:2:2 10-bit decodes identically in
+  VideoToolbox (`tests/test_decode.py`), so the failure is that stream's, and the check
+  stays per clip rather than per codec.
 - 4:2:2 10-bit HEVC stand-in: VideoToolbox bit-exact on 705 of 705 frames with frames kept
   in hardware surfaces (so a software fallback could not pass), 0.3 cores busy against
   12.4 for software.

@@ -99,3 +99,27 @@ def test_ffmpeg_hands_over_the_decoders_planes_unchanged(tmp_path):
     frame = frame_rgb(raw[:size], (64, 36), pix_fmt="yuv422p10le", chroma_location="left", matrix="bt709",
                       range_="limited")
     assert frame.shape == (36, 64, 3) and frame.dtype == np.float32
+
+
+def test_the_decoder_check_compares_videotoolbox_with_software_byte_for_byte(tmp_path):
+    """What this machine's VideoToolbox does, frame for frame against software: identical on
+    10-bit HEVC and on libx264's progressive 10-bit 4:2:2 (so the S-Log3 sample's failure,
+    D6, is its stream's, not the format's); refused on interlaced 4:2:2; different on ProRes;
+    and a format with no hardware download is not checked."""
+    from lungecuta.decode import decoder_check
+
+    def check(name, pix_fmt, *codec):
+        path = tmp_path / name
+        subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "testsrc2=size=320x180:rate=25", "-frames:v",
+                        "12", *codec, "-pix_fmt", pix_fmt, str(path)], check=True)
+        record = decoder_check(path, pix_fmt=pix_fmt, size=(320, 180), frames=12)
+        return record.decoder, record.checked.result, record.checked.frames, record.checked.detail
+
+    hevc = check("h.mp4", "yuv420p10le", "-c:v", "libx265", "-x265-params", "log-level=error")
+    assert hevc == ("videotoolbox", "identical", 12, None)
+    assert check("p.mp4", "yuv422p10le", "-c:v", "libx264") == ("videotoolbox", "identical", 12, None)
+    interlaced = check("i.mp4", "yuv422p10le", "-c:v", "libx264", "-flags", "+ildct+ilme")
+    assert interlaced[:3] == ("software", "failed", 1) and "Failed setup" in interlaced[3]
+    assert check("r.mov", "yuv422p10le", "-c:v", "prores_ks") == (
+        "software", "different", 1, "frame 0 differs from the software decode")
+    assert check("f.mkv", "yuv444p10le", "-c:v", "ffv1")[:3] == ("software", "unchecked", 0)

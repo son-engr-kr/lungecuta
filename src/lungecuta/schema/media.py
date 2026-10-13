@@ -106,8 +106,10 @@ class ColorUndecided(_Record):
 
 
 class DecoderCheck(_Record):
-    method: Literal["framemd5"]
-    frames: int
+    # "bytes": the frames compared byte for byte; "framemd5": by ffmpeg's framemd5 (records
+    # imported before 2026-10-13); both find the same decoders identical
+    method: Literal["bytes", "framemd5"]
+    frames: int  # how many frames were compared: all of the first 300, or up to the first that was not identical
     against: Literal["videotoolbox"]
     result: Literal["identical", "different", "failed", "unchecked"]
     detail: str | None
