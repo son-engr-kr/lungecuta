@@ -17,10 +17,11 @@ from .common import main, print_json, project_of, project_option
 @click.option("--to", "end", help="Where it ends (the comp's end when absent).")
 @project_option
 def audio_check_command(comp: str, start: str | None, end: str | None, project_dir: Path | None) -> None:
-    """For every cut in the span, its offset in milliseconds to the nearest beat and
-    whether that beat is a downbeat; the mix's RMS on every half beat (dBFS, before the
-    master chain) and its slope in dB per beat, which says whether a build climbs.
-    Offsets to onsets are not written yet."""
+    """For every cut in the span, its offset in milliseconds to the nearest beat (and
+    whether that beat is a downbeat) and to the nearest onset of the mix (SuperFlux;
+    onsets lead hits by 5 to 10 ms); the onsets found; the mix's RMS on every half beat
+    (dBFS, before the master chain) and its slope in dB per beat, which says whether a
+    build climbs."""
     from ..audio_check import audio_check
 
     print_json(audio_check(project_of(project_dir), comp, start, end))
@@ -32,7 +33,9 @@ def audio_check_command(comp: str, start: str | None, end: str | None, project_d
 def lint_command(comp: str, project_dir: Path | None) -> None:
     """The past projects' review rules a machine can check, as warnings, each threshold in
     project.json's `lint`: graphics on screen long enough to read, no source frame shown by
-    two layers, a licence record on every music file. The rules not checked yet are listed."""
+    two layers, a licence record on every music file and sound, no sound repeated on
+    consecutive sound layers, no frame with nothing on screen. The rules not checked yet
+    are listed (flashes are checked on a render, by lc flash)."""
     from ..lint import lint
 
     print_json(lint(project_of(project_dir), comp))

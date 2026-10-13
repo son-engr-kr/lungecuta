@@ -515,18 +515,23 @@ view, OCIO's ACES 2.0 transform on the CPU at about 180 ns a pixel; making it ch
 The S-Log3 sample and the music sample, 2026-10-13, every stage through `lc` from an empty
 project: a 1080p comp 32 beats long on the song (15.4 s), the clip placed at 0 s and split
 on every bar, two parts slipped, a punch-in style on four parts, a look on all eight, a
-dissolve, then the checks and the web-h264 render. Each stage's wall time:
+dissolve, then the checks and the web-h264 render. Each stage's wall time, in the first
+run and in a second after the speed-ups above (same day, same files, the render's frames
+identical):
 
-| stage | s |
-| --- | --- |
-| import the 4K footage (probe, decoder check, proxy and its parity test) | 64 |
-| import the music (WAV and beat map) | 3 |
-| the edit, 30 `lc op` calls | 4 |
-| `lc lint`, `lc audio-check` | under 1 each |
-| `lc sheet` at every bar | 8 |
-| `lc render --preset web-h264` | 58 |
-| `lc verify` | 35 |
-| `lc flash` | 13 |
+| stage | first, s | second, s |
+| --- | --- | --- |
+| import the 4K footage (probe, decoder check, proxy and its parity test) | 64 | 14 |
+| import the music (WAV and beat map) | 3 | 3 |
+| the edit, 30 `lc op` calls | 4 | 5 |
+| `lc lint`, `lc audio-check` | under 1 each | under 1, 1 |
+| `lc sheet` at every bar | 8 | 3 |
+| `lc render --preset web-h264` | 58 | 45 |
+| `lc verify` | 35 | 9 |
+| `lc flash` | 13 | 11 |
+
+The second run's render took 45 s against 37.5 s when run alone (above), with web searches
+running beside it; the stage times are wall times on a machine in use.
 
 The render verified (-14.0 LUFS, -1.6 dBTP, every check passed), the flash check passed,
 and every cut landed 0 to 26 ms after its beat. Building it first time round stopped on
