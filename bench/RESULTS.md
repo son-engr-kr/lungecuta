@@ -484,6 +484,30 @@ consecutive sampled frames is one job:
 Every report identical to the one-job report and to the report before the change; so
 `VERIFY_JOBS = 4`, past which the time stays flat while the frames held grow.
 
+## What a render spends a frame on: `uv run python bench/render_stages.py PROJECT COMP FRAME 1`
+
+Frame 100 of the dry run's comp below (the 4K S-Log3 sample in a 1080p comp, punched in,
+with a look), on one thread as each render worker runs it, 2026-10-13, in ms:
+
+| stage | before | after |
+| --- | --- | --- |
+| `frame_rgb` (planes, chroma upsampled, the matrix) | 93.4 | 44.9 |
+| input transform (OCIO) | 44.6 | 44.4 |
+| `shown`: the look (OCIO) | 29.9 | 31.5 |
+| `place`: 4K to the comp | 83.8 | 26.4 |
+| `finish`: the output view (OCIO, ACES 2.0) | 377.1 | 377.5 |
+| `frame_bytes` | 34.3 | 34.6 |
+
+Chroma upsampling gathered every sample with `np.take` (33 ms a plane); it now takes the
+samples away from the clipped edges as slices, the same products, and gathers only the
+edges (7 ms). Placement multiplied dense weight matrices that are almost all zeros, and
+built them per frame in float64; they are now sparse, with identical weights, and give
+identical frames (every case of `place_weights` compared, enlarging and shrinking).
+The whole web-h264 render of the dry run went from 58 s to 37.5 s, its 462 decoded
+frames identical to the earlier render's (framemd5). What is left is mostly the output
+view, OCIO's ACES 2.0 transform on the CPU at about 180 ns a pixel; making it cheaper
+(a GPU processor, or a baked LUT) would change the numbers and needs measuring first.
+
 ## An edit made as an agent makes one: `sh bench/dry_run.sh FOOTAGE MUSIC WORKDIR`
 
 The S-Log3 sample and the music sample, 2026-10-13, every stage through `lc` from an empty

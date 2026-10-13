@@ -160,15 +160,40 @@ def linear_resample(values: np.ndarray, factor: int, offset: float, axis: int) -
     if factor == 1:
         return values
     count = values.shape[axis]
-    place = (np.arange(count * factor, dtype=np.float64) - offset) / factor
-    place = np.clip(place, 0, count - 1)
+    unclipped = (np.arange(count * factor, dtype=np.float64) - offset) / factor
+    place = np.clip(unclipped, 0, count - 1)
     low = np.floor(place).astype(np.int64)
     high = np.minimum(low + 1, count - 1)
     weight = (place - low).astype(np.float32)
-    shape = [1] * values.ndim
-    shape[axis] = -1
-    weight = weight.reshape(shape)
-    return np.take(values, low, axis=axis) * (1 - weight) + np.take(values, high, axis=axis) * weight
+    shape = list(values.shape)
+    shape[axis] = count * factor
+    out = np.empty(shape, np.result_type(values.dtype, np.float32))
+
+    def at(index) -> tuple:
+        return (slice(None),) * axis + (index,)
+
+    def along(w: np.ndarray) -> np.ndarray:
+        return w.reshape([-1 if d == axis else 1 for d in range(values.ndim)])
+
+    # Each output sample is low * (1 - w) + high * w. Within one phase (every factor-th
+    # output sample) low and high step on by one sample, so away from the clipped edges
+    # they are slices; only the edges are gathered. The same products as gathering all.
+    for phase in range(factor):
+        lo, hi, w = low[phase::factor], high[phase::factor], weight[phase::factor]
+        target = out[at(slice(phase, None, factor))]
+        inside = np.nonzero((unclipped[phase::factor] == place[phase::factor]) & (hi == lo + 1))[0]
+        a, b = (int(inside[0]), int(inside[-1]) + 1) if inside.size else (0, 0)
+        first = int(lo[a]) if b else 0
+        assert inside.size == b - a and np.array_equal(lo[a:b], np.arange(first, first + b - a)), (
+            "the samples of a phase do not step on by one"
+        )
+        if b:
+            target[at(slice(a, b))] = (values[at(slice(first, first + b - a))] * along(1 - w[a:b])
+                                       + values[at(slice(first + 1, first + 1 + b - a))] * along(w[a:b]))
+        edges = np.r_[0:a, b:lo.size]
+        target[at(edges)] = (np.take(values, lo[edges], axis=axis) * along(1 - w[edges])
+                             + np.take(values, hi[edges], axis=axis) * along(w[edges]))
+    return out
 
 
 def upsample(chroma: np.ndarray, layout: Layout, location: str) -> np.ndarray:

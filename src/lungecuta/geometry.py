@@ -2,10 +2,10 @@
 from __future__ import annotations
 
 import math
-
 from fractions import Fraction
 
 import numpy as np
+from scipy import sparse
 
 
 def turns(rotation: int) -> int:
@@ -62,35 +62,43 @@ def _area_weights(size_in: int, size_out: int) -> np.ndarray:
     return weights
 
 
-def place_weights(size_in: int, size_out: int, scale: float, offset: float) -> tuple[np.ndarray, np.ndarray]:
+def place_weights(size_in: int, size_out: int, scale: float, offset: float) -> tuple[sparse.csr_array, np.ndarray]:
     """One axis of a layer placed in a comp: output pixel i covers [i, i + 1), which is
     source [(i - offset) / scale, (i + 1 - offset) / scale). Shrinking (scale at most 1)
     averages the source over that interval exactly; enlarging interpolates linearly at the
-    pixel's centre. Returns the weights (size_out x size_in), premultiplied by the share of
-    each output pixel the source covers, and that share, which becomes the layer's alpha."""
+    pixel's centre. Returns the weights (size_out x size_in, sparse: each output pixel takes
+    a few source pixels), premultiplied by the share of each output pixel the source
+    covers, and that share, which becomes the layer's alpha."""
     assert scale > 0, f"a scale of {scale} is not positive"
     edges = (np.arange(size_out + 1, dtype=np.float64) - offset) / scale
-    low, high = edges[:-1, None], edges[1:, None]
+    low, high = edges[:-1], edges[1:]
     if scale <= 1:
-        cells = np.arange(size_in, dtype=np.float64)[None, :]
-        overlap = np.clip(np.minimum(high, cells + 1) - np.maximum(low, cells), 0, None)
-        weights = overlap / (high - low)
+        # the source cells an output pixel's interval can meet: from the one holding its
+        # start, at most ceil(1 / scale) + 1 of them
+        cells = np.floor(low)[:, None] + np.arange(math.ceil(1 / scale) + 2)[None, :]
+        overlap = np.clip(np.minimum(high[:, None], cells + 1) - np.maximum(low[:, None], cells), 0, None)
+        weights = overlap / (high - low)[:, None]
+        rows = np.broadcast_to(np.arange(size_out)[:, None], cells.shape)
+        keep = (cells >= 0) & (cells < size_in) & (overlap > 0)
+        matrix = sparse.csr_array((weights[keep], (rows[keep], cells[keep].astype(np.int64))),
+                                  shape=(size_out, size_in))
     else:
-        centre = (low + high)[:, 0] / 2 - 0.5
-        weights = np.zeros((size_out, size_in))
+        centre = (low + high) / 2 - 0.5
         inside = (centre >= -0.5) & (centre <= size_in - 0.5)
         below = np.floor(centre)  # the edge pixel holds beyond the first and last centres
         left = np.clip(below, 0, size_in - 1).astype(np.int64)
         right = np.clip(below + 1, 0, size_in - 1).astype(np.int64)
         share = centre - below
         rows = np.nonzero(inside)[0]
-        np.add.at(weights, (rows, left[rows]), 1 - share[rows])
-        np.add.at(weights, (rows, right[rows]), share[rows])
-    covered = np.clip(np.minimum(high[:, 0], size_in) - np.maximum(low[:, 0], 0), 0, None) / (high - low)[:, 0]
+        matrix = sparse.csr_array((np.concatenate([1 - share[rows], share[rows]]),
+                                   (np.concatenate([rows, rows]), np.concatenate([left[rows], right[rows]]))),
+                                  shape=(size_out, size_in))
+    matrix.sum_duplicates()  # at an edge both neighbours are the edge pixel: its weights add
+    covered = np.clip(np.minimum(high, size_in) - np.maximum(low, 0), 0, None) / (high - low)
     covered = np.clip(covered, 0, 1)
     if scale > 1:
-        weights *= covered[:, None]
-    return weights.astype(np.float32), covered.astype(np.float32)
+        matrix.data *= np.repeat(covered, np.diff(matrix.indptr))
+    return matrix.astype(np.float32), covered.astype(np.float32)
 
 
 def place(frame: np.ndarray, comp: tuple[int, int], *, position: tuple[float, float], anchor: tuple[float, float],
@@ -120,8 +128,8 @@ def _straight(frame: np.ndarray, comp: tuple[int, int], *, position: tuple[float
     columns, cover_x = place_weights(width, comp_w, scale[0], position[0] * comp_w - anchor[0] * width * scale[0])
     rows, cover_y = place_weights(height, comp_h, scale[1], position[1] * comp_h - anchor[1] * height * scale[1])
     tall = (rows @ frame.reshape(height, width * channels)).reshape(comp_h, width, channels)
-    out = (tall.transpose(0, 2, 1).reshape(comp_h * channels, width) @ columns.T).reshape(
-        comp_h, channels, comp_w).transpose(0, 2, 1)
+    wide = np.ascontiguousarray(tall.transpose(1, 0, 2)).reshape(width, comp_h * channels)
+    out = (columns @ wide).reshape(comp_w, comp_h, channels).transpose(1, 0, 2)
     alpha = (cover_y[:, None] * cover_x[None, :])[..., None]
     return np.ascontiguousarray(out, dtype=np.float32), alpha.astype(np.float32)
 
