@@ -1,8 +1,10 @@
 """lc commands that set up and describe a project: init, guide, status, import and the media around it, beats, licence, validate, schema, changes, new-comp."""
 from __future__ import annotations
 
+import inspect
 import json
 from pathlib import Path
+from typing import Any
 
 import click
 
@@ -220,3 +222,37 @@ def schema(write: bool, directory: Path) -> None:
         write_atomic(directory / name, schema_text(model))
         written.append(str(directory / name))
     print_json({"written": written})
+
+
+def _described(command: click.Command, path: str) -> dict[str, Any]:
+    """A command as data: its usage, the first paragraph of its help, its arguments and
+    options with their types, defaults and whether they are required."""
+    first = inspect.cleandoc(command.help or "").split("\n\n")[0]
+    out: dict[str, Any] = {"command": path, "summary": " ".join(first.split())}
+    arguments, options = [], []
+    for param in command.params:
+        entry = {"name": param.name, "type": param.type.name, "required": param.required}
+        if isinstance(param, click.Option):
+            if param.name == "help":
+                continue
+            entry |= {"flags": list(param.opts), "flag": param.is_flag, "multiple": param.multiple,
+                      "help": param.help or ""}
+            if isinstance(param.default, (str, int, float)) and not param.is_flag:  # click marks no default otherwise
+                entry["default"] = param.default
+            if isinstance(param.type, click.Choice):
+                entry["choices"] = list(param.type.choices)
+            options.append(entry)
+        else:
+            arguments.append(entry | {"many": param.nargs == -1})
+    out |= {"arguments": arguments, "options": options}
+    if isinstance(command, click.Group):
+        out["commands"] = [_described(sub, f"{path} {name}") for name, sub in sorted(command.commands.items())]
+    return out
+
+
+@main.command()
+def commands() -> None:
+    """Every lc command as data, for an agent to read instead of the help text: each with
+    its summary, its arguments and its options (flags, types, defaults, choices, whether
+    required), the op group's operations among them."""
+    print_json({"commands": [_described(command, f"lc {name}") for name, command in sorted(main.commands.items())]})

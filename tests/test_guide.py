@@ -60,3 +60,17 @@ def test_a_guide_is_added_to_an_agents_file_without_one(tmp_path):
 
 def test_lc_guide_prints_the_guide():
     assert run("guide")["guide"] == guide_text()
+
+
+def test_lc_commands_describes_every_command_and_operation():
+    described = {c["command"]: c for c in run("commands")["commands"]}
+    assert set(described) == {f"lc {name}" for name in main.commands}
+    op = described["lc op"]
+    assert {c["command"].removeprefix("lc op ") for c in op["commands"]} == set(OPERATIONS)
+    sheet = described["lc sheet"]
+    every = next(o for o in sheet["options"] if o["flags"] == ["--every"])
+    assert every["required"] and "b:1" in every["help"] and sheet["arguments"][0]["name"] == "comp"
+    render = described["lc render"]
+    preset = next(o for o in render["options"] if o["flags"] == ["--preset"])
+    assert "web-hevc10" in preset["choices"]
+    assert "  " not in sheet["summary"] and sheet["summary"].startswith("A contact sheet")

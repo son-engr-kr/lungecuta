@@ -22,7 +22,8 @@ This directory is a lungecuta project: a music-driven video edit kept as JSON fi
 you, an agent, and a person edit together. The person watches and listens in the editor
 (`lc serve`); you read and write the files and use `lc` to see and check what they mean.
 Every `lc` command prints one JSON object; `lc COMMAND --help` says exactly what it does,
-and `lc schema` prints the JSON Schema of every file.
+`lc commands` lists every command with its arguments and options as JSON, and
+`lc schema` prints the JSON Schema of every file.
 
 ## Files
 
