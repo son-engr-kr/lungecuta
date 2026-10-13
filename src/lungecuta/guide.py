@@ -39,6 +39,12 @@ and `lc schema` prints the JSON Schema of every file.
 position lands on the first frame at or after it. A layer's `in`, `out` and keys are
 spans from its `start`: `b:4` there is four beats on.
 
+## Arriving
+
+`lc status` lists the media (and which clips are usable), the comps with their length,
+layers and markers, the editor changes you have not seen, and whether each render in the
+cache still matches its comp. `lc validate` checks every file.
+
 ## Every edit
 
 1. `lc changes` before you edit: what the person did in the editor since you last asked.

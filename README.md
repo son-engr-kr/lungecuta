@@ -26,6 +26,7 @@ design are in [bench/RESULTS.md](bench/RESULTS.md).
 ```
 lc init DIR                         a new project, with AGENTS.md and CLAUDE.md for a coding agent
 lc guide [--write]                  that guide, printed or brought up to date in a project
+lc status                           what is in a project: media, comps, unseen edits, stale renders
 lc root NAME DIR                    where a media root is on this machine
 lc relink --root NAME DIR           find a root's moved files by size and hash
 lc import FILES --root NAME         media records: colour and time decisions with evidence,

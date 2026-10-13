@@ -808,6 +808,19 @@ def op_grade(comp: str, layer: str, operations: str, project_dir: Path | None) -
 
 
 @main.command()
+@_project_option
+def status(project_dir: Path | None) -> None:
+    """What is in the project, for an agent arriving: media (footage with its colour space
+    and whether it is usable, music with its tempo and whether its licence is recorded),
+    comps (size, rate, length, layers by type, markers, transitions), how many editor
+    changes lc changes has not shown yet, and each render in cache/lc/render/ with whether
+    its comp and media are still the ones it was made from. Changes nothing."""
+    from .status import status as project_status
+
+    _print_json(project_status(_project(project_dir)))
+
+
+@main.command()
 @click.option("--peek", is_flag=True, help="Show the changes without moving the agent's place on.")
 @_project_option
 def changes(peek: bool, project_dir: Path | None) -> None:
