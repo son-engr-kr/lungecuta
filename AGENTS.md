@@ -77,7 +77,15 @@ the Phase 0 media tests need samples of your own (see Conventions).
   in the working space), layer rotation, masks (rectangles and ellipses, feathered,
   `lc op masks`), audio layer gain in dB with keys and fades, `lc audio-check` (cut
   offsets to beats and to onsets by SuperFlux, `onsets.py`; RMS per half beat), `lc lint`
-  (three of the review rules), `lc flash`, `lc diff` and `lc licence`.
+  (five of the review rules), `lc flash`, `lc diff` and `lc licence`.
+- **Two edits made as an agent makes one** run end to end on the samples
+  (`bench/dry_run.sh`, `bench/dry_run2.sh`; their stage times in `bench/RESULTS.md`): a cut
+  built one `lc op place COMP KEY --at P --for SPAN --source T` (or `--to P`) per shot,
+  splits, slips, styles, looks, a dissolve, a title by `lc op graphic`, sounds by
+  `lc op sfx`, a remap ramp, then lint, audio-check, sheet, render, verify and flash. What
+  they tripped over is fixed and tested. Import, render, verify and sheet were profiled
+  and made faster with outputs identical (`bench/import_cost.py`, `render_stages.py`,
+  `verify_cost.py`).
 - **What Phase 0 still needs is the person:** the Resolve checks in
   [docs/research/phase0-resolve-checks.md](docs/research/phase0-resolve-checks.md)
   (markers, in points against timecode, speed, the float WAV, the graphics card), and the
