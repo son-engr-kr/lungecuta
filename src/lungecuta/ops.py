@@ -588,10 +588,6 @@ def _describe(grade: list[dict] | dict) -> str:
     return "; ".join(parts)
 
 
-OPERATIONS = ("move", "trim", "slip", "slide", "roll", "ripple-delete", "split", "snap", "place", "style", "unstyle",
-              "key", "unkey", "set", "remap", "grade", "masks", "transition", "untransition")
-
-
 def place(project: Project, name: str, media: str, at: str, expect: str | None = None) -> dict[str, Any]:
     """Put media on the comp at position `at`, on top of the stack: footage from its first
     frame for as long as it lasts, music from its first sample. The layer is named after
@@ -653,3 +649,12 @@ def new_comp(project: Project, name: str, *, size: tuple[int, int], rate: str, e
     replace_if_unchanged(project_path, read_hash, json_text(settings.model_dump(mode="json")))
     return {"comp": name, "changes": [f"comp {name} created ({size[0]}x{size[1]}, {rate}, ends at {end})"
                                       + (f" with {music} as its music" if music else "")]}
+
+
+# Every edit operation by the name `lc op` and the editor give it: the one table both use.
+OPERATIONS = {
+    "move": move, "trim": trim, "slip": slip, "slide": slide, "roll": roll, "ripple-delete": ripple_delete,
+    "split": split, "snap": snap, "place": place, "style": style, "unstyle": unstyle, "key": key, "unkey": unkey,
+    "set": set_value, "remap": remap, "grade": set_grade, "masks": set_masks, "transition": transition,
+    "untransition": untransition,
+}

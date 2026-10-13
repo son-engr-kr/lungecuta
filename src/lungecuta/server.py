@@ -220,16 +220,11 @@ class Editor:
 
     def edit(self, name: str, operation: str, args: dict[str, Any], expect: str) -> dict[str, Any]:
         """Apply an edit operation for the UI, on the version it showed, and journal it."""
-        functions = {"move": ops.move, "trim": ops.trim, "slip": ops.slip, "slide": ops.slide, "roll": ops.roll,
-                     "ripple-delete": ops.ripple_delete, "split": ops.split, "snap": ops.snap, "place": ops.place,
-                     "style": ops.style, "unstyle": ops.unstyle, "key": ops.key, "unkey": ops.unkey,
-                     "set": ops.set_value, "remap": ops.remap, "grade": ops.set_grade, "masks": ops.set_masks,
-                     "transition": ops.transition, "untransition": ops.untransition}
-        assert operation in functions, f"unknown operation {operation!r}"
+        assert operation in ops.OPERATIONS, f"unknown operation {operation!r}"
         relative = f"comps/{name}.json"
         path = self.directory / relative
         before = path.read_text(encoding="utf-8")
-        result = functions[operation](self.project, name, **args, expect=expect)
+        result = ops.OPERATIONS[operation](self.project, name, **args, expect=expect)
         after = path.read_text(encoding="utf-8")
         entry = journal.record(self.directory, relative, before, after, result["changes"])
         self.known[relative] = entry["after_hash"]

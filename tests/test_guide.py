@@ -6,6 +6,7 @@ from click.testing import CliRunner
 
 from lungecuta.cli import main
 from lungecuta.guide import END, IMPORT, START, guide_text, write_guide
+from lungecuta.ops import OPERATIONS
 from lungecuta.project import init_project
 
 
@@ -30,6 +31,7 @@ def test_the_guide_names_only_commands_that_exist():
     listed = re.search(r"\(move, (.*?)\): the editor's", text, re.S).group(1)
     ops = {"move", *(name.strip() for name in listed.replace("\n", " ").split(","))}
     assert ops == set(main.commands["op"].commands), ops ^ set(main.commands["op"].commands)
+    assert ops == set(OPERATIONS), ops ^ set(OPERATIONS)  # the editor's table and lc op's are one
     for flag in ("--every", "--from", "--to"):
         assert flag in {param.opts[0] for param in main.commands["sheet"].params if param.opts}
 
