@@ -7,6 +7,7 @@ from typing import Any
 
 from . import music
 from .decode import decoder_check
+from .parallel import in_order
 from .detect import RANGES, detect
 from .files import content_hash, json_text, replace_if_unchanged, write_atomic, write_new
 from .probe import probe
@@ -119,6 +120,24 @@ def import_file(project: Project, file: Path, *, root: str, key: str | None = No
         )
     write_new(record_path, json_text(record.model_dump(mode="json")))
     return record
+
+
+# Files imported at once by `import_files`: most of an import is one thread working on
+# frames between decodes (bench/import_jobs.py, bench/RESULTS.md).
+IMPORT_JOBS = 2
+
+
+def import_files(project: Project, files: list[Path], *, root: str, key: str | None = None,
+                 sound: bool = False) -> list[MediaRecord]:
+    """`import_file` for each of `files`, IMPORT_JOBS at once, the records in the files'
+    order. Keys are checked to differ before any work starts."""
+    keys = [key or file.stem for file in files]
+    assert key is None or len(files) == 1, "a key names one file"
+    repeated = sorted({k for k in keys if keys.count(k) > 1})
+    assert not repeated, f"files share the keys {repeated}; import them separately with --key"
+    jobs = ((project, file) for file in files)
+    return list(in_order(lambda project, file: import_file(project, file, root=root, key=key, sound=sound), jobs,
+                         workers=IMPORT_JOBS, ahead=IMPORT_JOBS))
 
 
 def _music(project: Project, file: Path, key: str, probed: Probe, common: dict[str, Any],

@@ -469,6 +469,21 @@ Parity with 1, 2, 4, 8 and 15 reads at once: 8.6, 5.1, **4.1**, 4.4 and 4.3 s, t
 numbers each time; so `PARITY_READS = 4`. Each read is an ffmpeg seek, mostly a decode from
 the keyframe before.
 
+## How many files `lc import` imports at once: `uv run python bench/import_jobs.py WORKDIR FILE...`
+
+The six HLG clips of the HLG sample's shoot (five at 29.97p, one at 59.94p; undecided, so
+proxies without parity tests), 2026-10-13, imported into a fresh project with N files at
+once, in the order run:
+
+| at once | 1 | 2 | 3 | 4 | 1 | 2 | 3 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| s, first sweep | 33.9 | 26.2 | 23.8 | 28.0 | 35.9 | 28.6 | |
+| s, second sweep | 33.5 | 28.2 | 28.7 | 28.2 | 38.3 | 27.4 | 24.5 |
+
+Every run's records and proxies (frame by frame) identical to the one-at-a-time run's.
+Two at once saves about a quarter; three and four are within the spread of two, and each
+import of a 4K clip holds several frames at once, so `IMPORT_JOBS = 2`.
+
 ## What `lc verify` costs: `uv run python bench/verify_cost.py PROJECT COMP FILE PRESET`
 
 The dry run's web-h264 render below (1080p, 462 frames, eight cuts, 18 frames sampled),

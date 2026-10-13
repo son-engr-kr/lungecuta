@@ -110,3 +110,19 @@ def test_lc_relink_changes_nothing_unless_every_file_is_found(project, tmp_path)
     with pytest.raises(AssertionError, match=r"not found under .* by size and hash: \['a'\]; nothing changed"):
         relink(Project.load(project), "music", elsewhere)
     assert Project.load(project).root_path("music") == old.resolve()
+
+
+def test_files_import_several_at_once_in_order_and_keys_are_checked_first(project, tmp_path):
+    from clips import make_clip
+    from lungecuta.media import import_files
+
+    footage = tmp_path / "shoots"
+    (footage / "b").mkdir(parents=True)
+    clips = [make_clip(footage / name, frames=4) for name in ("C0003.mov", "C0001.mov", "C0002.mov")]
+    set_root(project, "footage", footage)
+    records = import_files(Project.load(project), clips, root="footage")
+    assert [record.key for record in records] == ["C0003", "C0001", "C0002"]
+    assert all(record.color.status == "undecided" for record in records)  # no sidecar, no tags
+    again = make_clip(footage / "b" / "C0001.mov", frames=4)
+    with pytest.raises(AssertionError, match=r"share the keys \['C0001'\]"):
+        import_files(Project.load(project), [footage / "C0001.mov", again], root="footage")

@@ -12,7 +12,7 @@ from .. import journal, ops
 from ..beats import reanalyse
 from ..detect import detect as detect_clip
 from ..files import json_text, write_atomic
-from ..media import import_file, relink as relink_root, set_root, summary
+from ..media import import_files, relink as relink_root, set_root, summary
 from ..probe import probe
 from ..guide import SERVER
 from ..project import find_project, init_project
@@ -127,9 +127,8 @@ def import_(files: tuple[Path, ...], root_name: str, key: str | None, sound: boo
     decision with evidence, decoder check, proxy with its parity test; music decoded to
     a 48 kHz WAV with its beat map, or with --sound without one."""
     assert key is None or len(files) == 1, "--key names one file"
-    project = project_of(project_dir)
-    imported = [summary(import_file(project, file, root=root_name, key=key, sound=sound)) for file in files]
-    print_json({"imported": imported})
+    records = import_files(project_of(project_dir), list(files), root=root_name, key=key, sound=sound)
+    print_json({"imported": [summary(record) for record in records]})
 
 
 @main.command()
