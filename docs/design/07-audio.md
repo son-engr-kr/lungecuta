@@ -76,6 +76,16 @@ The set past edits needed, each a parameterized engine effect:
 | reverse, repitch | semitones or percent | reversed boom swells; shutter clicks repitched by up to 3 % |
 | soft clip | drive | master warmth in past builds |
 
+Written so far (`src/lungecuta/effects.py`): an audio layer's `effects`, in order,
+`highpass` and `lowpass` (`hz`, `order`), `band` (`low`, `high`, `order`), all Butterworth
+run forwards from the layer's first sample; `reverse`; `repitch` (`semitones` or
+`percent`, pitch with speed, resampled by soxr, the source it plays checked against the
+file's length); and its `pan`, constant power with each channel `sqrt(1 -/+ pan)`, the
+centre at 0 dB a channel, the law a past project's audio builder used. Keyed cutoffs,
+ducking, the gate, soft clip and the reverb send wait for what the table leaves out (an
+envelope follower's attack, a clip curve, the impulse response's details). FCPXML refuses
+effects and pan.
+
 ## SFX placement
 
 - **Anchor.** An SFX is placed by a chosen point in the sample, not by its first

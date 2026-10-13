@@ -259,6 +259,55 @@ class FootageLayer(_MediaLayer):
         return self
 
 
+class Pass(_Part):
+    """A Butterworth filter, run forwards as a console's is (07-audio.md, Effects)."""
+
+    type: Literal["highpass", "lowpass"]
+    hz: float = Field(gt=0, description="the cutoff, where the response is 3 dB down")
+    order: int = Field(default=2, ge=1, le=8)
+
+
+class Band(_Part):
+    """A high-pass and a low-pass together, the band-limit of a voice-over."""
+
+    type: Literal["band"]
+    low: float = Field(gt=0)
+    high: float = Field(gt=0)
+    order: int = Field(default=2, ge=1, le=8)
+
+    @model_validator(mode="after")
+    def _order(self) -> Band:
+        assert self.low < self.high, f"a band from {self.low} Hz to {self.high} Hz"
+        return self
+
+
+class Reverse(_Part):
+    """The layer's sound played backwards."""
+
+    type: Literal["reverse"]
+
+
+class Repitch(_Part):
+    """The sound played faster or slower, its pitch moving with its speed as a tape's does."""
+
+    type: Literal["repitch"]
+    semitones: float | None = Field(default=None, ge=-24, le=24)
+    percent: float | None = Field(default=None, gt=0, description="the speed: 103 plays 3 % faster and higher")
+
+    @model_validator(mode="after")
+    def _one(self) -> Repitch:
+        assert (self.semitones is None) != (self.percent is None), "a repitch is in semitones or in percent"
+        return self
+
+    @property
+    def factor(self) -> float:
+        """Source samples played per output sample."""
+        return 2 ** (self.semitones / 12) if self.semitones is not None else self.percent / 100
+
+
+AudioEffect = Annotated[Pass | Band | Reverse | Repitch, Field(discriminator="type")]
+
+
 class AudioLayer(_MediaLayer):
     type: Literal["audio"]
     source_start: str = _time("source", "the source time at layer time 0, in seconds")
@@ -267,6 +316,9 @@ class AudioLayer(_MediaLayer):
                                 "rises from silence (linear in amplitude)", json_schema_extra={"x-time": "layer"})
     fade_out: str | None = Field(default=None, description="a span before the visible out point over which it "
                                  "falls to silence (linear in amplitude)", json_schema_extra={"x-time": "layer"})
+    effects: list[AudioEffect] = Field(default_factory=list, description="in order, on the layer's sound")
+    pan: float = Field(default=0.0, ge=-1, le=1, description="-1 left to 1 right, constant power, 0 dB a channel "
+                       "at the centre")
     anchor: Literal["start", "peak", "rise"] = Field(
         default="start", description="the point of the sound that lands on `start`: its first sample, its loudest, or "
         "the steepest rise of its 2 ms envelope (07-audio.md, SFX placement); pre-roll before the comp's start is cut")

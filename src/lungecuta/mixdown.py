@@ -9,6 +9,7 @@ from typing import Any
 import numpy as np
 
 from .audio import master, true_peak_db
+from .effects import apply as apply_effects, pan_gains, source_length
 from .comp import MIX_RATE, Nest, Resolved
 from .encode import Preset
 from .media import Project, music_wav
@@ -23,7 +24,7 @@ def comp_samples(resolved: Resolved) -> int:
 
 
 def mix(project: Project, resolved: Resolved) -> np.ndarray:
-    """The music layers summed, each through its gain and fades, and every precomp's own mix
+    """The audio layers summed, each through its effects, pan, gain and fades, and every precomp's own mix
     where its layer plays (its layer time is the precomp's time, as in After Effects),
     frames x 2 channels at 48 kHz, before the master chain (float, so a sum over full
     scale is kept for the limiter)."""
@@ -33,9 +34,16 @@ def mix(project: Project, resolved: Resolved) -> np.ndarray:
         signal, rate = read_wav(music_wav(project, sound.record))
         assert rate == MIX_RATE and signal.shape[1] in (1, 2), f"{sound.record.key}: a {rate} Hz WAV"
         end = min(sound.end, total)
-        piece = signal[sound.source_first:sound.source_first + end - sound.first]
+        count = end - sound.first
+        effects = sound.layer.effects
+        piece = signal[sound.source_first:sound.source_first + source_length(effects, count)]
         piece = piece if piece.shape[1] == 2 else np.repeat(piece, 2, axis=1)
-        out[sound.first:end] += piece * sound.envelope()[:end - sound.first, None].astype(np.float32)
+        if effects:
+            piece = apply_effects(effects, piece, MIX_RATE, count)
+        piece = piece[:count]
+        if sound.layer.pan:
+            piece = piece * pan_gains(sound.layer.pan)
+        out[sound.first:end] += piece * sound.envelope()[:count, None].astype(np.float32)
     for nest in resolved.nests:
         inner = mix(project, nest.resolved)
         first, end = nest_samples(nest)

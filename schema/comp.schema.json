@@ -91,6 +91,45 @@
           "title": "Fade Out",
           "x-time": "layer"
         },
+        "effects": {
+          "description": "in order, on the layer's sound",
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "band": "#/$defs/Band",
+                "highpass": "#/$defs/Pass",
+                "lowpass": "#/$defs/Pass",
+                "repitch": "#/$defs/Repitch",
+                "reverse": "#/$defs/Reverse"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/Pass"
+              },
+              {
+                "$ref": "#/$defs/Band"
+              },
+              {
+                "$ref": "#/$defs/Reverse"
+              },
+              {
+                "$ref": "#/$defs/Repitch"
+              }
+            ]
+          },
+          "title": "Effects",
+          "type": "array"
+        },
+        "pan": {
+          "default": 0.0,
+          "description": "-1 left to 1 right, constant power, 0 dB a channel at the centre",
+          "maximum": 1,
+          "minimum": -1,
+          "title": "Pan",
+          "type": "number"
+        },
         "anchor": {
           "default": "start",
           "description": "the point of the sound that lands on `start`: its first sample, its loudest, or the steepest rise of its 2 ms envelope (07-audio.md, SFX placement); pre-roll before the comp's start is cut",
@@ -112,6 +151,41 @@
         "source_start"
       ],
       "title": "AudioLayer",
+      "type": "object"
+    },
+    "Band": {
+      "additionalProperties": false,
+      "description": "A high-pass and a low-pass together, the band-limit of a voice-over.",
+      "properties": {
+        "type": {
+          "const": "band",
+          "title": "Type",
+          "type": "string"
+        },
+        "low": {
+          "exclusiveMinimum": 0,
+          "title": "Low",
+          "type": "number"
+        },
+        "high": {
+          "exclusiveMinimum": 0,
+          "title": "High",
+          "type": "number"
+        },
+        "order": {
+          "default": 2,
+          "maximum": 8,
+          "minimum": 1,
+          "title": "Order",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "type",
+        "low",
+        "high"
+      ],
+      "title": "Band",
       "type": "object"
     },
     "BeatsFrom": {
@@ -854,6 +928,39 @@
       "title": "Node",
       "type": "object"
     },
+    "Pass": {
+      "additionalProperties": false,
+      "description": "A Butterworth filter, run forwards as a console's is (07-audio.md, Effects).",
+      "properties": {
+        "type": {
+          "enum": [
+            "highpass",
+            "lowpass"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "hz": {
+          "description": "the cutoff, where the response is 3 dB down",
+          "exclusiveMinimum": 0,
+          "title": "Hz",
+          "type": "number"
+        },
+        "order": {
+          "default": 2,
+          "maximum": 8,
+          "minimum": 1,
+          "title": "Order",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "type",
+        "hz"
+      ],
+      "title": "Pass",
+      "type": "object"
+    },
     "PrecompLayer": {
       "additionalProperties": false,
       "description": "Another comp placed as a layer (03-project-format.md, layer types): its layer time is\nthe precomp's own time, as in After Effects; transparent where the precomp has nothing,\nplaced and masked like footage.",
@@ -1172,6 +1279,66 @@
         "v"
       ],
       "title": "RemapKey",
+      "type": "object"
+    },
+    "Repitch": {
+      "additionalProperties": false,
+      "description": "The sound played faster or slower, its pitch moving with its speed as a tape's does.",
+      "properties": {
+        "type": {
+          "const": "repitch",
+          "title": "Type",
+          "type": "string"
+        },
+        "semitones": {
+          "anyOf": [
+            {
+              "maximum": 24,
+              "minimum": -24,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Semitones"
+        },
+        "percent": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the speed: 103 plays 3 % faster and higher",
+          "title": "Percent"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "Repitch",
+      "type": "object"
+    },
+    "Reverse": {
+      "additionalProperties": false,
+      "description": "The layer's sound played backwards.",
+      "properties": {
+        "type": {
+          "const": "reverse",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "Reverse",
       "type": "object"
     },
     "Speed": {

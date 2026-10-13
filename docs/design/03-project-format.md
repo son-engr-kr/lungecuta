@@ -218,7 +218,8 @@ does not draw one under footage yet, and FCPXML refuses it; audio layers are mus
 (a constant or keys in layer time, evaluated on every sample) and `fade_in` and
 `fade_out`, spans from the visible in point and back from the visible out point (beats
 counted on the grid), over which the layer rises from and falls to silence linearly in
-amplitude (D15). FCPXML carries a constant gain as the
+amplitude (D15), `effects` in order and a `pan` ([07-audio.md](07-audio.md#effects)), and
+an `anchor` for a sound ([07-audio.md](07-audio.md#sfx-placement)). FCPXML carries a constant gain as the
 DTD's `adjust-volume amount`; it refuses gain keys and fades until the parameter that
 animates the amount is read from Apple's reference. A graphics layer's page sees its
 `params` as JSON in its `params` query parameter and is asked for layer time `t`. A comp

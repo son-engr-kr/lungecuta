@@ -650,8 +650,11 @@ def _sound(project: Project, layer: AudioLayer, rate: Fraction, grid: BeatGrid |
     at_in = source + visible_in - start
     assert at_in >= 0, f"layer {layer.id} starts before the first sample of {layer.media}"
     source_first = nearest_sample(at_in, MIX_RATE)
-    assert source_first + (end - first) <= record.wav.samples, (
-        f"layer {layer.id} needs {(end - first) / MIX_RATE:.3f} s of {layer.media} from "
+    from .effects import source_length
+
+    needed = source_length(layer.effects, end - first)  # a repitch plays more or less than the layer lasts
+    assert source_first + needed <= record.wav.samples, (
+        f"layer {layer.id} needs {needed / MIX_RATE:.3f} s of {layer.media} from "
         f"{source_first / MIX_RATE:.3f} s, which has {record.wav.samples / MIX_RATE:.3f} s"
     )
     gain = None

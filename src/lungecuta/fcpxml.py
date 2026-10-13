@@ -374,6 +374,9 @@ def export(project: Project, name: str, out: Path | None = None) -> dict[str, An
         assert not isinstance(sound.layer.gain, Keys) and not sound.fade_in and not sound.fade_out, (
             f"layer {sound.layer.id} has gain keys or fades, which are not written to FCPXML yet"
         )
+        assert not sound.layer.effects and not sound.layer.pan, (
+            f"layer {sound.layer.id} has effects or a pan, which are not written to FCPXML yet"
+        )
     if out is None:
         out = project.directory / FCPXML_DIR / f"{name}.fcpxml"
     out.parent.mkdir(parents=True, exist_ok=True)
