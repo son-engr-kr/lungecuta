@@ -60,7 +60,8 @@ to frame blend while scrubbing).
 
 Parity is a property established by tests, not by construction:
 
-- proxy against original, compared in DaVinci Intermediate after decode, within 2 codes;
+- proxy against original, measured at import (the criterion is open; provisionally 2 codes
+  in the file's own R'G'B' codes, [02-media.md](02-media.md#proxies));
 - every effect defined in comp-relative units (a shake amplitude is a fraction of comp
   height, never pixels), so a 540p preview and a 2160p render show the same motion;
 - a captured web layer against its live overlay in the editor, diffed;
@@ -72,14 +73,23 @@ close to the render, and the capture diff above says how close.
 
 ## Playback
 
-- Every clip gets a ProRes Proxy 10-bit file, all-intra, so any frame is a cheap seek
-  (22 ms including an ffmpeg process start). Its size follows the framing: a 9:16 comp cut
+- Every clip gets an all-intra 10-bit proxy ([02-media.md](02-media.md#proxies)), so any
+  frame is one seek: about 5 ms for the provisional lossless FFV1 4:4:4 through PyAV with
+  the container kept open, against 140 to 170 ms for one ffmpeg process per seek
+  (`bench/pyav_check.py`); PyAV decodes the samples identically to the ffmpeg CLI. Its size follows the framing: a 9:16 comp cut
   from 16:9 sources needs a 1080-line proxy, because a 960x540 proxy leaves a 304x540
   crop for a 1080x1920 viewer.
 - The engine renders preview frames into a cache keyed by (comp, frame, content hash of
-  every input of that frame). Editing a keyframe invalidates only the frames it reaches;
-  a timeline-wide grade invalidates everything, which is why the full-chain cost per
-  preview frame has to be measured before the editor is built ([10-roadmap.md](10-roadmap.md)).
+  every input of that frame, and the versions that decide its pixels: engine, OpenColorIO,
+  the config, the clip's decoder, the Chromium build for graphics). Without the versions,
+  an upgrade would keep serving frames the new code would not make. A final render writes
+  the same versions into a manifest next to the file. Editing a keyframe invalidates only
+  the frames it reaches; a timeline-wide grade invalidates everything, which is why the
+  full-chain cost per preview frame has to be measured before the editor is built
+  ([10-roadmap.md](10-roadmap.md)).
+- How the cache stores frames, and so how big it gets, is decided in Phase 1. Uncompressed,
+  a 960x540 8-bit RGB frame is 1.56 MB: 2.8 GB for 60 s at 30p and 8.4 GB for three
+  minutes, on a machine with 24 GB of memory.
 - Frames go to the browser as sRGB-encoded 8-bit RGB without chroma subsampling, and
   Chrome maps them to the display. The 10-bit proxy is for the engine's arithmetic; the
   screen is 8-bit either way.
@@ -118,10 +128,79 @@ can cost more than either effect.
 - The server keeps the content hash of every file it last read. A UI write states the
   hash it was based on; if the file changed underneath (the agent edited it), the write
   is refused and the UI shows both versions. Nothing in the files themselves has to be
-  maintained for this, so the agent edits them like any other JSON.
+  maintained for this, so the agent edits them like any other JSON. `lc` commands that
+  write files follow the same rule.
+- **That protects the agent's edits from the UI, not the other way round.** An agent that
+  reads a file, works, and writes it back by hand can overwrite a UI change made in
+  between, and nothing would notice. So every UI write also goes into a journal in the
+  cache (file, hash before and after, the change in editing terms), `lc changes` shows the
+  agent what the person did since it last asked, and an overwritten UI change can be
+  recovered from the journal. The journal is also how principle 1 is kept: the agent sees
+  exactly what the person adjusted, without waiting for a commit.
+- **Undo and redo** in the UI walk the same journal, file by file, so an undo is itself a
+  write the agent sees in `lc changes`.
 - The project directory is meant to be a git repository. Every review round is a commit,
   so a version someone has seen is never overwritten (the rule past projects arrived at
   by hand).
+
+## The editor as first written
+
+`lc serve` (`src/lungecuta/server.py`, `preview.py`, `web/`) is M3's first form:
+
+- **Preview frames** come from `Preview`: each clip's proxy read by PyAV with its
+  container kept open, the same chain as a render (H.273, input transform, transform and
+  composite in the working space, output view), then from the display's encoding to
+  sRGB for Chrome, sent as RGBA over a WebSocket and cached by the comp's version (its
+  file's hash and the size and time of the styles and LUTs it uses, so editing a linked
+  style refreshes every placement) and the frame. The preview size is the comp divided by the smallest whole number that
+  brings it to `proxy_height` or under.
+- **The UI** (vanilla JS, one canvas each for viewer and timeline): the timeline draws
+  layers in stack order (the top row is the top of the stack), the ruler, the beat grid
+  (beats as ticks, downbeats as lines with bar numbers) and markers; dragging a layer
+  moves it and dragging an edge trims it, both snapped to beats (Alt for whole frames)
+  and sent as `lc op`'s own operations with the comp hash the UI showed; S splits at the
+  playhead, Delete ripples, Shift with the arrows steps by beats, Cmd+Z and Shift+Cmd+Z
+  undo and redo. A frame not rendered yet shows as missing. Keys show as diamonds on
+  their layer's row (white for the transform, blue for remap).
+- **The inspector** shows the selected footage layer's position, scale and opacity at the
+  playhead, from the engine's own evaluation (`/api/comp/C/layer/L/curves`, every frame's
+  values): the diamond button adds or deletes a key there, the menu sets the ease of the
+  key under the playhead, and typing a value sets a key when the property is animated and
+  the constant when it is not, as in After Effects. Its time section enables time
+  remapping, keys the source shown at the playhead, and places a style on the nearest
+  beat or takes it off; its grade section edits the primary grade in working-space codes
+  (`offset`, `contrast`, `pivot`, `gamma`, `saturation`), every change one `lc op`
+  operation (`key`, `unkey`, `set`, `remap`, `style`, `unstyle`, `grade`).
+- **The graph editor** under the timeline draws the selected layer's speed (the source
+  time to the next shown frame, per comp frame) or its source time against comp time,
+  with the remap keys on it; in the source view a key is dragged up or down to change its
+  source time, in whole source frames unless Alt is held. The speed view is a view of
+  the remap, not a second store.
+- **Scopes** (the Scopes button): the waveform, vectorscope and parade `lc scope` draws,
+  with its luma numbers, of the frame on screen once the playhead rests, computed by the
+  engine on the preview frame in the project's display encoding, so on the proxy and
+  without the graphics the editor draws live; `lc scope` on the original is the number to
+  quote.
+- **Playback** plays the comp's mixdown (`render.mix`, as WAV) through Web Audio, and the
+  frame on screen is the one under `AudioContext.getOutputTimestamp().contextTime`, the
+  time now reaching the output; frames ahead are asked for as it plays.
+- **Graphics layers** are drawn live in the page, each in an iframe from a second origin
+  (another port) that serves only the project's `graphics/` with a policy allowing
+  nothing but that origin; a wrapper page there takes the editor's `postMessage` with the
+  layer time and calls the page's `renderAt`.
+- **Writes** from the UI go through `lc op`'s functions with the hash the UI was based
+  on and into the journal (`cache/journal.jsonl`) with their content before and after;
+  undo and redo walk it and refuse to overwrite a change made since; `lc changes` shows
+  the agent the entries it has not seen. The server polls the project's JSON files four
+  times a second from a snapshot taken at start-up and tells the UI when one changes
+  underneath it, which is how the agent's edits appear.
+
+Checked headless on a copy of the Phase 0 check comp (`bench/editor_smoke.py`,
+2026-10-13): frames drawn, two beat steps landing on b:1, two seconds of playback
+advancing 72 to 73 frames, a drag of one beat written as `b start moved b:9 to b:10` and
+journalled, no page errors. The first version lost track of a frame asked for just before
+an edit (its reply came under the new hash) and stopped asking; requests are now matched
+to replies by id.
 
 ## Process model and libraries
 
@@ -132,9 +211,11 @@ can cost more than either effect.
 - Media I/O uses ffmpeg as a subprocess for sequential work (proxy builds, final reads,
   encodes). In-process random access (`lc still` at final quality reads originals at
   arbitrary frames) goes through PyAV, which bundles an LGPL FFmpeg, only once its decode
-  has passed a framemd5 check against the ffmpeg CLI; until then, and in Phase 0, stills
-  use the CLI with accurate seeking ([02-media.md](02-media.md#decode)).
-- Licence: proposed MIT, like Pickapicka, pending the user's decision. The Homebrew
+  has passed a framemd5 check against the ffmpeg CLI. It has, on the S-Log3 sample and its
+  FFV1 proxy (705 of 705 frames each, `bench/pyav_check.py`, 2026-10-13); Phase 0's stills
+  still use the CLI with accurate seeking ([02-media.md](02-media.md#decode)), and the
+  check is run on each new codec before PyAV reads it.
+- Licence: MIT, like Pickapicka, with its rules for model weights (D10). The Homebrew
   ffmpeg is GPL (libx264, libx265); calling it as a subprocess does not affect
   lungecuta's licence. An app bundle would ship an LGPL ffmpeg, which loses x264, so the
   VideoToolbox H.264 encoder has to be measured against x264 before a bundle is offered.

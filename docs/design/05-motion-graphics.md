@@ -28,7 +28,7 @@ of all state at the start of each frame. That contract is kept, generalised:
 export default {
   params: { text: { type: "string", default: "" }, accent: { type: "color" } },
   setup(ctx) { /* build DOM, load fonts and data once; ctx gives size and params */ },
-  render(ctx, t) { /* draw frame t completely; t in seconds from the layer's in point */ },
+  render(ctx, t) { /* draw frame t completely; t in seconds of layer time */ },
   events() { return [ { t: 0.42, name: "key" } ]; },  // for SFX placement (07-audio.md)
 };
 ```
@@ -37,6 +37,10 @@ export default {
   graph editor, or driven by an expression, exactly like any other layer property. That
   is how a code-driven graphic stays editable by hand: the code decides what the graphic
   is, its parameters decide how it moves, and the parameters live in the project file.
+- `t` is layer time, measured from the layer's `start`, not from its in point, so trimming
+  the head of a title does not restart its animation, as in After Effects
+  ([03-project-format.md](03-project-format.md#layer-timing)). `events()` times are layer
+  time too.
 - `ctx` also carries the comp's beat map, so a graphic can be written in beats.
 - `events()` replaces the old `cue()` side file, so sound and picture share one
   definition of when a key was pressed.
@@ -128,6 +132,24 @@ float16 and in either a linear or a display-encoded space:
 A text or shape layer can move between tiers because the project file describes it the
 same way. skia-python has one active maintainer, so the wheels are pinned and the
 rasteriser stays behind a thin interface.
+
+## Phase 0: graphics for Resolve
+
+`lc graphic` renders a page to ProRes 4444 with alpha for Resolve, the past projects'
+approach (seek `window.renderAt(t)`, capture, encode) in the pinned Chromium through
+Playwright: the capture keeps a transparent background, which the screenshot returns with
+straight alpha (`bench/graphics/`); the 8-bit sRGB codes become BT.709 Y'CbCr in limited
+range, 10-bit 4:4:4 with alpha, tagged 1-1-1 on the frames themselves (ffmpeg's encoder
+tags alone left primaries and transfer unset); the page is served only its own directory
+and any other request fails the render, as does a page error. Read back by lc's H.273
+decode, every patch of the patch card returns its 8-bit code within 0.35
+(`tests/test_graphics.py`). A comp's `graphics` layers use the same capture: `lc render`
+draws each over the frame after the output view, on display-encoded values with straight
+alpha, as the spike measured within a code of the live page; `lc fcpxml` renders each to
+ProRes 4444 over its visible frames and places it on a lane above the cuts. The card
+answers a Phase 0 question: does Resolve send a
+Rec.709 graphic in a DWG/DI timeline through the output tone mapping
+([10-roadmap.md](10-roadmap.md#phase-0-the-baseline-days)).
 
 ## Capture lessons that carry over regardless
 

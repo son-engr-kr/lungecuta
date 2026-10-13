@@ -51,8 +51,11 @@ Each item is something a test can check, not an adjective:
 - **No 8-bit stage in the footage path.** float32 inside the engine, 10-bit or better in
   proxies and outputs. Web graphics are 8-bit sRGB by nature and enter as
   display-referred material (D8).
-- **Preview is held to the final.** A proxy frame agrees with the downscaled original in
-  DaVinci Intermediate within 2 codes, or the proxy is rejected.
+- **Preview is held to the final.** A proxy frame is measured against the downscaled
+  original at import, and a proxy that fails is rejected. The criterion is open: 2 codes in
+  DaVinci Intermediate cannot be met by a proxy downscaled before the input transform, so
+  the gate is provisionally 2 codes in the file's own R'G'B' codes
+  ([02-media.md](02-media.md#proxies)).
 - **Outputs carry correct tags.** Every deliverable is probed after encoding and its
   primaries, transfer, matrix and range are checked against what was intended.
 - **Audio meets delivery loudness.** Integrated loudness and true peak are measured

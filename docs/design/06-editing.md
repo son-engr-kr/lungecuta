@@ -5,16 +5,57 @@
 The Edit page works on comp layers, with the operations an editor expects from a
 timeline: place, trim, ripple, roll, slip, slide, split, lift, nest into a precomp.
 Snapping targets are beats, downbeats, cut points, markers and keyframes, in that order
-of priority. Each operation is a function in the engine that both the UI and `lc` call,
-so an agent's "move every cut in the chorus onto the nearest downbeat" is the same code
-path as a person dragging one.
+of priority. Each operation is a function in the engine that both the UI and `lc op` call
+([09-agent-interface.md](09-agent-interface.md#commands)), so an agent's "move every cut in
+the chorus onto the nearest downbeat" is the same code path as a person dragging one, and
+an agent never has to ripple a timeline by editing every later layer's JSON by hand.
+
+Which fields each operation changes follows After Effects
+([03-project-format.md](03-project-format.md#layer-timing)): a move changes a layer's
+`start` and carries its keyframes; a trim changes `in` or `out` and a slip changes the
+source offset, and both leave keyframes where they are in the comp.
+
+Written so far (`src/lungecuta/ops.py`, `lc op OP COMP ...`): move, trim, slip, roll, ripple
+delete, split and snap to beats. Amounts are signed spans (`f:-3`, `-0.5s`, `b:1`,
+`b:-0.5`), a beat amount counted on the grid from where it applies. The new time is
+computed in ticks and written back in the unit the field was written in, so a beat
+literal stays a beat literal; a field never written (an `in` left at its default) takes
+the unit of the amount given; a time the unit cannot hold exactly is an error, not a
+rounding. A ripple delete moves every layer that starts after the removed one, except
+the music the beat grid comes from; a split makes `ID.2` with the same start, source and
+keys, as After Effects' split does; a snap puts the in and out points on the nearest
+beats. Each operation validates the whole comp, writes it only if it is still the file it
+read, and reports its changes in editing terms (`shot2 start moved b:4 to b:5`).
+A slide moves a footage layer as a whole between its neighbours, the layer that ended
+where it began ending later or earlier with it and the one that began where it ended
+beginning with it, all by one amount in ticks counted from its in point, so the cuts stay
+shared; a neighbour whose in point would go before its own start (where its layer time
+begins) is refused rather than slipped. *(proposed: the absent-field unit and the
+ripple's exception for the grid's music)*
+
+Properties have their own operations. `key` sets a key of `position`, `scale`, `opacity`
+or `remap` at a comp position, replacing one at that time or adding one (the first key
+of a constant property animates it, as After Effects' stopwatch does); its time is
+written as a span from the layer's start in the unit the position was given in, except
+that a frame position on a layer starting between frames (on a beat) is written in beats,
+since no whole number of frames spans from a beat to a frame (D15). `unkey`
+deletes one; the last transform key leaves its value as the constant, and a remap keeps
+two. `set` sets a constant where there are no keys. `remap` enables time remapping as
+After Effects does, keys at the in and out points holding the source shown there, the
+values written in seconds to five places and every frame of the layer checked to show
+what it showed before (or nothing is written). `grade` replaces a layer's grade after
+building it; `style` and `unstyle` place and take off a style instance
+([03-project-format.md](03-project-format.md#m2s-part-of-styles)).
 
 ## The beat grid
 
 The beat map from [02-media.md](02-media.md#music-and-beats) is drawn under the
 timeline: beats as ticks, downbeats as lines, bars numbered. Positions written as beat
 literals (`b:64`) follow the grid if it is nudged; positions in seconds stay where they
-are. A cut snapped to a beat is stored as a beat literal.
+are. A cut snapped to a beat is stored as a beat literal, and the picture cuts on the
+first frame at or after the beat
+([03-project-format.md](03-project-format.md#from-time-to-frames-and-samples)), which the
+grid draws.
 
 ## Speed
 
@@ -32,7 +73,13 @@ is flagged while it is being drawn.
 
 ### Frames between frames
 
-When the source time falls between two frames, the layer's `retime` setting decides:
+When the source time falls between two frames, the layer's `retime` setting decides
+(as written: absent shows the frame whose interval holds the time, the default rule of
+[03-project-format.md](03-project-format.md#from-time-to-frames-and-samples); `nearest`
+rounds to the closest frame; `blend` mixes the two neighbours by their distance, in
+linear light (the working space's `linear` colour space), since frame interpolation
+averages there (04-color.md); the FCPXML export writes them as `floor`,
+`nearest-neighbor` and `frame-blending`; `flow` is not written yet):
 
 | mode | method | use |
 | --- | --- | --- |
@@ -97,6 +144,20 @@ flash added in linear light is what the P1 showreel did; the default is a choice
 in the file, not an accident of the implementation. Pixel-sized parameters (shake
 amplitude, glitch slice height, grain size) are stored as fractions of comp height, so a
 540p preview and a 2160p render move the same way.
+
+Written so far (`comp.transitions`, `src/lungecuta/comp.py`): the basics. A `dissolve`
+names the outgoing and incoming footage layers, which must meet on a cut (the first ends
+on the frame the second starts on); its span is centred on the cut's frame (beats counted
+on the grid either side), both layers are extended into their source handles over the
+span (a layer without them is refused, naming the frame it would need), and the upper
+layer's opacity ramps across it, so the blend is a composite in the working space. A
+`dip` ramps the outgoing layer to black before the cut and the incoming one from black
+after it, extending nothing; `fade_in` and `fade_out` ramp one layer from or to black over
+a span from its in point or back from its out point. Ramps are linear in opacity over
+the span's frames (D15). Only the working space is written; `linear` is refused
+until it is. `lc op transition COMP KIND LAYER... --length` puts one on (replacing the
+same kind on the same layers) and `lc op untransition` takes it off. FCPXML refuses
+transitions until it writes them as its own `transition` elements.
 
 ## Framing
 

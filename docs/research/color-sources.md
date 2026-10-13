@@ -279,6 +279,30 @@ V = α·Lc^(1/2.4) − (α − 1)  for 1 > Lc ≥ β ;  V = 12.92·Lc  for β > 
 
 **H.273 code points used in item 8**: primaries 1 = BT.709, 2 = unspecified, 9 = BT.2020; transfer 1 = BT.709, 2 = unspecified, 13 = sRGB, 16 = PQ, 18 = HLG; matrix 1 = BT.709 (KR 0.2126, KB 0.0722), 9 = BT.2020 non-constant luminance.
 
+**Y'CbCr quantisation and matrix, ITU-T H.273 V4 (07/2024), section 8.3**, read from the
+PDF on 2026-10-13 (n is the bit depth, Round to nearest, Clip1 to the code range):
+```
+VideoFullRangeFlag 0:  Y  = Clip1Y( Round( (1 << (n − 8)) · (219·E′Y + 16) ) )        (30)
+                       Cb = Clip1C( Round( (1 << (n − 8)) · (224·E′PB + 128) ) )      (31)
+                       Cr = Clip1C( Round( (1 << (n − 8)) · (224·E′PR + 128) ) )      (32)
+VideoFullRangeFlag 1:  Y  = Clip1Y( Round( ((1 << n) − 1) · E′Y ) )                   (36)
+                       Cb = Clip1C( Round( ((1 << n) − 1) · E′PB + (1 << (n − 1)) ) ) (37)
+                       Cr = Clip1C( Round( ((1 << n) − 1) · E′PR + (1 << (n − 1)) ) ) (38)
+E′Y = KR·E′R + (1 − KR − KB)·E′G + KB·E′B                                              (45)
+E′PB = 0.5·(E′B − E′Y) ÷ (1 − KB)        E′PR = 0.5·(E′R − E′Y) ÷ (1 − KR)            (46, 47)
+Table 4: MatrixCoefficients 1 (BT.709) KR 0.2126, KB 0.0722; 9 (BT.2020 NCL) KR 0.2627, KB 0.0593
+```
+- **VERIFIED**. `lc` decodes by the inverse of these (`src/lungecuta/decode.py`). ffmpeg 8.1's
+  scale filter does not: to `rgb48le` it gives nominal white as 1019.07 of 1023 in limited
+  range and 1022.02 in full range (`bench/swscale_range.py`).
+- H.273 V4 section 8.7 defines chroma sample location only for 4:2:0 (Table 8:
+  HorizontalOffsetC and VerticalOffsetC of the first chroma sample, in luma samples:
+  type 0 (0, 0.5), 1 (0.5, 0.5), 2 (0, 0), 3 (0.5, 0), 4 (0, 1), 5 (0.5, 1)); its note says
+  HD SDR practice is type 0 and BT.2020/BT.2100 4:2:0 is type 2. ffprobe names the types
+  `left`, `center`, `topleft`, `top`, `bottomleft`, `bottom`. A 4:2:2 stream's tag is read
+  for its horizontal offset. **VERIFIED** (the table); that a 4:2:2 `left` tag means
+  horizontally co-sited chroma is the reading `lc` takes.
+
 ## 8. Output tagging for web delivery
 
 **What Apple documents (VERIFIED)**

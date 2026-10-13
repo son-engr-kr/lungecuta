@@ -16,7 +16,8 @@ Sources: the DaVinci Resolve 21 Reference Manual installed with Resolve 21.0.4
 - **Timeline import formats** (scripting README, `ImportTimelineFromFile`): AAF, EDL, XML,
   FCPXML, DRT, ADL, OTIO. Through the GUI: File > Import > Timeline.
 - Not yet verified: whether FCPXML markers import, and whether an imported variable ramp
-  can be edited as a curve rather than as per-frame keyframes. Both are Phase 0 tests.
+  can be edited as a curve rather than as per-frame keyframes. Both are Phase 0 tests, with
+  the others in [phase0-resolve-checks.md](phase0-resolve-checks.md); their results go here.
 
 ## Scripting and the free edition
 

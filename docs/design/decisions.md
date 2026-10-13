@@ -139,6 +139,20 @@ The tick divides exactly into frames at every rate in the table in
 [03-project-format.md](03-project-format.md#the-unit) (23.976 to 240 fps, including the 1000/1001
 rates, and samples at 44.1, 48 and 96 kHz (checked by computation).
 
+*Amended 2026-10-11:* the proxy format is chosen by the parity test, not by build speed
+and size, which are all the evidence above measures. Measured on both samples
+(`bench/proxy_parity.py`): no ProRes profile passes, even in the file's own R'G'B' codes
+(S-Log3 sample p99 8.2 for 4444 to 24.1 for Proxy; HLG sample 10.6 to 83.5); lossless FFV1
+4:4:4 passes (p99 1.24 and 1.38, bias under 0.1 code, its maximum the rounding bound) at
+19 times ProRes Proxy's size, and is used *provisionally*; proxies keep the original's
+range. The DaVinci Intermediate criterion cannot be met by a proxy downscaled before the
+input transform (lossless: p99 3.94 DI codes), so the gate is provisionally in R'G'B'
+codes. (Re-measured 2026-10-13 with proxies built from lc's own H.273 decode; the first
+runs decoded or built through ffmpeg's scaler, which put most of a code of bias on a range
+conversion and about 0.3 code on every proxy, and reached the same verdicts.) Open for the user: keep
+FFV1, store proxies in the working space after the input transform, or restate the
+criterion ([02-media.md](02-media.md#proxies)).
+
 ## D8: graphics runtime: web layers first, native Skia layers second
 
 **Decided.** One layer interface (render frame N at a size, in a declared space, as
@@ -202,9 +216,146 @@ bias and cut times, not only PSNR against its own render.
 Reproduced later (2026-10-11): an untagged H.264 clip is given SMPTE-C primaries at 256x64
 but BT.709 at 720x480 and 1920x1080 (`bench/cvtest/make_clips.sh` and the `pl` probe).
 
-## D10: licence (open)
+## D10: licence, and model weights as Pickapicka takes them
 
-Proposed: MIT, like Pickapicka. It decides things already in the design: OpenDRT
-(GPL-3.0) cannot ship, an app bundle needs an LGPL ffmpeg (losing x264), and PyAV's
-bundled LGPL FFmpeg is acceptable. The user's decision.
+**Decided** by the user, 2026-10-13: "the same as Pickapicka", for a tool released as open
+source, not used commercially, that should cause nobody a problem. lungecuta is MIT
+(`LICENSE`, the text Pickapicka uses), and models follow Pickapicka's rules
+(its `docs/roadmap-parity.md`, "Decisions taken"):
 
+- **The default path is permissively licensed, code and weights both.** A feature's
+  ordinary behaviour never depends on weights under non-commercial or use-restricted
+  terms. Pickapicka's reason holds here: a non-commercial licence does not only bind the
+  project, it follows the person using it, and someone paid for an edit becomes the
+  infringer.
+- **Weights under narrower terms are never bundled.** Where they buy a real gap in
+  quality, they are an opt-in download the person starts, shown its terms first and asked
+  to accept them; where there is no permissive equivalent and no such gap, the feature is
+  marked licence-blocked rather than built on them.
+- **Model files are fetched on first use**, pinned by size and SHA-256, from this
+  repository's release assets, not an upstream link that can rot; a checksum mismatch
+  discards the download.
+- Each model's licence is read from its own source (the repository's licence file and the
+  weights' release page) and quoted in the decision that adopts it, as D14 does for
+  Beat This!. A model whose weights carry no written licence counts as unlicensed.
+
+It settles what the design already assumed: OpenDRT (GPL-3.0) cannot ship, an app bundle
+ships an LGPL ffmpeg (losing x264, so VideoToolbox's encoders are measured first), PyAV's
+bundled LGPL FFmpeg is acceptable, and madmom's CC BY-NC-SA models stay out (D14). For
+M6 and M9 it means RIFE, face detection and TTS are each chosen with this test before any
+code is written; none is chosen yet. One is ruled out already: InsightFace's pretrained
+models, `buffalo_l` among them, "follow the above license policy (which is for
+non-commercial research purposes only)" (InsightFace README, checked 2026-10-13; its code
+is MIT), so the face audit does not take them as its default, although Pickapicka's face
+clustering does.
+
+## D11: layer timing follows After Effects
+
+**Decided** by the user, 2026-10-11. A layer has a `start` (the comp position of its own
+time 0), `in` and `out` as spans from it, and every other time in the layer (keyframes,
+remap keys, style placements, layer markers, the `t` a graphics layer renders at) is
+layer time. A move changes `start` and carries the keyframes; a trim changes `in` or
+`out`; a slip changes the source offset; trims and slips leave keyframes where they are
+in the comp ([03-project-format.md](03-project-format.md#layer-timing)).
+
+**Evidence.** The user's choice: the design takes its layers, keyframes and graph editor
+from After Effects ([00-overview.md](00-overview.md)), so timing behaves the way that model
+does. On slip: "move the content of a layer without moving
+its keyframes or in and out points in relation to the composition" (Chris and Trish
+Meyer, *Creating Motion Graphics with After Effects*, 5th ed., ch. 7; secondary, Adobe's
+help page refused the fetch). Beat spans from `start` keep keyframes on the grid when a
+layer moves, even where the tempo changes.
+
+**Rejected.** Keyframes in comp time, with the move operation rewriting them. Every time
+in the file would be a comp position, easy to read, but a hand edit of a layer's position
+would leave its keyframes behind, and the person's After Effects habits would not carry
+over. The first draft wrote keys in comp time without saying so (D9 did not cover it).
+
+## D12: time at the edges
+
+**Decided as a structure; the rules marked *proposed* await the user's confirmation.**
+Found by a second review of the design (`docs/research/design-review-2026-10-11.md`):
+
+- source-time fields count `f:` at the media's rate, refuse beat literals, and start at the
+  first presented frame; the start timecode is kept for interchange (the S-Log3 sample
+  starts at 00:00:21:15 in both its data stream tag and its XML);
+- a cut lands on the first output frame at or after its time, the rule past edits used
+  (*proposed*); keyframes are not moved; audio lands on the nearest sample, and audio
+  linked to footage cuts on the footage's frames (*proposed*). At 128 BPM and 60 fps a beat
+  is 28.125 frames, and at 29.97p a frame is 1601.6 samples at 48 kHz, so neither grid can
+  be avoided;
+- a re-analysis that would shift beat indices is not applied, and the person is shown which
+  literals would move (*proposed*). Before, `b:0` was "the first beat at or after the
+  layer's in point", so one extra beat found in an intro would have moved every beat
+  literal after it without notice;
+- a comp's grid is built from several music layers, the later one winning where two
+  overlap (*proposed*), because music is cut on bars into several layers
+  ([07-audio.md](07-audio.md#music-editing)) and one layer could not describe that;
+- the Sony XML's `captureFps`, `formatFps`, `RecordingMode` and timecode are read; a clip
+  whose two rates differ stays undecided in time until an S&Q file confirms the fields.
+- a source time between two frames shows the frame whose interval holds it, as FCPXML's
+  default `frameSampling="floor"` does (*proposed*, found while writing `lc still` and
+  the FCPXML exporter, which both need it); markers land on the first frame at or after
+  their time (*proposed*).
+
+## D13: project files that two editors write
+
+**Decided.** One media record per file under `media/`; media paths relative to named
+roots, which `roots.local.json` (gitignored) places on each machine, with `lc relink` by
+size and hash; the full hash at import and a size and mtime check on open; `lc` writes
+checked against content hashes like UI writes; a journal of UI writes behind
+`lc changes`, recovery of overwritten UI changes, and undo; preview cache keys and a
+render manifest that include the versions deciding the pixels
+([01-architecture.md](01-architecture.md#files-edits-and-concurrency),
+[03-project-format.md](03-project-format.md#media)).
+
+**Evidence.** The first draft put absolute paths into a project meant to be committed,
+had `lc import` rewrite the same `project.json` the person and the agent edit (where the
+hash rule would refuse the UI's writes after every import), protected the agent's edits
+from the UI but not the reverse, and keyed the cache without versions.
+
+**Rejected.** Committing every UI write to git: it would make the history noise and blur
+the rule that a review round is a commit.
+
+## D14: Beat This! for beats and downbeats; music decoded once to PCM
+
+**Decided.** Beat This! (CPJKU, ISMIR 2024) is the tracker. Music is decoded once at import
+to a 48 kHz PCM WAV in the cache, and analysis, mix and the Phase 0 FCPXML all use it
+([02-media.md](02-media.md#music-and-beats)).
+
+**Evidence.** Beat This! README, checked 2026-10-11: "The code and the published model
+weights are released under the MIT license"; it runs on PyTorch, which the engine already
+uses. The README warns that some training files are copyrighted or under limited Creative
+Commons licences, and leaves the assessment to the user.
+
+**Rejected.** madmom: its source is BSD, but "all model and data files are distributed
+under the" CC BY-NC-SA 4.0 licence (madmom README), which an MIT-licensed tool cannot
+ship (D10). librosa alone: no downbeats.
+
+
+## D15: rules written with M1 to M7's first parts
+
+**Decided** by the user, 2026-10-13, as proposed: the rules written with the master chain,
+the clip grade, masks, rotation, transitions, precomps and audio layers, each a choice
+where no source or measurement fixes the answer.
+
+- Audio: the high-pass is a second-order Butterworth run forwards; the gain before the
+  limiter is iterated to the target loudness to 0.01 LU; lossy audio is mastered again
+  under a lower ceiling until the decoded file is under the preset's, and that stream is
+  muxed as it is; layer fades are linear in amplitude
+  ([07-audio.md](07-audio.md#the-master-chain-as-built-srclungecutaaudiopy)).
+- Colour: a qualifier's softness falls linearly to 0 ([04-color.md](04-color.md#node-graph)).
+- Layers: rotation scales with the exact weights, then samples bilinearly; a mask's edge
+  ramps linearly over its feather and masks combine as `add` (a + b - ab), `subtract`
+  (a (1 - b)) and `intersect` (a b) ([03-project-format.md](03-project-format.md)).
+- Precomps: their graphics enter the working space through the inverse output view, and a
+  precomp's beat grid is its own, from its own music layers. Which precomp frame a comp
+  frame shows follows the source-time rule, which is still D12's and still proposed.
+- Editing: a frame key on a layer that starts between frames is written in beats;
+  transition ramps are linear in opacity over the span's frames
+  ([06-editing.md](06-editing.md)).
+
+**Not covered**, and still *proposed*: D12's rules, the transform units, the stack order
+and the keys' eases in comps, the delivery settings (x264 CRF 18, AAC 256 kbps, chroma
+decimation, dither), the chroma upsampling filter, the Phase 1 thresholds and the proxy
+criterion (`AGENTS.md`, open decisions).

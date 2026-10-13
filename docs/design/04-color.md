@@ -64,6 +64,24 @@ Resolve's model, because it is the one the user knows:
 - a look is a style made of nodes, linked across clips, which is what Resolve's shared
   nodes and colour groups provide.
 
+Written so far (`src/lungecuta/grade.py`): a footage layer's `grade` is a list of
+operations (one node over the whole frame) or `{ "nodes": [...] }`, serial nodes each with
+`ops`, an optional `window` (rectangles and ellipses as a mask's, in the clip's frame as
+shown, feathered, inverted, combined) and a `mix`; a node gives
+`input + mix * window * (graded - input)`, in the working space, before the layer is
+placed. A node's `key` is a qualifier on its input: `hue` (centre and width), `sat` and
+`luma` ranges (low and high), each with a `soft` margin over which the key falls linearly
+to 0 (D15: the shape of the softness is not taken from Resolve), multiplied, and
+optionally inverted. Hue, saturation and luma are OCIO's LOG-style HSY, the conversion
+`GradingHueCurveTransform` uses (OCIO 2.6.0, `FixedFunctionOpCPU.cpp`, run through OCIO's
+own `FIXED_FUNCTION_RGB_TO_HSY_LOG`): hue in [0, 1) with magenta at 0, red at 1/6, green
+at 1/2 and blue at 5/6; saturation 4 times the sum of each channel's distance from luma;
+luma with Rec.709 weights, all on the working-space codes. A grey has hue 0 there, so a
+hue range near magenta wants a saturation range beside it. A node gives
+`input + mix * key * window * (graded - input)`. Windows that follow a track, parallel
+and layer-mixer nodes, key softening (denoise, shrink and grow) and looks as linked styles
+are not written yet.
+
 ### Operations come from OpenColorIO
 
 OCIO 2.6 already ships the grading operators, with CPU and GPU paths and dynamic
@@ -80,9 +98,23 @@ properties for live edits from the UI. lungecuta uses them rather than writing i
 | colour space transform | any OCIO processor | |
 
 OCIO's LOG-style defaults (contrast pivot, tone zone ranges) are designed around a log
-encoding such as ACEScct, not DaVinci Intermediate. How they map onto DI, for instance
-whether the contrast pivot lands on DI's 18 % grey at 0.336, is checked against OCIO's
-documentation and by measurement before the UI exposes those controls.
+encoding such as ACEScct, not DaVinci Intermediate. For the primary grade this is now
+settled from OCIO 2.6.0's source (`GradingPrimary.cpp`, `GradingPrimaryOpCPU.cpp`) and
+measured on OCIO itself (`tests/test_grade.py`):
+
+- the contrast turns around the code value 0.5 + 0.5 pivot; OCIO's default pivot, -0.2,
+  puts it at 0.4, near ACEScct's 18 % grey (0.4135) and well above DI's (0.336043);
+- one unit of LOG brightness adds 6.25/1023 to every code value;
+- LOG gamma raises code values between the black and white pivots (0 and 1 by default) to
+  1/gamma, so a gamma above 1 lifts the middle;
+- saturation mixes towards a luma with Rec.709 weights (0.2126, 0.7152, 0.0722) whatever
+  the encoding, so on DWG/DI values it is not a constant-luminance saturation.
+
+lungecuta's `primary` operation therefore states its controls in the working space's
+code values: `offset` is added as it is (converted to OCIO's brightness units), and
+`pivot` is the code value contrast turns around, by default the working space's encoding
+of 18 % grey, computed through the config (0.336043 for DI). The tone zones of
+`GradingToneTransform` are not mapped yet and that operation is not offered.
 
 What OCIO does not provide is written here, each with a numpy reference:
 

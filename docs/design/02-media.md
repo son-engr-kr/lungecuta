@@ -5,15 +5,17 @@
 Importing a file does four things and changes nothing on disk next to it:
 
 1. **Probe** with ffprobe: codec, profile, pixel format, size, rate (as a rational),
-   frame count, stream colour tags, audio layout, creation time, rotation.
-2. **Read sidecars and embedded vendor metadata** (Sony `NNNNM01.XML`, DJI to be
-   determined).
+   frame count, stream colour tags, audio layout, creation time, rotation, timecode.
+2. **Read sidecars and embedded vendor metadata** (Sony `NNNNM01.XML`: colour, rates,
+   recording mode, timecode; DJI to be determined).
 3. **Decide the colour space**, with the evidence that decided it (below).
-4. **Build the proxy** (ProRes Proxy 10-bit, sized for the framing) into the project's cache.
+4. **Build the proxy** (10-bit all-intra, in the original's range, sized for the framing) into the project's
+   cache. Music is decoded once to a PCM WAV instead ([music and beats](#music-and-beats)).
 
-The result is a media record in the project (see
-[03-project-format.md](03-project-format.md#media)) that names the original, the proxy,
-the decided colour interpretation and the evidence for it.
+The result is a media record in the project, one file under `media/` (see
+[03-project-format.md](03-project-format.md#media)), that names the original by a path
+relative to a media root, and holds the proxy, the decided colour interpretation and the
+evidence for it.
 
 ## Colour-space detection
 
@@ -58,6 +60,28 @@ name the camera writes.
 | DJI D-Log 2 (Osmo Pocket 4P) | DJI's official LUT once obtained, curve and gamut not published | no file yet; no DJI LUT found either ([04-color.md](04-color.md#input-camera-spaces)) |
 | Apple Log | `Apple Log` (OCIO studio config) | no file yet |
 
+### Rates and timecode
+
+The Sony XML also carries the clip's rates and timecode. Checked on the S-Log3 sample and
+on two HLG samples (2026-10-11): `<VideoFrame captureFps="29.97p" formatFps="29.97p">`
+(`59.94p` for both on the 60p HLG clip), `<RecordingMode type="normal">`, and an
+`LtcChangeTable` whose first entry agrees with the timecode tag ffprobe reads from the
+data stream (00:00:21:15 on the S-Log3 sample). They go into the media record's `time`
+entry:
+
+- **`start_tc`** is kept for interchange. Resolve and FCPXML address a clip's frames by its
+  timecode, so the FCPXML exporter needs it, while lungecuta's source time counts from the
+  first presented frame ([03-project-format.md](03-project-format.md#literal-grammar)).
+  Whether Resolve places FCPXML in points by timecode is checked in Phase 0.
+- **`capture_rate`** would differ from the file's rate in slow-and-quick recording, where
+  the camera captures at one rate and writes another. That is expected from the field
+  names; no such file is on disk, so the values Sony writes are unverified. Speeds stay
+  relative to the file's rate, so an S&Q clip shot at 119.88 and written at 29.97 plays as
+  slow motion at 100 %; the capture rate is kept so the UI can show real-time speed.
+  *(proposed)* The first S&Q file confirms the fields before this is relied on, and until
+  then a clip whose two rates differ imports with `time.status: undecided`, like a colour
+  space nobody has decided.
+
 ### Carrying the decision through the ingest scripts
 
 The existing ingest scripts (stabilization, rolling-shutter correction, reframing) re-encode
@@ -84,6 +108,22 @@ file whose original cannot be found is undecided, like any other.
   - 4:2:2 10-bit HEVC (the XAVC HS stand-in): VideoToolbox is bit-exact on all 705 frames
     and keeps 0.3 cores busy against 12.4 for software, so hardware, leaving the CPU to
     OpenColorIO.
+- **Y'CbCr becomes R'G'B' in lungecuta, not in ffmpeg.** ffmpeg hands over the decoder's
+  own planes (raw output in the stream's own pixel format, which is the decoded frame
+  byte for byte: its md5 is ffmpeg's framemd5, `tests/test_decode.py`); numpy brings chroma
+  to every pixel by linear interpolation from where the stream says the samples sit
+  (`chroma_location`, ITU-T H.273 V4 Table 8; the S-Log3 and HLG samples say `left`, a
+  stream that says nothing is an error for 4:2:2 and 4:2:0), and applies the range and the
+  matrix by H.273 V4's equations (`docs/research/color-sources.md`, section 7), keeping
+  values below black and above white. The interpolation filter is a choice (*proposed*):
+  linear keeps flat areas exact and adds no overshoot; a sharper one would differ only at
+  chroma edges. ffmpeg's scale filter was found wrong twice and is no longer used to
+  decode: its conversion to `rgb48le` is off by a gain (nominal white 3.9 ten-bit codes low
+  in limited range, 1.0 in full range, about 2 at mid grey, values below 0 clipped;
+  `bench/swscale_range.py`), and its 10-to-16-bit Y'CbCr output replicated the top bits of
+  luma on a 960x540 frame of the S-Log3 proxy (104 became 6662, not 104 x 64 = 6656) while
+  it shifted chroma, and shifted both on an 8x2 test frame (why, not established). Every number in `bench/RESULTS.md` measured before
+  2026-10-13 was decoded through it.
 - **The YCbCr matrix and range are always passed explicitly**, from the media record.
   For an untagged clip ffmpeg's scaler assumes BT.601 (`bench/matrix_check.py`): on the
   S-Log3 clip above, whose XML says Rec.709, the default decode is identical to forcing
@@ -106,41 +146,122 @@ file whose original cannot be found is undecided, like any other.
 - **Random access goes to the proxy for preview.** Final-quality stills (`lc still`) read
   originals at arbitrary frames: in Phase 0 through the ffmpeg CLI with accurate seeking,
   checked against the same frame index from a sequential decode; PyAV only after its
-  bundled FFmpeg has passed the same framemd5 check against the CLI.
+  bundled FFmpeg has passed the same framemd5 check against the CLI, which it has on the
+  S-Log3 sample and its proxy (`bench/pyav_check.py`). ffmpeg's input seek
+  returns the first frame at or after the seek time, so frame N is reached by seeking to
+  half a frame before it; a seek to N itself is at the mercy of rounding, and half a frame
+  after lands on N + 1. Checked on frames 0, 1, 13, 352 and 704 of the S-Log3 sample (a
+  `media` test). One 4K still costs about 1.6 s as a process, 0.6 s of it the
+  seek and decode, and a 540-line one 0.8 s (`bench/still_cost.py`). A contact sheet reads its frames in one
+  decode from the start instead (`lc sheet`): at every 30th frame of the S-Log3 sample
+  that is about four times faster than a seek per frame, with identical frames
+  (`bench/sheet_scope_cost.py`).
+- **Every decode is in the coded orientation** (`-noautorotate`). ffmpeg otherwise applies
+  a rotation tag on decode: a rotated 3840x2160 frame arrives as 2160x3840 with the same
+  byte count, which the first parity measurement read as garbage (p99 440 codes on the HLG
+  sample, whose rotation is 90) and which squashed its proxy.
 
 ## Proxies
 
-- ProRes 422 Proxy, `yuv422p10le`, all-intra. Size comes from the project's
+- **The format is chosen by the parity test below, not by size or speed**, and the test
+  was run on both samples before anything was fixed (`bench/proxy_parity.py`,
+  `bench/RESULTS.md`, "Proxy parity"). No ProRes profile passed: at 540 lines the codec's
+  loss on noisy S-Log3 alone is p99 8 codes even for 4444, and 4:2:2 chroma adds more. The
+  one candidate that passed on both samples is **lossless FFV1 4:4:4, `yuv444p10le`,
+  all-intra (`-g 1`), in a Matroska file**, and `lc import` uses it, *provisionally*: it is
+  19 times the size of ProRes Proxy (534 MB against 28 MB for the 23.5 s S-Log3 sample),
+  and one seek costs about 135 ms per ffmpeg process against 23 ms. Which way to go is the
+  user's decision (AGENTS.md, open decisions). Size comes from the project's
   `proxy_height` (540 by default, set at `lc init`), and should follow the framing in use:
   540 lines for 16:9 comps, 1080 when a 9:16 comp is cut from 16:9 sources (a 540-line
-  proxy leaves only a 304x540 crop for a 1080x1920 viewer). Changing the setting rebuilds
-  the proxies. Build cost and quality at 1080 lines are still to be measured.
+  proxy leaves only a 304x540 crop for a 1080x1920 viewer). The proxy keeps the coded
+  frame's shape, and a width that is not a whole even number is an error rather than a
+  rounding. Changing the setting rebuilds the proxies. Build cost and quality at 1080
+  lines are still to be measured.
+- **Proxies are built from lungecuta's own decode** (`build_proxy`): the decoder's planes,
+  chroma brought to every pixel as above, each plane area-averaged to the proxy size in
+  code units (the Y'CbCr to R'G'B' conversion is affine, so it commutes with an average),
+  the range changed by H.273 only if asked, rounded to 10-bit codes and handed to the
+  encoder. A lossless proxy then decodes to the downscaled original up to that rounding,
+  which bounds the difference at 1.48 codes in R and 1.64 in B in limited 10-bit
+  (`tests/test_proxy.py`); measured on both samples, the lossless proxy's maximum is that
+  bound and its bias under 0.1 code. An earlier version scaled with ffmpeg, whose chroma
+  handling differed from the decode's by p99 3.3 codes at 540 lines on the S-Log3 sample.
+  Building this way runs at about 30 fps for a 4K original, against 100 to 180 with
+  ffmpeg's scaler.
 - **Every proxy has its own decode record.** Building a proxy with a plain scale silently
   converted clip A from full to limited range (mean luma 213.96 in the source, 247.48 in
-  the proxy, 247.2 predicted for full to limited). The proxy is now written in limited
-  range on purpose (`in_range=pc:out_range=tv`, tagged `tv`), and its record says so; its
-  log curve and gamut are inherited from the original's record, since H.273 has no code
-  points to tag S-Log3 or S-Gamut3.Cine in the file.
+  the proxy, 247.2 predicted for full to limited). The range is therefore always stated
+  in the record. **The proxy keeps the original's range**, since there is then nothing to
+  convert. A conversion by H.273 is free (limited proxies of the full-range sample and
+  full proxies of the limited-range one measure as well as range-keeping ones); the most
+  of a code of bias the first measurements found came from ffmpeg's scaler doing the
+  conversion (`bench/RESULTS.md`, "Proxy parity"). Its log curve
+  and gamut are inherited from the original's record, since H.273 has no code points to tag
+  S-Log3 or S-Gamut3.Cine in the file. Proxies are decoded in the coded orientation
+  (`-noautorotate`; rotation is applied in the render's geometry stage).
 - **Parity test**, run at import and stored in the proxy record: eleven frames (first,
   last, and nine at evenly spaced positions); each decoded from the original with its own
-  record, converted to DaVinci Intermediate, and area-downscaled to the proxy size, against
-  the same frame decoded from the proxy with the proxy's record and converted the same way.
-  The 99th percentile of the absolute difference in 10-bit DI codes, over all pixels and
-  channels, must be at most 2, or the proxy is rejected; the maximum is recorded too
-  (chroma subsampling makes edges differ more than flat areas).
-- 10-bit so that the engine's grading arithmetic on preview matches the final; PSNR of the
-  proxy against the original is still to be measured.
+  record and area-downscaled to the proxy size, against the same frame decoded from the
+  proxy with the proxy's record. Recorded, in 10-bit codes over all pixels and channels:
+  p99, maximum, mean signed bias per channel, and p99 after averaging 4x4 blocks; once in
+  the file's own R'G'B' codes and once in DaVinci Intermediate.
+  - **The gate is provisional:** in R'G'B' codes, p99 at most 2 and no channel biased by
+    more than half a code, or the proxy is deleted and the import stops. *(proposed)* The
+    bias limit catches a range or matrix error before the spread does: decoded through a
+    scaler whose range conversion was off, a proxy showed a bias near one code while its
+    p99 stayed near 2.
+  - **The criterion as first written, p99 at most 2 in DaVinci Intermediate, cannot be met
+    by any proxy built this way**: even the lossless proxy is at p99 3.94 DI codes on the
+    S-Log3 sample, with a bias of about +0.55, while it is at 1.24 in R'G'B' codes. A proxy
+    is downscaled before the input transform and the reference after it, and on noisy
+    pixels the average of a curve is not the curve of the average. Meeting it would mean
+    proxies stored after the input transform, in the working space. The DI numbers are
+    recorded so that the decision can be made on them.
+  - A clip whose colour space is undecided gets a proxy but no parity numbers, since the
+    matrix to decode it with is part of the decision.
 - Rebuilt only when the original's content hash changes.
 
 ## Music and beats
 
 Music files get a beat map on import: beat times, downbeats, tempo, analyzer name and
 version. librosa tracks beats but not downbeats, and bars are first-class here, so the
-tracker is Beat This! (CPJKU, ISMIR 2024) or madmom, both of which track downbeats; tempo
-is re-derived from the mean beat interval, because librosa's estimate is quantized.
-Audio is decoded with ffmpeg to f32le (librosa cannot open MP4/MOV audio). The map is data
-in the project and can be nudged by hand; a nudged beat is marked as manual so
-re-analysis does not overwrite it.
+tracker is **Beat This!** (CPJKU, ISMIR 2024, `pip install beat-this`, on PyTorch), D14.
+Its README (checked 2026-10-11): "The code and the published model weights are released
+under the MIT license", with a warning that some training files are copyrighted or under
+limited Creative Commons licences. madmom, the other tracker with downbeats, is excluded:
+its code is BSD, but "all model and data files are distributed under the" CC BY-NC-SA 4.0
+licence (madmom README), which a tool meant to be MIT-licensed cannot ship. Tempo is
+re-derived from the mean beat interval, because librosa's estimate is quantized.
+
+**Music is decoded once, at import, to a 48 kHz PCM WAV in the cache** with ffmpeg
+(librosa cannot open MP4/MOV audio). The analyzer, the engine's mix and anything handed
+to Resolve in Phase 0 all read that one file, so a compressed original's encoder delay is
+resolved in one place; Resolve decoding an MP3 or AAC itself could place it differently
+(not measured). The map is data in the project and can be nudged by hand; a nudged beat
+is marked as manual so re-analysis does not overwrite it, and re-analysis follows the rule
+in [03-project-format.md](03-project-format.md#beat-maps).
+
+How it is done (`src/lungecuta/music.py`):
+
+- **Decode:** ffmpeg decodes the first audio stream to float samples at the file's own
+  rate. Its decoders remove the encoder delay where the file states it: AAC in MP4, MP3
+  with a LAME header and FLAC, each encoded by ffmpeg from a known signal, decode at a lag
+  of 0 samples against it (`tests/test_music.py`); AAC keeps its padding at the end.
+- **Resample:** to 48 kHz by soxr at its default quality (`HQ`), the resampler Beat This!
+  uses itself, since this ffmpeg build has no libsoxr; a 48 kHz file is not resampled.
+- **WAV:** 32-bit float (`pcm_f32le`, with the `fact` chunk a non-PCM WAV needs), so a
+  decode that goes over full scale is kept rather than clipped; the record holds its peak.
+  Whether Resolve reads a float WAV as it is is checked on the Phase 0 import.
+- **Analysis:** Beat This! 1.1.0 with its default checkpoint (`final0`) and its default
+  `minimal` postprocessing (the DBN one needs madmom), on the CPU, since PyTorch MPS has
+  not been checked against the CPU. The model works at 50 frames a second, so beat times
+  fall on 20 ms steps (10 ms where two frames are averaged), and it moves each downbeat
+  onto the nearest beat, so downbeats are stored as beat indices. The checkpoint (81 MB)
+  is downloaded by torch.hub on first use and its hash is recorded.
+- **Measured** (`bench/beats_check.py`): on a synthetic 120 BPM drum track every beat is
+  found within 10 ms, with every downbeat, at 48 and at 44.1 kHz, plus one beat in the
+  tail after the last bar; a 124.9 s MP3 decodes in 0.1 s and is analysed in 1.2 s.
 
 ## Integration with existing tools
 

@@ -14,6 +14,27 @@ the result against it.
 
 Labels P1 to P3 are the past projects listed in [decisions.md](decisions.md), D4.
 
+`master-prores-hq`, `web-h264` and `web-hevc10` master to -14 LUFS integrated with a -1 dBTP ceiling,
+held in the delivered file ([07-audio.md](07-audio.md#the-master-chain-as-built-srclungecutaaudiopy)).
+`prores-4444-alpha` is written too: the comp composited with its coverage, the output
+view applied to un-premultiplied colour (a colour transform of premultiplied values is
+wrong wherever coverage is partial), the top graphics composited straight over it, and
+the result written as straight alpha, full range, the convention `lc graphic` already
+uses; whether Resolve reads it as straight is one of the Phase 0 checks. It carries no
+audio; ffmpeg's ProRes decoder gives it back as `yuva444p12le`, and `lc verify` compares
+its colour over black with the engine's and its alpha within one 10-bit code (half a code
+of rounding, and two of the decoder's 12-bit steps; 0.685 measured on a 4K render with a
+feathered mask). `web-hevc10` is VideoToolbox HEVC Main 10 at `-q:v 70`, handed 4:2:0
+10-bit as P010 straight from the engine's planes, undithered, with AAC as `web-h264`
+(*proposed*). The setting is the lowest whose PSNR on every plane is at least web-h264's on
+the check comp, whose footage is grainy (`bench/RESULTS.md`): 168 Mbps against x264's 151,
+so on grain HEVC through VideoToolbox saves no bitrate. It buys ten bits and about three
+times x264's encode rate, and its frames vary less from one to the next than web-h264's
+(39.3 dB against 38.3, the source's 37.8), so it smooths somewhat more grain; whether that
+shows is the person's to judge on screen. VideoToolbox's lower settings fail in a way PSNR
+alone hides: q50 came to 0.95 Mbps and 39.2 dB as a nearly still, smoothed picture, because
+on grainy footage the grain is most of the error either way.
+
 Each exists in 16:9 and 9:16 sizes. Past deliverables used x264 at
 CRF 16 to 19 with AAC 192 to 256 kbps; those are the starting points, and the final
 settings are chosen by measurement: PSNR against a ProRes 4444 render of the same frames,
@@ -48,9 +69,18 @@ For SDR deliverables:
 ## Quantization
 
 - RGB float to YCbCr uses the BT.709 matrix explicitly and a chroma filter chosen on
-  purpose, not the scaler default.
+  purpose, not the scaler default. As written (`src/lungecuta/encode.py`): ITU-T H.273's
+  equations, the inverse of the decode; R'G'B' outside [0, 1] clipped and the share of
+  pixels clipped recorded in the manifest; chroma decimated co-sited with the even pixels
+  by a [1, 2, 1] / 4 filter, and for 4:2:0 averaged between row pairs (H.273 type 0, the
+  `left` siting the file then declares); the planes handed to the encoder as they are, so
+  ffmpeg's scaler does no conversion. *(proposed)*
 - Going to 8-bit (`web-h264`) is dithered. Banding in skies and gradients at 8-bit is the
-  most visible way a semi-pro render gives itself away.
+  most visible way a semi-pro render gives itself away. As written: triangular dither of
+  one code either way, seeded by frame, so a render repeats exactly. *(proposed)*
+- The first presets (`master-prores-hq`, `web-h264`) take the past deliverables' starting
+  points (x264 CRF 18, AAC 256 kbps through AudioToolbox) until the PSNR measurement above
+  settles them; `prores-4444-alpha` and `web-hevc10` are written (above).
 
 ## Parallel rendering
 
@@ -68,7 +98,10 @@ because AAC chunks would each carry encoder priming and leave gaps at the joins.
 - probe: codec, profile, pixel format, size, rate, frame count, duration, all four colour
   tags, audio format;
 - loudness: integrated LUFS and true peak with ffmpeg `ebur128`, against the preset's
-  target (-14 LUFS for promos, -16 for speech-led, true peak at most -1 dBTP);
+  target (-14 LUFS for promos, -16 for speech-led, true peak at most -1 dBTP). The
+  loudness passes within 0.2 LU of the target, the tolerance EBU R 128-2023 allows "to
+  take account of measurement errors" (i); the true peak passes at or under the ceiling,
+  with no tolerance added. A comp whose mix is silent is checked to be silent;
 - picture: a sample of frames decoded from the file and compared with the engine's own
   reference render of the same frames. Two numbers: the mean signed error per channel on
   flat patches, which exposes a wrong matrix or range as a bias, and PSNR, which measures
@@ -85,3 +118,15 @@ libx265); using it this way does not affect lungecuta's licence. An app bundle w
 an LGPL ffmpeg and use the VideoToolbox encoders for H.264 and HEVC, which loses x264,
 the measured baseline above; VideoToolbox H.264 is measured against x264 on the same
 material before a bundle is offered.
+
+The Python dependencies so far, from their package metadata: click (BSD-3-Clause),
+pydantic (MIT), numpy (BSD-3-Clause and others, all permissive), OpenColorIO
+(BSD-3-Clause), Pillow (MIT-CMU), and for the beat map Beat This! (MIT, code and
+weights), PyTorch (BSD-3-Clause with Apache-2.0 and other permissive parts), torchaudio
+(BSD), einops and rotary-embedding-torch (MIT) and soxr (LGPL-2.1-or-later, a dynamically
+loaded library, which an MIT-licensed tool can depend on); for the editor and the master
+chain, FastAPI (MIT), Starlette and uvicorn (BSD-3-Clause), Playwright (Apache-2.0), PyAV
+(BSD-3-Clause; its wheels bundle FFmpeg libraries, under a licence not checked here),
+pyloudnorm (MIT) and SciPy (BSD-3-Clause). The labels on sheets and scopes use the Aileron
+Regular subset that Pillow bundles, which its author releases under CC0 ("Aileron is No
+Rights Reserved", dotcolon.net, checked 2026-10-13).

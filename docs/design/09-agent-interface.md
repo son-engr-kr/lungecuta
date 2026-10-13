@@ -10,36 +10,52 @@ server, if one is added, is a thin wrapper over the same commands.
 
 | command | output |
 | --- | --- |
-| `lc init DIR` | a new project directory: `project.json` with the colour defaults of [03-project-format.md](03-project-format.md#projectjson), `proxy_height` 540, `media` `{}`, `comps` `[]`, `deliver` `[]`; empty `comps/`, `grades/`, `styles/`, `graphics/`, `luts/`, `cache/`; refuses a non-empty directory. The `.lc` suffix is a convention, not required |
-| `lc import FILES...` | media records: probe, colour decision with evidence, decoder check, proxy, beat map for music |
+| `lc init DIR` | a new project directory: `project.json` with the colour defaults of [03-project-format.md](03-project-format.md#projectjson), `proxy_height` 540, `media_roots` `[]`, `comps` `[]`, `deliver` `[]`; empty `media/`, `comps/`, `grades/`, `styles/`, `graphics/`, `luts/`, `cache/`; `roots.local.json` `{}` and a `.gitignore` naming it and `cache/`; refuses a non-empty directory. The `.lc` suffix is a convention, not required |
+| `lc import FILES...` | media records, one file each under `media/`: probe, rates and timecode, colour decision with evidence, decoder check, proxy, PCM WAV and beat map for music. Each file must lie under a root named with `--root NAME` |
+| `lc beats KEY` | runs the beat analysis of a music record again on its WAV and writes the new times only if every beat and downbeat index is kept; otherwise lists the inserted and removed beats and exits with status 1, and `--replace` applies it anyway ([03-project-format.md](03-project-format.md#beat-maps)) |
+| `lc root NAME DIR` | lists media root NAME in `project.json` and places it at DIR in `roots.local.json` |
+| `lc relink --root NAME DIR` | finds missing media under a new directory by size, then hash, and points the root or the record at it |
 | `lc detect FILE` | the colour-space decision and every piece of evidence considered, without importing |
-| `lc validate` | schema and meaning checks ([03-project-format.md](03-project-format.md#validation)) |
+| `lc validate` | schema and meaning checks ([03-project-format.md](03-project-format.md#validation)); in Phase 0 every file against its schema, every original unchanged since import, every comp resolved, and the undecided clips listed |
+| `lc fcpxml COMP` | FCPXML 1.10 of a comp for Resolve's File > Import > Timeline (Phase 0): cuts on one picture track, constant speed as a time map, music as the WAV its beats were found in, markers; prints every cut's comp frames, timeline timecode, source frames and source timecode, and the `lc still` that shows its first frame ([10-roadmap.md](10-roadmap.md#phase-0-the-baseline-days)) |
 | `lc still COMP --at T` | PNG of the final-quality frame of a comp at a time literal, at a chosen size |
-| `lc still --media KEY --at f:N` | the same for one imported clip through its input transform and the project's view, with no comp needed (Phase 0's form) |
+| `lc still --media KEY --at f:N` | the same for one imported clip, with no comp needed (Phase 0's form): read from the original with the record's matrix and range, through its input transform into the working space, turned by its rotation tag, area-downscaled in the working space with `--height`, and through the project's display and view on CPU OpenColorIO (`--threads`, by default the core count). The PNG is 8-bit and untagged; the numbers are per-channel minimum, maximum and 1st, 50th and 99th percentiles in 10-bit output codes. A clip undecided in colour has no still |
 | `lc sheet COMP --every b:1` | contact sheet: frames at an interval, each labelled with time, beat and layer names |
 | `lc sheet COMP --fps 10` | timeline sheet, the dense version that catches timing bugs stills miss |
-| `lc sheet --media KEY --every f:30` | contact sheet of one clip, frames labelled with frame number and seconds (Phase 0's form) |
+| `lc sheet --media KEY --every f:30` | contact sheet of one clip, frames labelled with frame number and seconds (Phase 0's form): a frame at every interval from frame 0 (`f:N`, or seconds that are a whole number of frames), from one decode of the original through the same chain as `lc still`, each area-downscaled to the tile in the working space; tiles 320 pixels on the long side unless `--height` says otherwise (never enlarged), six columns and six rows a page (`--columns`, `--rows`), labels in a strip below each tile; the JSON lists every tile with `lc still`'s numbers for it |
 | `lc framing COMP LAYER` | the source frame with start and end crop windows and a 0.1 grid |
 | `lc face-audit FILE` | every face the detector still finds in a render, as a crop sheet with scores |
-| `lc lint` | taste and rights rules (below) as warnings |
-| `lc scope COMP --at T` / `lc scope --media KEY --at f:N` | waveform, RGB parade and vectorscope images, plus the numbers defined below |
-| `lc audio-check COMP` | integrated and per-section loudness, true peak, spectrogram image, cue alignment |
-| `lc render COMP --preset P` | the deliverable |
-| `lc verify FILE --preset P` | post-render checks: tags, frame count, duration, loudness, picture bias per channel, cut times ([08-deliver.md](08-deliver.md#verification)) |
-| `lc diff REV1 REV2` | what changed between two revisions, in editing terms ("shot3 out point moved b:68 to b:67+0.5") |
+| `lc graphic PAGE --size WxH --rate R --frames N --out F.mov` | a web page with the past pages' contract (`window.ready`, `window.renderAt(t)`) rendered frame by frame to ProRes 4444 with alpha, BT.709 limited range, tagged 1-1-1; the page is served only its own directory (Phase 0's graphics, [05-motion-graphics.md](05-motion-graphics.md#phase-0-graphics-for-resolve)) |
+| `lc patch-card DIR --size WxH --rate R` | a card of 27 known colour patches as `card.json`, `card.html` and `card.mov`, its own file read back first |
+| `lc patches FILE --card card.json --at N` | the mean R'G'B' of each patch's middle in a frame of FILE (an export from Resolve), against the card's codes |
+| `lc lint COMP` | taste and rights rules (below) as warnings. Written so far: graphics on screen at least `lint.graphics_min_seconds`, no source frame shown by two layers, a licence record on every music file (`lc licence KEY --name --source --checked`); the report lists the rules not checked yet |
+| `lc scope COMP --at T` / `lc scope --media KEY --at f:N` | waveform, RGB parade and vectorscope images, plus the numbers defined below; in Phase 0's form one PNG with the luma waveform and the vectorscope above and the parade below, from the frame `lc still` gives at the same size |
+| `lc audio-check COMP [--from P --to P]` | integrated and per-section loudness, true peak, spectrogram image, cue alignment. Written so far: every cut's offset in ms to the nearest beat (and whether it is a downbeat), the mix's RMS per half beat with its slope in dB per beat; onsets wait for their detector ([07-audio.md](07-audio.md#analysis-and-checks)) |
+| `lc render COMP --preset P` | the deliverable, with `FILE.manifest.json` (comp and media hashes, colour settings, versions); in its first form Phase 0's part of the comp format: one picture track of cuts at constant speed, music mixed at unity gain, presets `master-prores-hq` and `web-h264` |
+| `lc verify FILE --comp COMP --preset P` | post-render checks: codec, profile, pixel format, size, rate, frame count, tags, audio; the frames either side of every cut against the engine's reference render (bias per channel within 1 code, *proposed*, PSNR, and each frame closer to its own reference than to the one across the cut); loudness within 0.2 LU of the preset's target and true peak at or under its ceiling ([08-deliver.md](08-deliver.md#verification)) |
+| `lc flash FILE` | WCAG 2.2's general flash threshold on every frame of a render, in the display's luminance (Lint, below); exits 1 when it fails. Red flashes are not checked |
+| `lc op OP COMP ...` | an edit operation (move, trim, slip, slide, roll, ripple delete, split, snap to beats, place, style, keys, remap, grade, masks, transitions) applied by the same engine function the UI calls, values kept in their units, the comp written hash-checked, changes printed in editing terms ([06-editing.md](06-editing.md#edit-operations)) |
+| `lc changes` | what the UI wrote since the agent last asked, from the server's journal ([01-architecture.md](01-architecture.md#files-edits-and-concurrency)); `--peek` leaves the agent's place where it is |
+| `lc serve` | the editor for the project in the browser ([01-architecture.md](01-architecture.md#the-editor-as-first-written)) |
+| `lc diff COMP [REV1] [REV2]` | what changed between two revisions, in editing terms ("shot3 out point moved b:68 to b:67+0.5"); a revision is a git revision, a comp file's path or `working`, by default HEAD against working |
 
 ### Conventions for every command
 
 - **Finding the project:** `--project DIR`, or else the nearest `project.json` found walking
   up from the current directory, the way git finds a repository. None found is an error.
 - **Output:** images go to `--out PATH`, or else to `<project>/cache/lc/<command>/` with a
-  name built from the media key or comp and the time; the path is printed. Numbers are
+  name built from the media key or comp, the time and the size (`C0001_f352_960x540.png`);
+  the path is printed. Numbers are
   printed to stdout as one JSON object, so an agent can parse them.
+- **Writing:** a command that changes project files (`lc import`, `lc op`, `lc relink`)
+  writes each one atomically and only if its content hash is still the one the command
+  read, the same rule the UI follows. Before editing a file by hand, the agent runs
+  `lc changes`, so it does not overwrite something the person just did.
 - **Code values** in printed numbers are 10-bit output codes computed from the float
   frame before any quantization; images are 8-bit and for looking at only.
 - **Schemas:** `lc schema --write` regenerates `schema/*.json` from the pydantic models; a
-  test fails when the committed files differ. In Phase 0 the schema covers `project.json`
-  and media records; comps, styles and grades follow in M0 and M2.
+  test fails when the committed files differ. In Phase 0 the schema covers `project.json`,
+  media records and `roots.local.json`; comps, styles and grades follow in M0 and M2.
 
 ### Scope numbers
 
@@ -50,10 +66,24 @@ the scopes of a grading application show:
   the definition of video luma), reported as the 1st, 50th and 99th percentiles in 10-bit
   codes;
 - clipped fraction: share of pixels with any channel at or below 0, or at or above 1.0,
-  before quantization;
-- per-channel minimum, maximum and median;
-- vectorscope: `Cb`, `Cr` from the BT.709 matrix, reported as the median chroma magnitude
-  and the 99th percentile.
+  before quantization, printed as `any`, with `low` (at or below 0) and `high` (at or
+  above 1) separately, since a pixel can be both. Through the ACES 2.0 view no value of the
+  S-Log3 sample's frame 352 is below 0, and 9.9 % of its pixels are exactly 0 in some
+  channel (its dark noise), so they all count as `low`; at 540 lines it is 4.9 %, since the
+  downscale averages the noise first, so clipped fractions are compared at one size
+  (`bench/sheet_scope_cost.py`);
+- per-channel minimum, maximum and median (printed with the 1st and 99th percentiles, as
+  `lc still` prints them);
+- vectorscope: `Cb`, `Cr` from the BT.709 matrix (`Cb = (B' - Y') / 1.8556`,
+  `Cr = (R' - Y') / 1.5748`), reported as the median chroma magnitude
+  `sqrt(Cb^2 + Cr^2)` and its 99th percentile, times 1023 like the other codes.
+
+The images, for looking at: waveforms 512 rows high, code 0 at the bottom and 1023 at the
+top, a line every 128 codes, values outside drawn on the edge rows; the luma waveform
+1024 columns of the frame wide, each parade channel 512; the vectorscope 512 square with
+`Cb` to the right and `Cr` up, boxes at the 75 % and 100 % colour bars (positions computed
+from the same matrix); brightness is the pixel count on a log scale. These sizes are
+layout choices, not measurements.
 
 No skin-tone reference line is drawn or measured until its angle comes from a cited source.
 
@@ -65,12 +95,26 @@ clipping" is a claim to check with `lc scope`, not to make from a thumbnail.
 
 Past projects arrived at these rules over several review rounds. The
 ones a machine can check become `lc lint` warnings, each with its threshold in the
-project settings so it can be tuned or turned off:
+project settings (`project.json`'s `lint`, `null` or `false` turning a rule off) so it can
+be tuned or turned off. Flashes are checked on a render rather than a comp, since a
+flash can come from any layer, a graphic or the cutting itself: `lc flash FILE` decodes
+every frame and applies WCAG 2.2's general flash threshold (success criterion 2.3.1 and its
+definitions, https://www.w3.org/TR/WCAG22/, read 2026-10-13) to the luminance the display shows, CIE Y through the display's EOTF in OCIO.
+A flash is two opposing changes of 0.1 in relative luminance, the darker under 0.8; the
+file fails where more than three fall within a second over more than a quarter of a
+10 degree field. Taking the frame as the screen, filling its height, makes that field
+WCAG's 341 x 256 of 1024 x 768 at a third of the frame's height, and luminance is averaged
+over cells of a tenth of a degree, the size of the fine patterns WCAG excepts (*proposed*:
+the definition gives no number for a video frame; `src/lungecuta/flash.py`). Red flashes
+are not checked: WCAG 2.2 takes their working definition from ISO 9241-391, which leaves
+which R, G and B it means to a standard not read. ITU-R BT.1702, the broadcast rule, could
+not be read (its site and Ofcom's refuse automated downloads), so WCAG is the standard
+until the user chooses otherwise.
 
 | rule | check |
 | --- | --- |
 | text cards are readable | a text layer is on screen at least 0.6 s |
-| flashes are not strobing | at most about 3 bright flashes per second |
+| flashes are not strobing | no more than three general flashes a second over a quarter of a 10 degree field (`lc flash` on the render) |
 | montage shots do not repeat | no source range is used twice in a comp |
 | SFX vary | the same sample is not on consecutive cuts |
 | no dead gap before the hit | no silence or black between the crescendo and the hit marker |
