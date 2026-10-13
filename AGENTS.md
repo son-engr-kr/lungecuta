@@ -57,10 +57,11 @@ the Phase 0 media tests need samples of your own (see Conventions).
   by drag and keys through `lc op`'s functions, the journal with undo, redo and
   `lc changes`, file watching, graphics drawn live from a sandboxed origin, the
   inspector (transform keys and eases, time remap, styles, the primary grade) and the
-  graph editor (speed and source time, remap keys dragged), each edit an `lc op`
+  graph editor (speed, source time, position, scale, opacity, rotation and gain, their
+  keys dragged), each edit an `lc op`
   operation (`key`, `unkey`, `set`, `remap`, `style`, `grade`, `masks`, `transition`),
   and scopes of the frame on screen (on the proxy). Not written yet: the colour page's
-  node graph, the graph editor for transform curves.
+  node graph, moving a key in time in the graph.
 - **The agent sees a comp without rendering it**: `lc still COMP --at P`, `lc sheet COMP
   --every b:1` and `lc scope COMP --at P` show the frame the render delivers, labelled with
   its beat and the layers on screen (`look.py`). `lc init` writes a project's own

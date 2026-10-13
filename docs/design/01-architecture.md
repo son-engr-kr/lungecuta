@@ -175,7 +175,11 @@ can cost more than either effect.
   time to the next shown frame, per comp frame) or its source time against comp time,
   with the remap keys on it; in the source view a key is dragged up or down to change its
   source time, in whole source frames unless Alt is held. The speed view is a view of
-  the remap, not a second store.
+  the remap, not a second store. It also draws a footage layer's position (x and y),
+  scale, opacity and rotation and an audio layer's gain on every visible frame, with
+  their keys, each dragged up or down to change its value as `lc op key` does; a key
+  keeps its form (a scale pair scales both axes by the same factor, a position key
+  changes only the axis shown), and the axes hold still while a key is dragged.
 - **Scopes** (the Scopes button): the waveform, vectorscope and parade `lc scope` draws,
   with its luma numbers, of the frame on screen once the playhead rests, computed by the
   engine on the preview frame in the project's display encoding, so on the proxy and

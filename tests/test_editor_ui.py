@@ -183,3 +183,34 @@ def test_the_inspector_shows_a_node_graph(page, cut_project):
     page.wait_for_function("!Array.isArray(state.tl.layers.find(l => l.id === 'shot1').grade)", timeout=10000)
     click_layer(page, "shot1")
     page.wait_for_function("document.getElementById('inspector').textContent.includes('node 2: cdl, mix 0.5')")
+
+
+def test_a_position_key_is_dragged_in_the_graph(page, cut_project):
+    from lungecuta import ops
+    from lungecuta.media import Project
+
+    project = Project.load(cut_project)
+    ops.key(project, "main", "shot1", "position", "b:1", [0.5, 0.5])
+    ops.key(project, "main", "shot1", "position", "b:3", [0.5, 0.5])
+    page.wait_for_function("""(async () => {
+      const tl = await (await fetch(`/api/comp/main`)).json();
+      return state.tl.hash === tl.hash;
+    })()""", timeout=10000)
+    click_layer(page, "shot1")
+    page.wait_for_function("state.curves !== null && state.curves.position !== undefined")
+    modes = page.evaluate("[...document.querySelectorAll('input[name=graph]')].map(r => r.value)")
+    assert modes == ["speed", "source", "x", "y", "scale", "opacity", "rotation"]
+    page.check("input[name=graph][value=y]")
+    target = json.loads(page.evaluate("""JSON.stringify((() => {
+      const key = state.curves.keys.filter(k => k.prop === 'position')[1];
+      return [graph.map.x(key.frame), graph.map.y(key.value[1])];
+    })())"""))
+    box = page.locator("#graph").bounding_box()
+    page.mouse.move(box["x"] + target[0], box["y"] + target[1])
+    page.mouse.down()
+    page.mouse.move(box["x"] + target[0], box["y"] + target[1] + 30, steps=5)
+    page.mouse.up()
+    until(page, cut_project, lambda layer: layer["transform"]["position"]["keys"][1]["v"] != [0.5, 0.5],
+          "the dragged position key")
+    keys = shot1(cut_project)["transform"]["position"]["keys"]
+    assert keys[0]["v"] == [0.5, 0.5] and keys[1]["v"][0] == 0.5 and keys[1]["v"][1] < 0.5  # only y, and down

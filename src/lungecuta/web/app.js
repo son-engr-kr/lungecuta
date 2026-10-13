@@ -467,6 +467,7 @@ async function inspect() {
     }
   }
   renderInspector();
+  buildGraphModes();
   drawGraph();
 }
 
@@ -742,77 +743,160 @@ function scopes() {
 
 // ----- graph editor -------------------------------------------------------
 
+// What the graph editor can show: each a curve on every frame the layer is visible and the
+// keys of one property, dragged up or down to change a key's value (`lc op key`).
+const GRAPHS = {
+  speed: { label: "speed", prop: "remap", lines: [0, 100, 200], unit: "%", fixed: true,
+           curve: (c) => c.speed && c.speed.map((v) => v * 100) },
+  source: { label: "source time", prop: "remap", unit: "f", curve: (c) => c.source,
+            key: (c, k) => k.value * c.media_fps },
+  x: { label: "position x", prop: "position", part: 0, lines: [0, 0.5, 1], curve: (c) => c.position && c.position.map((p) => p[0]) },
+  y: { label: "position y", prop: "position", part: 1, lines: [0, 0.5, 1], curve: (c) => c.position && c.position.map((p) => p[1]) },
+  scale: { label: "scale", prop: "scale", part: 0, lines: [1], curve: (c) => c.scale && c.scale.map((s) => s[0]) },
+  opacity: { label: "opacity", prop: "opacity", lines: [0, 1], range: [-0.05, 1.05], clamp: [0, 1], curve: (c) => c.opacity },
+  rotation: { label: "rotation", prop: "rotation", lines: [0], unit: "°", digits: 2, curve: (c) => c.rotation },
+  gain: { label: "gain", prop: "gain", lines: [0], unit: " dB", digits: 2, curve: (c) => c.gain },
+};
+
+function graphModes(layer, c) {
+  if (!layer || !c) return [];
+  return Object.keys(GRAPHS).filter((name) => (layer.type === "audio") === (name === "gain") && GRAPHS[name].curve(c));
+}
+
+function keyValue(mode, c, key) {
+  const spec = GRAPHS[mode];
+  if (spec.key) return spec.key(c, key);
+  if (spec.part !== undefined) return Array.isArray(key.value) ? key.value[spec.part] : key.value;
+  return key.value;
+}
+
+function graphKeys(mode, c) {
+  return c.keys.filter((k) => k.prop === GRAPHS[mode].prop);
+}
+
+function buildGraphModes() {
+  const layer = selectedLayer(), c = state.curves;
+  const modes = graphModes(layer, c);
+  if (modes.length && !modes.includes(state.graph)) state.graph = modes[0];
+  const box = $("graph-modes");
+  box.replaceChildren(...modes.map((name) => {
+    const radio = el("input", { type: "radio", name: "graph", value: name });
+    radio.checked = name === state.graph;
+    radio.onchange = () => { state.graph = name; drawGraph(); };
+    return el("label", {}, radio, ` ${GRAPHS[name].label}`);
+  }));
+}
+
 function drawGraph() {
   const layer = selectedLayer();
   const box = $("graph-box");
   const c = state.curves;
-  box.hidden = !(layer && layer.type === "footage" && c && c.speed);
+  const modes = graphModes(layer, c);
+  box.hidden = !modes.length;
   if (box.hidden) return;
+  if (!modes.includes(state.graph)) buildGraphModes();
+  const mode = state.graph, spec = GRAPHS[mode];
+  const keys = graphKeys(mode, c);
   $("graph-title").textContent = layer.id;
-  $("graph-hint").textContent = state.graph === "source" && layer.remapped ? "drag a key up or down to change its source time" : "";
+  $("graph-hint").textContent = !spec.fixed && keys.length ? "drag a key up or down to change its value" : "";
   const canvas = $("graph");
   const width = canvas.clientWidth, height = canvas.clientHeight;
   if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
   const g = canvas.getContext("2d");
   g.fillStyle = "#111317"; g.fillRect(0, 0, width, height);
-  const values = state.graph === "speed" ? c.speed.map((v) => v * 100) : c.source;
-  const top = state.graph === "speed" ? Math.max(200, ...values) * 1.05 : Math.max(...values) + 1;
-  const bottom = state.graph === "speed" ? Math.min(0, ...values) : Math.min(...values) - 1;
-  const pad = 30;
-  const x = (frame) => pad + (frame - c.first) / Math.max(1, c.end - c.first) * (width - 2 * pad);
-  const y = (v) => height - 10 - (v - bottom) / (top - bottom || 1) * (height - 20);
-  graph.map = { x, y, top, bottom, pad, width, height };
+  const values = spec.curve(c);
+  let map = graph.drag ? graph.drag.map : null;
+  if (!map) {
+    const seen = [...values, ...keys.map((k) => keyValue(mode, c, k))];
+    let top, bottom;
+    if (spec.range) [bottom, top] = spec.range;
+    else if (mode === "speed") { top = Math.max(200, ...seen) * 1.05; bottom = Math.min(0, ...seen); }
+    else {
+      top = Math.max(...seen); bottom = Math.min(...seen);
+      const margin = (top - bottom) * 0.1 || Math.abs(top) * 0.1 || 1;
+      top += margin; bottom -= margin;
+    }
+    const pad = 30;
+    map = { top, bottom, pad, width, height,
+            x: (frame) => pad + (frame - c.first) / Math.max(1, c.end - c.first) * (width - 2 * pad),
+            y: (v) => height - 10 - (v - bottom) / (top - bottom || 1) * (height - 20) };
+  }
+  graph.map = map;
+  const { x, y } = map;
+  const unit = spec.unit || "";
   g.font = "10px -apple-system, sans-serif";
   g.strokeStyle = "#2a2f38"; g.fillStyle = "#8a919d";
-  const lines = state.graph === "speed" ? [0, 100, 200] : [];
-  for (const v of lines) { g.beginPath(); g.moveTo(pad, y(v) + 0.5); g.lineTo(width - pad, y(v) + 0.5); g.stroke(); g.fillText(`${v}%`, 2, y(v) + 3); }
-  if (state.graph === "source") { g.fillText(`f:${Math.round(top)}`, 2, 12); g.fillText(`f:${Math.round(bottom)}`, 2, height - 4); }
-  g.strokeStyle = state.graph === "speed" ? "#ffb547" : "#7fd1ff"; g.lineWidth = 1.5;
+  for (const v of spec.lines || []) {
+    if (v < map.bottom || v > map.top) continue;
+    g.beginPath(); g.moveTo(map.pad, y(v) + 0.5); g.lineTo(width - map.pad, y(v) + 0.5); g.stroke();
+    g.fillText(`${v}${unit}`, 2, y(v) + 3);
+  }
+  if (!spec.lines) { g.fillText(`${round(map.top, 1)}${unit}`, 2, 12); g.fillText(`${round(map.bottom, 1)}${unit}`, 2, height - 4); }
+  g.strokeStyle = mode === "speed" ? "#ffb547" : "#7fd1ff"; g.lineWidth = 1.5;
   g.beginPath();
   values.forEach((v, k) => { const px = x(c.first + k), py = y(v); if (k) g.lineTo(px, py); else g.moveTo(px, py); });
   g.stroke(); g.lineWidth = 1;
-  for (const key of c.keys.filter((k) => k.prop === "remap")) {
+  for (const key of keys) {
     const kx = x(key.frame);
-    const ky = state.graph === "source" ? y(key.value * c.media_fps) : y(100);
-    g.fillStyle = graph.drag && graph.drag.key === key ? "#ffffff" : "#7fd1ff";
+    const dragged = graph.drag && graph.drag.key === key;
+    const ky = spec.fixed ? y(100) : y(dragged ? graph.drag.value : keyValue(mode, c, key));
+    g.fillStyle = dragged ? "#ffffff" : "#7fd1ff";
     g.beginPath(); g.moveTo(kx, ky - 5); g.lineTo(kx + 5, ky); g.lineTo(kx, ky + 5); g.lineTo(kx - 5, ky); g.closePath(); g.fill();
   }
   g.strokeStyle = "#ffffff";
   const px = x(state.frame);
-  if (px >= pad && px <= width - pad) { g.beginPath(); g.moveTo(px + 0.5, 0); g.lineTo(px + 0.5, height); g.stroke(); }
+  if (px >= map.pad && px <= width - map.pad) { g.beginPath(); g.moveTo(px + 0.5, 0); g.lineTo(px + 0.5, height); g.stroke(); }
   if (graph.drag) {
     g.fillStyle = "#ffffff";
-    g.fillText(`f:${round(graph.drag.value * c.media_fps, 2)}`, x(graph.drag.key.frame) + 8, graph.drag.y - 6);
+    g.fillText(`${round(graph.drag.value, spec.digits || 4)}${unit}`, x(graph.drag.key.frame) + 8, y(graph.drag.value) - 6);
   }
 }
 const graph = { map: null, drag: null };
 
+function draggedValue(mode, key, value) {
+  // The key's new value as `lc op key` takes it, in the form the key already has.
+  const spec = GRAPHS[mode], c = state.curves;
+  if (mode === "source") return sourceLiteral(value, c.media_fps);
+  let v = round(value, spec.digits || 4);
+  if (spec.clamp) v = Math.min(spec.clamp[1], Math.max(spec.clamp[0], v));
+  if (spec.part === undefined) return v;
+  if (!Array.isArray(key.value)) return v;
+  if (mode === "scale") {  // both axes by the same factor, so the layer keeps its shape
+    const [sx, sy] = key.value;
+    return sx ? [v, round(sy * v / sx, 4)] : [v, sy];
+  }
+  const pair = [...key.value];
+  pair[spec.part] = v;
+  return pair;
+}
+
 $("graph").addEventListener("mousedown", (event) => {
-  const c = state.curves, m = graph.map;
-  if (!c || !m || state.graph !== "source") return;
+  const c = state.curves, m = graph.map, mode = state.graph;
+  if (!c || !m || !GRAPHS[mode]) return;
   const rect = $("graph").getBoundingClientRect();
   const px = event.clientX - rect.left, py = event.clientY - rect.top;
-  const key = c.keys.filter((k) => k.prop === "remap")
-    .find((k) => Math.abs(m.x(k.frame) - px) < 7 && Math.abs(m.y(k.value * c.media_fps) - py) < 7);
-  if (key) graph.drag = { key, value: key.value, y: py };
+  const key = GRAPHS[mode].fixed ? null : graphKeys(mode, c)
+    .find((k) => Math.abs(m.x(k.frame) - px) < 7 && Math.abs(m.y(keyValue(mode, c, k)) - py) < 7);
+  if (key) graph.drag = { key, value: keyValue(mode, c, key), map: m };
   else show(Math.round(c.first + (px - m.pad) / (m.width - 2 * m.pad) * (c.end - c.first)));
 });
 window.addEventListener("mousemove", (event) => {
   if (!graph.drag) return;
-  const m = graph.map, c = state.curves;
+  const m = graph.drag.map;
   const py = event.clientY - $("graph").getBoundingClientRect().top;
-  const frames = m.bottom + (m.height - 10 - py) / (m.height - 20) * (m.top - m.bottom);
-  graph.drag.y = py;
-  graph.drag.value = Math.max(0, event.altKey ? frames : Math.round(frames)) / c.media_fps;  // whole source frames unless Alt
+  let value = m.bottom + (m.height - 10 - py) / (m.height - 20) * (m.top - m.bottom);
+  if (state.graph === "source") value = Math.max(0, event.altKey ? value : Math.round(value));  // whole source frames unless Alt
+  graph.drag.value = value;
   drawGraph();
 });
 window.addEventListener("mouseup", () => {
   if (!graph.drag) return;
   const { key, value } = graph.drag;
+  const mode = state.graph;
   graph.drag = null;
-  if (Math.abs(value - key.value) < 1e-6) return drawGraph();
-  edit("key", { layer_id: state.selected, prop: "remap", at: key.at, value: sourceLiteral(value * state.curves.media_fps,
-                                                                                        state.curves.media_fps), ease: key.ease });
+  if (Math.abs(value - keyValue(mode, state.curves, key)) < 1e-6) return drawGraph();
+  edit("key", { layer_id: state.selected, prop: GRAPHS[mode].prop, at: key.at, value: draggedValue(mode, key, value),
+                ease: key.ease });
 });
 
 // ----- loading ------------------------------------------------------------
@@ -870,9 +954,6 @@ async function boot() {
   }
   $("place").onclick = () => media.value && edit("place", { media: media.value, at: `f:${state.frame}` });
   state.styles = await api("/api/styles");
-  for (const radio of document.querySelectorAll("input[name=graph]")) {
-    radio.onchange = () => { state.graph = radio.value; drawGraph(); };
-  }
   connect();
   if (state.project.comps.length) await loadComp(state.project.comps[0]);
   else status("this project has no comps yet");

@@ -65,3 +65,4 @@ main { display: grid; grid-template-rows: minmax(200px, 1fr) auto auto auto 90px
 #journal li.new { color: var(--text); }
 /* `hidden` has to win over the display these elements are given above. */
 #missing[hidden], #overlays iframe[hidden], #graph-box[hidden], #scopes[hidden] { display: none; }
+#graph-modes { display: flex; gap: 14px; }
