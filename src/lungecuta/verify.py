@@ -11,6 +11,7 @@ from typing import Any
 
 import numpy as np
 
+from . import compose
 from .comp import load_comp, resolve
 from .compose import captured, finish, footage_at, overlay_pages
 from .decode import Layout, frame_rgb, read_raw, read_rgb
@@ -31,7 +32,6 @@ LOUDNESS_TOLERANCE = 0.2  # LU
 # decoder gives it back at 12 bits, a quarter of a code a step: the limit allows two such
 # steps on top. Measured on a 4K render with a feathered mask: 0.685 (bench/RESULTS.md).
 ALPHA_LIMIT = 1.0  # 10-bit codes
-VERIFY_JOBS = 4
 
 
 def _check(name: str, expected: Any, found: Any) -> dict[str, Any]:
@@ -173,7 +173,7 @@ def _sample(project: Project, resolved, file: Path, video: dict, preset, across:
     with alpha, colour is compared over black, and the alpha's largest error in codes is
     returned too. Each reference is rendered once. A run of consecutive frames is one job
     and several run at once, since rendering a reference mostly waits on ffmpeg seeking
-    into the originals (VERIFY_JOBS, bench/RESULTS.md); graphics are captured here, in
+    into the originals (compose.FRAMES_AT_ONCE); graphics are captured here, in
     order, since a page captures one frame at a time."""
 
     def measured(run: list[int], captures: dict[int, dict]) -> tuple[dict, list, float | None]:
@@ -203,7 +203,7 @@ def _sample(project: Project, resolved, file: Path, video: dict, preset, across:
     jobs = ((run, {index: captured(resolved, index, pages) for index in run}) for run in _runs(sorted(across)))
     totals = {"sum": np.zeros(3), "squares": np.zeros(3), "pixels": 0}
     cuts, alpha_error = [], None
-    for part, run_cuts, run_alpha in in_order(measured, jobs, workers=VERIFY_JOBS, ahead=VERIFY_JOBS):
+    for part, run_cuts, run_alpha in in_order(measured, jobs, workers=compose.FRAMES_AT_ONCE, ahead=compose.FRAMES_AT_ONCE):
         totals = {key: totals[key] + part[key] for key in totals}
         cuts += run_cuts
         if run_alpha is not None:

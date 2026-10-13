@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import math
 import subprocess
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from contextlib import ExitStack, contextmanager
 
 import numpy as np
@@ -21,6 +21,7 @@ from .comp import Cut, Nest, Overlay, Placement, Resolved
 from .decode import Layout, frame_rgb, read_raw, seek_seconds
 from .geometry import mask_alpha, oriented, place
 from .media import Project
+from .parallel import in_order
 from .ticks import ticks_per_frame
 from .tools import tool
 
@@ -408,6 +409,23 @@ def _closing(generator: Iterator):
         yield generator
     finally:
         generator.close()
+
+
+# Comp frames sampled at once by `frames_at` and `lc verify`: each mostly waits on ffmpeg
+# seeking into the originals (bench/verify_cost.py, bench/RESULTS.md).
+FRAMES_AT_ONCE = 4
+
+
+def frames_at(project: Project, resolved: Resolved, indices: Iterable[int], pages: dict, *,
+              threads: int | None = None, alpha: bool = False) -> Iterator[np.ndarray]:
+    """Comp frames `indices`, in order, as `frame_at` makes them, FRAMES_AT_ONCE at a time.
+    Graphics are captured on the caller's thread, in order, since a page captures one frame
+    at a time; the rest runs on the workers."""
+    def made(index: int, captures: dict[str, bytes]) -> np.ndarray:
+        return finish(project, resolved, index, footage_at(project, resolved, index, threads), captures, threads, alpha)
+
+    jobs = ((index, captured(resolved, index, pages)) for index in indices)
+    return in_order(made, jobs, workers=FRAMES_AT_ONCE, ahead=FRAMES_AT_ONCE)
 
 
 def frame_at(project: Project, resolved: Resolved, index: int, threads: int | None = None,

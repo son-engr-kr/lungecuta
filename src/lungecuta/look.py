@@ -16,7 +16,7 @@ from typing import Any
 import numpy as np
 
 from .comp import Resolved, load_comp, resolve
-from .compose import frame_at, overlay_pages
+from .compose import frame_at, frames_at, overlay_pages
 from .files import write_atomic
 from .geometry import area_resize, scaled_size
 from .images import png, png8, quantize
@@ -131,8 +131,7 @@ def comp_sheet(project: Project, name: str, every: str, *, start: str | None = N
     tiles, numbers = [], []
     per_page = columns * rows
     with overlay_pages(project, resolved) as opened:
-        for k, index in enumerate(indices):
-            frame = frame_at(project, resolved, index, threads, opened)
+        for k, (index, frame) in enumerate(zip(indices, frames_at(project, resolved, indices, opened, threads=threads))):
             tile = area_resize(frame, size) if size != tuple(resolved.comp.size) else frame
             tiles.append(quantize(tile))
             numbers.append(place_of(resolved, index) | {"page": k // per_page, "codes": code_numbers(frame)})

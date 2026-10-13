@@ -482,7 +482,9 @@ consecutive sampled frames is one job:
 | s | 19.4 | 10.8 | **8.7** | 9.2 | 8.4 |
 
 Every report identical to the one-job report and to the report before the change; so
-`VERIFY_JOBS = 4`, past which the time stays flat while the frames held grow.
+`FRAMES_AT_ONCE = 4` (`compose.py`), past which the time stays flat while the frames held
+grow. `lc sheet` samples its frames the same way: the dry run's sheet of eight tiles went
+from 6.9 s to 3.3 s, the page and its numbers identical.
 
 ## What a render spends a frame on: `uv run python bench/render_stages.py PROJECT COMP FRAME 1`
 

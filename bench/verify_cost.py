@@ -12,7 +12,7 @@ import sys
 import time
 from pathlib import Path
 
-from lungecuta import verify
+from lungecuta import compose, verify
 from lungecuta.media import Project
 
 
@@ -20,7 +20,7 @@ def main() -> None:
     project, comp, file, preset = Project.load(Path(sys.argv[1])), sys.argv[2], Path(sys.argv[3]), sys.argv[4]
     reference = None
     for jobs in (1, 2, 4, 8, 15):
-        verify.VERIFY_JOBS = jobs
+        compose.FRAMES_AT_ONCE = jobs
         t = time.perf_counter()
         report = json.dumps(verify.verify(project, comp, file, preset), sort_keys=True)
         reference = reference or report
