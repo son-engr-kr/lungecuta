@@ -263,7 +263,7 @@ def shutter_times(cut: Cut, index: int, layer: tuple[int, int], canvas: tuple[in
     segments are halved until there are at least as many as pixels it is long."""
     tick = ticks_per_frame(cut.comp_rate)
     start = index * tick
-    degrees = 0.0 if cut.shutter is None else cut.shutter.at(start)[0]
+    degrees = cut.shutter_deg(start)
     if degrees <= 0 or cut.placement is None:
         return [start]
     span = degrees / 360 * tick

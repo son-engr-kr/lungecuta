@@ -104,16 +104,22 @@ class Placement:
     anchor: tuple[float, float]
     scale_by: Track | None = None
     rotation: Track | None = None  # degrees; None is 0
+    rotation_by: Track | None = None  # a style's degrees, added; 0 outside its keys
+    opacity_by: Track | None = None  # a style's multiplier on opacity; 1 outside its keys
 
     def rotation_at(self, ticks: int) -> float:
-        return 0.0 if self.rotation is None else self.rotation.at(ticks)[0]
+        own = 0.0 if self.rotation is None else self.rotation.at(ticks)[0]
+        return own + (0.0 if self.rotation_by is None else _inside(self.rotation_by, ticks, 0.0))
 
     def at(self, ticks: int) -> tuple[tuple[float, float], tuple[float, float], float]:
         scale = self.scale.at(ticks)
         if self.scale_by is not None:
             factor = _inside(self.scale_by, ticks, 1.0)
             scale = (scale[0] * factor, scale[1] * factor)
-        return self.position.at(ticks), scale, self.opacity.at(ticks)[0]
+        opacity = self.opacity.at(ticks)[0]
+        if self.opacity_by is not None:
+            opacity *= _inside(self.opacity_by, ticks, 1.0)
+        return self.position.at(ticks), scale, opacity
 
 
 def _track(value, start: int, rate: Fraction, grid: BeatGrid | None, size: int) -> Track:
@@ -160,6 +166,17 @@ class Cut:
     speed_track: Track | None = None  # a style's speed against comp time, 1 outside its keys
     ramps: tuple[tuple[int, int, float, float], ...] = ()  # transitions: opacity from a0 to a1 over frames [f0, f1)
     shutter: Track | None = None  # motion blur: the output shutter in degrees against comp ticks; None is none
+    style_shutter: Track | None = None  # a style's shutter, which holds inside its keys
+
+    def shutter_deg(self, ticks: int) -> float:
+        """The output shutter at `ticks`: a style's inside its keys, the layer's own outside."""
+        if self.style_shutter is not None and self.style_shutter.times[0] <= ticks <= self.style_shutter.times[-1]:
+            return self.style_shutter.at(ticks)[0]
+        return 0.0 if self.shutter is None else self.shutter.at(ticks)[0]
+
+    @property
+    def blurred(self) -> bool:
+        return self.shutter is not None or self.style_shutter is not None
 
     def opacity_at(self, frame: int) -> float:
         """The opacity transitions give comp frame `frame`, linear over each ramp's frames
@@ -485,10 +502,14 @@ def literals_past(project: Project, key: str, first_changed: int) -> list[dict[s
     return affected
 
 
+STYLE_NEUTRAL = {"speed": 1.0, "scale": 1.0, "opacity": 1.0, "rotation": 0.0, "shutter_deg": 0.0}
+
+
 def _style_tracks(project: Project, layer: FootageLayer, start: int, rate: Fraction,
-                  grid: BeatGrid | None) -> tuple[Track | None, Track | None]:
-    """A style instance's speed and scale tracks in comp ticks, its keys placed from the
-    anchor and its values moved from 1 towards the style's by the intensity."""
+                  grid: BeatGrid | None) -> dict[str, Track]:
+    """A style instance's tracks in comp ticks by name, its keys placed from the anchor and
+    each value moved from the track's neutral (1 for speed, scale and opacity, 0 for
+    rotation and the shutter) towards the style's by the intensity."""
     instance = layer.time
     style = load_style(project, instance.style)
     assert style.tracks is not None, f"layer {layer.id}: style {style.id} is a look, with no tracks to place in time"
@@ -510,14 +531,16 @@ def _style_tracks(project: Project, layer: FootageLayer, start: int, rate: Fract
             return None
         times = [anchor + resolve_span(parse_literal(key.at, Field.STYLE), anchor=anchor, rate=rate, grid=grid)
                  for key in keys]
-        values = [(1 + intensity * (key.v - 1),) for key in keys]
+        neutral = STYLE_NEUTRAL[name]
+        values = [(neutral + intensity * (key.v - neutral),) for key in keys]
         for (value,) in values:
-            assert value >= 0 if name == "speed" else value > 0, (
-                f"layer {layer.id}: style {style.id} at intensity {intensity} gives a {name} of {value}"
-            )
+            fine = {"speed": value >= 0, "scale": value > 0, "opacity": 0 <= value <= 1,
+                    "shutter_deg": 0 <= value <= 720}.get(name, True)
+            assert fine, f"layer {layer.id}: style {style.id} at intensity {intensity} gives a {name} of {value}"
         return Track(tuple(times), tuple(values), tuple(key.ease for key in keys))
 
-    return track(style.tracks.speed, "speed"), track(style.tracks.scale, "scale")
+    tracks = {name: track(getattr(style.tracks, name), name) for name in STYLE_NEUTRAL}
+    return {name: value for name, value in tracks.items() if value is not None}
 
 
 def _footage(project: Project, layer: FootageLayer, rate: Fraction, grid: BeatGrid | None) -> Cut:
@@ -543,18 +566,19 @@ def _footage(project: Project, layer: FootageLayer, rate: Fraction, grid: BeatGr
         remap = Track(tuple(times), tuple(values), tuple(key.ease for key in layer.time.remap))
     else:
         source = resolve_source(parse_literal(layer.source_start, Field.SOURCE), media_rate=media_rate)
-    speed_track = scale_track = None
+    styled: dict[str, Track] = {}
     if isinstance(layer.time, StyleTime):
-        speed_track, scale_track = _style_tracks(project, layer, start, rate, grid)
+        styled = _style_tracks(project, layer, start, rate, grid)
     placed = None
-    if layer.transform is not None or scale_track is not None:
-        placed = replace(placement(layer.transform or Transform(), start, rate, grid), scale_by=scale_track)
+    if layer.transform is not None or {"scale", "rotation", "opacity"} & set(styled):
+        placed = replace(placement(layer.transform or Transform(), start, rate, grid), scale_by=styled.get("scale"),
+                         rotation_by=styled.get("rotation"), opacity_by=styled.get("opacity"))
     shutter = None
     if layer.motion_blur is not None:
         shutter = _track(layer.motion_blur.shutter_deg, start, rate, grid, 1)
     cut = Cut(layer=layer, record=record, start=start, first=first, end=end, source_start=source,
-              speed=speed_of(layer), comp_rate=rate, placement=placed, remap=remap, speed_track=speed_track,
-              shutter=shutter)
+              speed=speed_of(layer), comp_rate=rate, placement=placed, remap=remap, speed_track=styled.get("speed"),
+              shutter=shutter, style_shutter=styled.get("shutter_deg"))
     return _checked(cut)
 
 

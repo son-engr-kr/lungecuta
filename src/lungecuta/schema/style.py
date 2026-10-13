@@ -1,9 +1,10 @@
 """Styles, `styles/ID.json` (docs/design/03-project-format.md#styles).
 
-M2's part: a style holds a speed track and a scale track, each in beats (or seconds or
-frames) relative to the anchor it is placed at, and an `intensity` that moves every value
-from neutral (1) towards the style's. Tracks for properties the engine does not have yet
-(the motion-blur shutter, M6) are validation errors, not ignored.
+A style holds tracks of speed, scale, rotation, opacity and the motion blur shutter, each in
+beats (or seconds or frames) relative to the anchor it is placed at, and an `intensity`
+that moves every value from its neutral (1 for speed, scale and opacity, 0 for rotation
+and the shutter) towards the style's. A track for a property the engine does not have is
+a validation error, not ignored.
 
 A look is a style with a `grade` (operations, or serial nodes of them), which a clip's
 grade uses as a node; it may have tracks too, and a style needs tracks or a grade."""
@@ -47,6 +48,13 @@ class Tracks(_Part):
                                          description="source seconds per layer second; 1 outside the track")
     scale: list[StyleKey] | None = Field(default=None, min_length=1,
                                          description="a multiplier on the layer's scale; 1 outside the track")
+    rotation: list[StyleKey] | None = Field(default=None, min_length=1,
+                                            description="degrees added to the layer's rotation; 0 outside the track")
+    opacity: list[StyleKey] | None = Field(default=None, min_length=1,
+                                           description="a multiplier on the layer's opacity, 0 to 1; 1 outside the track")
+    shutter_deg: list[StyleKey] | None = Field(
+        default=None, min_length=1, description="the motion blur shutter in degrees inside the track, the layer's own "
+        "outside it (06-editing.md, Motion blur)")
 
     @model_validator(mode="after")
     def _values(self) -> Tracks:
@@ -54,7 +62,13 @@ class Tracks(_Part):
             assert key.v >= 0, f"a speed of {key.v}: a style's speed track cannot run backwards"
         for key in self.scale or []:
             assert key.v > 0, f"a scale of {key.v}"
-        assert self.speed or self.scale, "a style's tracks need a track"
+        for key in self.opacity or []:
+            assert 0 <= key.v <= 1, f"an opacity of {key.v}"
+        for key in self.shutter_deg or []:
+            assert 0 <= key.v <= 720, f"a shutter of {key.v} degrees"
+        assert self.speed or self.scale or self.rotation or self.opacity or self.shutter_deg, (
+            "a style's tracks need a track"
+        )
         return self
 
 

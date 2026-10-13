@@ -640,6 +640,57 @@
           "default": null,
           "description": "a multiplier on the layer's scale; 1 outside the track",
           "title": "Scale"
+        },
+        "rotation": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/StyleKey"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "degrees added to the layer's rotation; 0 outside the track",
+          "title": "Rotation"
+        },
+        "opacity": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/StyleKey"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "a multiplier on the layer's opacity, 0 to 1; 1 outside the track",
+          "title": "Opacity"
+        },
+        "shutter_deg": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/StyleKey"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the motion blur shutter in degrees inside the track, the layer's own outside it (06-editing.md, Motion blur)",
+          "title": "Shutter Deg"
         }
       },
       "title": "Tracks",

@@ -199,8 +199,8 @@ class Editor:
             out |= {"position": [list(v[0]) for v in values], "scale": [list(v[1]) for v in values],
                     "opacity": [v[2] for v in values],
                     "rotation": [cut.placement.rotation_at(f * tick) for f in frames]}
-        if cut.shutter is not None:
-            out["shutter"] = [cut.shutter.at(f * tick)[0] for f in frames]
+        if cut.blurred:
+            out["shutter"] = [cut.shutter_deg(f * tick) for f in frames]
         return out
 
     def styles(self) -> list[dict[str, Any]]:

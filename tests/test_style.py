@@ -42,8 +42,11 @@ def at_100(cut, frame):
 
 def test_a_style_file_is_checked():
     StyleFile.model_validate(DIP)
+    StyleFile.model_validate(DIP | {"tracks": {"shutter_deg": [{"at": "b:0", "v": 180}]}})  # motion blur is written
     with pytest.raises(ValidationError):
-        StyleFile.model_validate(DIP | {"tracks": {"shutter_deg": [{"at": "b:0", "v": 180}]}})
+        StyleFile.model_validate(DIP | {"tracks": {"shutter_deg": [{"at": "b:0", "v": 800}]}})
+    with pytest.raises(ValidationError):
+        StyleFile.model_validate(DIP | {"tracks": {"opacity": [{"at": "b:0", "v": 1.5}]}})
     with pytest.raises(ValidationError):
         StyleFile.model_validate(DIP | {"tracks": {"speed": [{"at": "b:0", "v": -1}]}})
     with pytest.raises(ValidationError):
@@ -145,3 +148,44 @@ def test_a_styled_comp_renders_and_verifies(cut_project):
     checked = CliRunner().invoke(main, ["verify", json.loads(rendered.output)["file"], "--comp", "main",
                                         "--preset", "master-prores-hq", *args])
     assert checked.exit_code == 0, checked.output
+
+
+WHIP = {
+    "id": "whip", "name": "a whip: a turn and a dip in opacity, the shutter open through it", "anchor": "beat",
+    "params": {"intensity": {"default": 1.0, "min": 0, "max": 2}},
+    "tracks": {
+        "rotation": [{"at": "b:-0.5", "v": 0}, {"at": "b:0", "v": 20}, {"at": "b:0.5", "v": 0}],
+        "opacity": [{"at": "b:-0.5", "v": 1}, {"at": "b:0", "v": 0.5}, {"at": "b:0.5", "v": 1}],
+        "shutter_deg": [{"at": "b:-0.5", "v": 180}, {"at": "b:0.5", "v": 180}],
+    },
+}
+
+
+def whipped(project, intensity=None, **layer):
+    write_style(project, WHIP)
+    comp = comp_json()
+    comp["layers"][1] |= {"time": {"style": "whip", "at": "b:2",
+                                   **({"overrides": {"intensity": intensity}} if intensity is not None else {})},
+                          **layer}
+    put_comp(project, comp)
+    loaded = Project.load(project)
+    return {cut.layer.id: cut for cut in resolve(loaded, load_comp(loaded, "main")).cuts}["shot1"]
+
+
+def test_rotation_opacity_and_shutter_tracks_move_from_their_neutrals(cut_project):
+    cut = whipped(cut_project)
+    anchor = cut.start + 2 * BEAT  # b:2 from the layer's start
+    assert cut.placement.rotation_at(anchor) == pytest.approx(20)
+    assert cut.placement.at(anchor)[2] == pytest.approx(0.5)
+    assert cut.placement.rotation_at(anchor + BEAT) == 0 and cut.placement.at(anchor + BEAT)[2] == 1  # outside
+    assert cut.shutter_deg(anchor) == 180 and cut.shutter_deg(anchor + BEAT) == 0
+    half = whipped(cut_project, intensity=0.5)
+    assert half.placement.rotation_at(anchor) == pytest.approx(10)  # 0 + 0.5 (20 - 0)
+    assert half.placement.at(anchor)[2] == pytest.approx(0.75)  # 1 + 0.5 (0.5 - 1)
+    assert half.shutter_deg(anchor) == pytest.approx(90)
+
+
+def test_a_style_s_shutter_holds_inside_its_keys_and_the_layer_s_outside(cut_project):
+    cut = whipped(cut_project, motion_blur={"shutter_deg": 45})
+    anchor = cut.start + 2 * BEAT
+    assert cut.shutter_deg(anchor) == 180 and cut.shutter_deg(anchor + BEAT) == 45

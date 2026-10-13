@@ -627,8 +627,11 @@ moved from 1 towards the style's by the intensity, `1 + intensity (v - 1)`, and 
 that would go below 0 or a scale to 0 or below is an error naming the intensity. Keys may
 fall before the layer's start, and a key before the beat grid's first beat is an error.
 The editor's cached frames are keyed by the comp and the styles and LUTs it uses, so
-editing a style changes what every placement shows. The shutter track waits for motion
-blur (M6), and is a validation error until then.
+editing a style changes what every placement shows. A style may also hold `rotation`
+(degrees added to the layer's, 0 outside the track), `opacity` (a multiplier from 0 to 1,
+1 outside it) and `shutter_deg` (the motion blur shutter inside the track, the layer's own
+outside it), each value moved from its neutral by the intensity, `neutral + intensity
+(v - neutral)`.
 
 ## Validation
 
