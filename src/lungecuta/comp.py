@@ -4,6 +4,7 @@ samples, and its markers (docs/design/03-project-format.md)."""
 from __future__ import annotations
 
 import math
+from collections.abc import Iterator
 from dataclasses import dataclass, replace
 
 import numpy as np
@@ -281,6 +282,7 @@ class Nest:
     first: int
     end: int
     comp_rate: Fraction
+    visible: tuple[int, int]  # ticks: its visible in and out points in the comp, where its sound plays
     placement: Placement | None = None
 
     def frame(self, index: int) -> int:
@@ -309,6 +311,22 @@ class Resolved:
 
     def nests_at(self, index: int) -> list[Nest]:
         return [nest for nest in self.nests if nest.first <= index < nest.end]
+
+    def every_cut(self) -> Iterator[Cut]:
+        """Its footage layers and its precomps', all the way down."""
+        yield from self.cuts
+        for nest in self.nests:
+            yield from nest.resolved.every_cut()
+
+    def every_sound(self) -> Iterator[Sound]:
+        """Its audio layers and its precomps', all the way down."""
+        yield from self.sounds
+        for nest in self.nests:
+            yield from nest.resolved.every_sound()
+
+    def precomps(self) -> set[str]:
+        """The ids of every comp it places, all the way down."""
+        return {nest.layer.comp for nest in self.nests} | {c for nest in self.nests for c in nest.resolved.precomps()}
 
     def stack(self, index: int) -> list[Cut]:
         """The footage layers visible on comp frame `index`, bottom first."""
@@ -621,13 +639,12 @@ def _nest(project: Project, layer: PrecompLayer, rate: Fraction, grid: BeatGrid 
           end: int) -> Nest:
     assert layer.comp not in inside, f"layer {layer.id}: comp {layer.comp} contains itself ({' > '.join(inside)})"
     inner = resolve(project, load_comp(project, layer.comp), inside)
-    assert not inner.sounds, f"layer {layer.id}: audio inside a precomp ({layer.comp}) is not mixed yet"
     start, visible_in, visible_out = _placed(layer, rate, grid)
     first, last = first_frame_at_or_after(visible_in, rate), first_frame_at_or_after(visible_out, rate)
     assert first < last, f"layer {layer.id} is visible for no frame"
     assert first >= 0 and last <= end, f"layer {layer.id} runs outside the comp"
     nest = Nest(layer=layer, resolved=inner, start=start, first=first, end=last, comp_rate=rate,
-                placement=None if layer.transform is None else placement(layer.transform, start, rate, grid))
+                visible=(visible_in, visible_out), placement=None if layer.transform is None else placement(layer.transform, start, rate, grid))
     nest.frame(first), nest.frame(last - 1)  # both ends inside the precomp
     return nest
 

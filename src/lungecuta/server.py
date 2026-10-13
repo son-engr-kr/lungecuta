@@ -212,7 +212,7 @@ class Editor:
         """The comp's sound as the preset will deliver it: the mix through its master chain."""
         assert preset in PRESETS, f"unknown preset {preset!r} (presets: {', '.join(PRESETS)})"
         preview = self.preview(name)
-        key = (name, preview.hash, preset)
+        key = (name, preview.version, preset)  # the version, so a precomp's change is heard
         if key not in self.audio:
             signal, _ = mastered(preview.project, preview.resolved, PRESETS[preset])
             self.audio[key] = wav_bytes(signal, 48000)

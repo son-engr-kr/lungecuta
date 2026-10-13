@@ -66,6 +66,10 @@ def _renders(project: Project) -> list[dict[str, Any]]:
             stale.append("the file is gone")
         if not comp_file.is_file() or content_hash(comp_file) != manifest["comp"]["hash"]:
             stale.append("the comp changed")
+        for name, hash_ in manifest.get("precomps", []):
+            precomp = project.directory / "comps" / f"{name}.json"
+            if not precomp.is_file() or content_hash(precomp) != hash_:
+                stale.append(f"precomp {name} changed")
         for key, hash_ in manifest["media"]:
             record_path = project.directory / "media" / f"{key}.json"
             if not record_path.is_file():

@@ -105,10 +105,10 @@ class Preview:
 
     def _inputs(self) -> tuple:
         """The files besides the comp that decide its frames, by size and modification time:
-        the styles its layers place (linked, so editing one changes every placement) and the
-        LUTs their grades read."""
-        paths = set()
-        for cut in self.resolved.cuts:
+        the comps it places as precomps, the styles its layers and theirs place (linked, so
+        editing one changes every placement) and the LUTs their grades read."""
+        paths = {f"comps/{name}.json" for name in self.resolved.precomps()}
+        for cut in self.resolved.every_cut():
             if isinstance(cut.layer.time, StyleTime):
                 paths.add(f"styles/{cut.layer.time.style}.json")
             paths.update(op.path for op in grade.operations(cut.layer.grade) if op.op == "lut")

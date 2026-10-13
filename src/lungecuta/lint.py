@@ -58,10 +58,11 @@ def lint(project: Project, name: str) -> dict[str, Any]:
                                      "message": f"{a.layer.id} and {b.layer.id} both show {a.record.key} source "
                                                 f"frames {', '.join(f'{r[0]} to {r[1]}' for r in runs)}"})
     if settings.music_licence:
-        for key in sorted({sound.record.key for sound in resolved.sounds}):
-            record = next(sound.record for sound in resolved.sounds if sound.record.key == key)
+        sounds = list(resolved.every_sound())  # precomps' music is in the piece too
+        for key in sorted({sound.record.key for sound in sounds}):
+            record = next(sound.record for sound in sounds if sound.record.key == key)
             if record.licence is None:
-                warnings.append({"rule": "music_licence", "layers": [s.layer.id for s in resolved.sounds
+                warnings.append({"rule": "music_licence", "layers": [s.layer.id for s in sounds
                                                                      if s.record.key == key],
                                  "message": f"{key} has no licence record (lc licence {key} --name ... --source ...)"})
     return {"comp": name, "warnings": warnings, "settings": settings.model_dump(), "not_checked": NOT_CHECKED}

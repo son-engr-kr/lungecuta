@@ -41,10 +41,12 @@ def manifest(project: Project, resolved: Resolved, preset: Preset, out: Path, cl
         "preset": preset.name,
         "comp": {"id": resolved.comp.id, "hash": content_hash(comp_path), "frames": resolved.end,
                  "rate": format_rate(resolved.rate), "size": list(resolved.comp.size)},
-        "media": sorted({(c.record.key, c.record.hash) for c in resolved.cuts}
-                        | {(s.record.key, s.record.wav.hash) for s in resolved.sounds}),
+        "precomps": sorted((name, content_hash(project.directory / "comps" / f"{name}.json"))
+                           for name in resolved.precomps()),
+        "media": sorted({(c.record.key, c.record.hash) for c in resolved.every_cut()}
+                        | {(s.record.key, s.record.wav.hash) for s in resolved.every_sound()}),
         "luts": sorted({(op.path, content_hash(project.directory / op.path))
-                        for c in resolved.cuts for op in grade.operations(c.layer.grade) if op.op == "lut"}),
+                        for c in resolved.every_cut() for op in grade.operations(c.layer.grade) if op.op == "lut"}),
         "color": settings.model_dump(),
         "versions": {"lungecuta": version("lungecuta"), "opencolorio": version("opencolorio"),
                      "numpy": np.__version__, "ffmpeg": ffmpeg, "python": platform.python_version()},

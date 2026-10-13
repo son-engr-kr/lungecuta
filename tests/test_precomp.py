@@ -53,16 +53,53 @@ def test_a_precomp_at_another_rate_shows_the_frame_that_holds_its_time(cut_proje
     assert nest.frame(30) == 18
 
 
-def test_precomps_that_contain_themselves_and_precomp_audio_are_refused(cut_project):
+def sounding(**changes):
+    """The precomp with music of its own: the track's first two seconds from its time 0."""
+    comp = inner(**changes)
+    comp["layers"].append({"id": "music", "type": "audio", "media": "track", "start": "0s", "out": "2s",
+                           "source_start": "0s"})
+    return comp
+
+
+def test_a_precomps_music_plays_where_its_layer_does(cut_project):
+    from lungecuta.mixdown import mix
+
+    project, quiet = with_precomp(cut_project)
+    without = mix(project, quiet)
+    for changes, first, inner_first in (({}, 12000, 0), ({"in": "b:1"}, 36000, 24000)):
+        project, resolved = with_precomp(cut_project, changes, inner_comp=sounding())
+        heard = mix(project, resolved) - without
+        precomp = mix(project, resolve(project, load_comp(project, "inner")))
+        # the layer starts at b:0 (0.25 s, sample 12000) and is out at b:4 (2.25 s, sample 108000); a trimmed
+        # in point at b:1 (0.75 s) starts it there, half a second into the precomp
+        np.testing.assert_allclose(heard[first:108000], precomp[inner_first:96000], atol=1e-6)
+        assert np.abs(heard[:first]).max() == 0 and np.abs(heard[108000:]).max() == 0
+        assert np.abs(heard).max() > 0.01
+
+
+def test_a_render_records_its_precomps_and_goes_stale_with_them(cut_project):
+    from lungecuta.preview import Preview
+
+    project, _ = with_precomp(cut_project, inner_comp=sounding())
+    preview = Preview(project, "main")
+    args = ["--project", str(cut_project)]
+    rendered = json.loads(CliRunner().invoke(main, ["render", "main", "--preset", "web-h264", *args]).output)
+    manifest = json.loads(open(rendered["manifest"]).read())
+    assert [name for name, _ in manifest["precomps"]] == ["inner"]
+    assert {key for key, _ in manifest["media"]} == {"C0001", "track"}
+    status = json.loads(CliRunner().invoke(main, ["status", *args]).output)
+    assert status["renders"][0]["current"]
+    put_comp(cut_project, sounding(end="2.5s"))
+    status = json.loads(CliRunner().invoke(main, ["status", *args]).output)
+    assert status["renders"][0]["why_not"] == ["precomp inner changed"]
+    assert preview.stale()  # the editor's preview reads the precomp too
+
+
+def test_precomps_that_contain_themselves_are_refused(cut_project):
     looped = inner()
     looped["layers"].append({"id": "again", "type": "comp", "comp": "inner", "start": "0s", "out": "1s"})
     with pytest.raises(AssertionError, match="contains itself"):
         with_precomp(cut_project, inner_comp=looped)
-    sounding = inner()
-    sounding["layers"].append({"id": "music", "type": "audio", "media": "track", "start": "0s", "out": "2s",
-                               "source_start": "0s"})
-    with pytest.raises(AssertionError, match="audio inside a precomp"):
-        with_precomp(cut_project, inner_comp=sounding)
     put_comp(cut_project, inner())
     with pytest.raises(AssertionError, match="outside it"):
         with_precomp(cut_project, {"out": "b:7"})  # 3.5 s of a 3 s precomp

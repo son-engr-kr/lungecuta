@@ -192,8 +192,11 @@ replaces the list, and FCPXML refuses masks. A `comp` layer places another comp 
 `start`, `in`, `out`, `transform`, `masks` and `markers`: comp frame f shows the precomp's
 frame whose interval holds layer time `f - start` (the source-time rule, D12, *proposed*), the
 precomp composited in the working space with its coverage, transparent where it has
-nothing, and placed and masked as footage is. A comp that contains itself is refused, and
-so, for now, is audio inside a precomp (not mixed yet). A precomp's graphics enter the
+nothing, and placed and masked as footage is. A comp that contains itself is refused. A
+precomp's sound is its own mix, through its layers' gains and fades, played where its
+layer is visible, its layer time the precomp's time (as in After Effects), each end on
+the nearest sample; a render's manifest lists the precomps and their media, so a
+change to one makes the render and the preview stale. A precomp's graphics enter the
 working space through the inverse output view, since inside a precomp they are never the
 top of the final stack (D15); the editor draws a precomp's footage but not its
 graphics, renders read its footage a frame at a time (no streaming decode), and FCPXML

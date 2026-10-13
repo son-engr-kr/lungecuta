@@ -9,11 +9,11 @@ from typing import Any
 import numpy as np
 
 from .audio import master, true_peak_db
-from .comp import MIX_RATE, Resolved
+from .comp import MIX_RATE, Nest, Resolved
 from .encode import Preset
 from .media import Project, music_wav
 from .music import read_wav, wav_bytes
-from .ticks import nearest_sample, ticks_per_frame
+from .ticks import nearest_sample, ticks_per_frame, ticks_per_sample
 from .tools import run, tool
 
 
@@ -23,9 +23,10 @@ def comp_samples(resolved: Resolved) -> int:
 
 
 def mix(project: Project, resolved: Resolved) -> np.ndarray:
-    """The music layers summed, each through its gain and fades, frames x 2 channels at
-    48 kHz, before the master chain (float, so a sum over full scale is kept for the
-    limiter)."""
+    """The music layers summed, each through its gain and fades, and every precomp's own mix
+    where its layer plays (its layer time is the precomp's time, as in After Effects),
+    frames x 2 channels at 48 kHz, before the master chain (float, so a sum over full
+    scale is kept for the limiter)."""
     total = comp_samples(resolved)
     out = np.zeros((total, 2), np.float32)
     for sound in resolved.sounds:
@@ -35,7 +36,27 @@ def mix(project: Project, resolved: Resolved) -> np.ndarray:
         piece = signal[sound.source_first:sound.source_first + end - sound.first]
         piece = piece if piece.shape[1] == 2 else np.repeat(piece, 2, axis=1)
         out[sound.first:end] += piece * sound.envelope()[:end - sound.first, None].astype(np.float32)
+    for nest in resolved.nests:
+        inner = mix(project, nest.resolved)
+        first, end = nest_samples(nest)
+        offset = nearest_signed_sample(nest.start)
+        assert 0 <= first - offset and end - offset <= inner.shape[0], (
+            f"layer {nest.layer.id} plays {nest.layer.comp}'s sound outside it"
+        )
+        out[first:min(end, total)] += inner[first - offset:min(end, total) - offset]
     return out
+
+
+def nearest_signed_sample(ticks: int) -> int:
+    """The sample nearest a time that may be before the comp's start, halves rounding up."""
+    per = ticks_per_sample(MIX_RATE)
+    return (2 * ticks + per) // (2 * per)
+
+
+def nest_samples(nest: Nest) -> tuple[int, int]:
+    """The comp samples a precomp layer plays its sound on: from its visible in point to its
+    visible out point, each on the nearest sample, as an audio layer's are."""
+    return nearest_sample(nest.visible[0], MIX_RATE), nearest_sample(nest.visible[1], MIX_RATE)
 
 
 def mastered(project: Project, resolved: Resolved, preset: Preset) -> tuple[np.ndarray, dict[str, Any]]:

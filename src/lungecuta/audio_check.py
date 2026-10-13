@@ -92,7 +92,7 @@ def audio_check(project: Project, name: str, start: str | None = None, end: str 
     first, last = _span(resolved, start, end)
     signal = mix(project, resolved)
     rows, slope = half_beat_rms(signal, resolved, first, last)
-    found = onsets(signal, MIX_RATE) if resolved.sounds else []
+    found = onsets(signal, MIX_RATE) if any(True for _ in resolved.every_sound()) else []
     span = [first / TICKS_PER_SECOND, last / TICKS_PER_SECOND]
     inside = [round(t, 3) for t in found if span[0] <= t < span[1]]
     return {

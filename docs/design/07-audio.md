@@ -58,8 +58,8 @@ Written ahead of M7 so that renders deliver at their preset's loudness; the numb
   unless the request names another preset.
 - Before the master, each music layer is scaled by its gain (dB, keys evaluated on every
   sample) and its fades (linear in amplitude, D15) and summed in float, so a sum
-  over full scale reaches the limiter intact. Pan, buses, sends and effects are not
-  written yet.
+  over full scale reaches the limiter intact; a precomp adds its own mix where its layer
+  is visible. Pan, buses, sends and effects are not written yet.
 
 ## Effects
 
