@@ -9,6 +9,7 @@ source time (D12, *proposed*).
 """
 from __future__ import annotations
 
+import math
 import subprocess
 from collections.abc import Iterator
 from contextlib import ExitStack, contextmanager
@@ -183,7 +184,7 @@ def footage_at(project: Project, resolved: Resolved, index: int, threads: int | 
     """Comp frame `index`'s footage layers, placed: what checks, stills of a comp and
     precomps use."""
     size = tuple(resolved.comp.size)
-    return {cut.layer.id: in_comp(cut, index, layer_frame(project, cut, index, threads), size)
+    return {cut.layer.id: in_comp(project, cut, index, layer_frame(project, cut, index, threads), size)
             for cut in resolved.stack(index)}
 
 
@@ -235,20 +236,97 @@ def transform_at(placement: Placement | None, rate, index: int) -> tuple:
     return position, scale, opacity, placement.anchor, placement.rotation_at(ticks)
 
 
-def in_comp(cut: Cut, index: int, working: np.ndarray, comp: tuple[int, int]) -> tuple[np.ndarray, np.ndarray | float]:
+def transform_ticks(placement: Placement, ticks: int) -> tuple:
+    position, scale, opacity = placement.at(ticks)
+    return position, scale, opacity, placement.anchor, placement.rotation_at(ticks)
+
+
+def _corners(placement: Placement, ticks: int, layer: tuple[int, int], canvas: tuple[int, int],
+             factor: float) -> np.ndarray:
+    """The layer frame's four corners on the canvas at `ticks`, in canvas pixels."""
+    position, scale, _, anchor, rotation = transform_ticks(placement, ticks)
+    turn = math.radians(rotation)
+    cos, sin = math.cos(turn), math.sin(turn)
+    out = []
+    for lx, ly in ((0, 0), (layer[0], 0), (layer[0], layer[1]), (0, layer[1])):
+        dx, dy = (lx - anchor[0] * layer[0]) * scale[0] * factor, (ly - anchor[1] * layer[1]) * scale[1] * factor
+        out.append((position[0] * canvas[0] + cos * dx - sin * dy, position[1] * canvas[1] + sin * dx + cos * dy))
+    return np.array(out)
+
+
+def shutter_times(cut: Cut, index: int, layer: tuple[int, int], canvas: tuple[int, int],
+                  factor: float = 1.0) -> list[int]:
+    """The times (ticks) a layer is placed at for comp frame `index`: its own time without
+    motion blur, else spread over the shutter `[t, t + shutter]` (06-editing.md) at the
+    middles of equal parts, one part for every pixel its corners travel on the canvas, so
+    neighbouring samples are at most a pixel apart. The path is measured on a polyline whose
+    segments are halved until there are at least as many as pixels it is long."""
+    tick = ticks_per_frame(cut.comp_rate)
+    start = index * tick
+    degrees = 0.0 if cut.shutter is None else cut.shutter.at(start)[0]
+    if degrees <= 0 or cut.placement is None:
+        return [start]
+    span = degrees / 360 * tick
+    segments = 1
+    while True:
+        points = np.array([_corners(cut.placement, round(start + span * k / segments), layer, canvas, factor)
+                           for k in range(segments + 1)])
+        length = float(np.linalg.norm(np.diff(points, axis=0), axis=2).sum(axis=0).max())
+        if segments >= length:
+            break
+        segments *= 2
+    count = max(1, math.ceil(length))
+    return [round(start + span * (k + 0.5) / count) for k in range(count)]
+
+
+def placed_layer(project: Project, cut: Cut, index: int, frame: np.ndarray, canvas: tuple[int, int],
+                 factor: float = 1.0, threads: int | None = None) -> tuple[np.ndarray, np.ndarray]:
+    """A layer's frame (working space, as shown) placed on the canvas by its transform,
+    premultiplied, with its alpha (its own opacity included, a transition's not). With
+    motion blur, placed at every `shutter_times` and averaged in linear light, weighted by
+    coverage: the mean of the premultiplied linear samples over the mean coverage, back in
+    the working space. `factor` scales the layer on the canvas (the editor's preview)."""
+    layer = (frame.shape[1], frame.shape[0])
+    mask = mask_alpha(cut.layer.masks, layer) if cut.layer.masks else None
+    times = shutter_times(cut, index, layer, canvas, factor)
+    if cut.placement is None:
+        samples = [((0.5, 0.5), (1.0, 1.0), 1.0, (0.5, 0.5), 0.0)]
+    else:
+        samples = [transform_ticks(cut.placement, ticks) for ticks in times]
+    if len(samples) == 1:
+        position, scale, opacity, anchor, rotation = samples[0]
+        placed, alpha = place(frame, canvas, position=position, anchor=anchor, scale=(scale[0] * factor, scale[1] * factor),
+                              rotation=rotation, mask=mask)
+        return placed * np.float32(opacity), alpha * np.float32(opacity)
+    settings = project.file.color
+    linear = np.ascontiguousarray(frame.copy())
+    color.apply(color.cpu_processor(settings.config, settings.working, settings.linear), linear, threads)
+    total = cover = None
+    for position, scale, opacity, anchor, rotation in samples:
+        placed, alpha = place(linear, canvas, position=position, anchor=anchor,
+                              scale=(scale[0] * factor, scale[1] * factor), rotation=rotation, mask=mask)
+        placed, alpha = placed * np.float32(opacity), alpha * np.float32(opacity)
+        total = placed if total is None else total + placed
+        cover = alpha if cover is None else cover + alpha
+    total /= np.float32(len(samples))
+    cover /= np.float32(len(samples))
+    straight = np.ascontiguousarray(np.divide(total, cover, out=np.zeros_like(total), where=cover > 0))
+    color.apply(color.cpu_processor(settings.config, settings.linear, settings.working), straight, threads)
+    return np.ascontiguousarray(straight * cover, dtype=np.float32), cover
+
+
+def in_comp(project: Project, cut: Cut, index: int, working: np.ndarray,
+            comp: tuple[int, int]) -> tuple[np.ndarray, np.ndarray | float]:
     """A layer's working-space frame (as shown, after rotation) placed in the comp: by its
-    transform at comp frame `index`, or at its own size in the middle when it has none, cut
-    by its masks. Returns it premultiplied by its alpha (opacity and transitions included)
-    and that alpha."""
+    transform at comp frame `index` (over its shutter, with motion blur), or at its own size
+    in the middle when it has none, cut by its masks. Returns it premultiplied by its alpha
+    (opacity and transitions included) and that alpha."""
     height, width, _ = working.shape
     faded = cut.opacity_at(index)
-    mask = mask_alpha(cut.layer.masks, (width, height)) if cut.layer.masks else None
-    if cut.placement is None and (width, height) == comp and mask is None:
+    if cut.placement is None and (width, height) == comp and not cut.layer.masks:
         return (working, 1.0) if faded == 1.0 else (working * np.float32(faded), faded)
-    position, scale, opacity, anchor, rotation = transform_at(cut.placement, cut.comp_rate, index)
-    opacity *= faded
-    placed, alpha = place(working, comp, position=position, anchor=anchor, scale=scale, rotation=rotation, mask=mask)
-    return placed * np.float32(opacity), alpha * np.float32(opacity)
+    placed, alpha = placed_layer(project, cut, index, working, comp)
+    return placed * np.float32(faded), alpha * np.float32(faded)
 
 
 def composite(layers: list[tuple[np.ndarray, np.ndarray | float]], comp: tuple[int, int]) -> np.ndarray:
@@ -307,7 +385,7 @@ def compose(project: Project, resolved: Resolved, index: int, raws: list[tuple[C
                                 matrix=cut.record.color.matrix, range_=cut.record.color.range)
             color.apply(into, decoded, threads)
             working.append((decoded, weight))
-        footage[cut.layer.id] = in_comp(cut, index, shown(project, cut, working, threads), comp)
+        footage[cut.layer.id] = in_comp(project, cut, index, shown(project, cut, working, threads), comp)
     return finish(project, resolved, index, footage, captures, threads, alpha)
 
 

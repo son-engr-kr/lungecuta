@@ -215,15 +215,17 @@ def op_unkey(comp: str, layer: str, prop: str, at: str, project_dir: Path | None
 @op.command("set")
 @click.argument("comp")
 @click.argument("layer")
-@click.argument("prop", type=click.Choice(["position", "scale", "opacity", "rotation", "anchor", "gain", "fade_in",
-                                           "fade_out"]))
+@click.argument("prop", type=click.Choice(["position", "scale", "opacity", "rotation", "anchor", "shutter", "gain",
+                                           "fade_in", "fade_out"]))
 @click.option("--value", required=True,
-              help="A number, a pair as 0.4,0.6, a span for a fade (b:2, 1.5s), or none to take a fade off.")
+              help="A number, a pair as 0.4,0.6, a span for a fade (b:2, 1.5s), or none to take a fade or the "
+                   "shutter off.")
 @project_option
 def op_set(comp: str, layer: str, prop: str, value: str, project_dir: Path | None) -> None:
-    """Set PROP of LAYER to a constant: a footage layer's transform, an audio layer's gain
-    in dB or its fades. A property with keys takes a key instead (lc op key)."""
-    if prop in ("fade_in", "fade_out"):
+    """Set PROP of LAYER to a constant: a footage layer's transform or its motion blur
+    shutter in degrees, an audio layer's gain in dB or its fades. A property with keys
+    takes a key instead (lc op key)."""
+    if prop in ("fade_in", "fade_out") or value == "none":
         parsed: Any = None if value == "none" else value
     elif "," in value:
         parsed = [float(part) for part in value.split(",")]

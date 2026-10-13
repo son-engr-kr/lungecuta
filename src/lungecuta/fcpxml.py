@@ -362,6 +362,9 @@ def export(project: Project, name: str, out: Path | None = None) -> dict[str, An
             f"layer {cut.layer.id} has a transform, and transforms are not written to FCPXML yet"
         )
         assert not cut.layer.masks, f"layer {cut.layer.id} has masks, which are not written to FCPXML yet"
+        assert cut.layer.motion_blur is None, (
+            f"layer {cut.layer.id} has motion blur, which is not written to FCPXML yet"
+        )
         assert not cut.layer.grade, (
             f"layer {cut.layer.id} has a grade, which FCPXML cannot carry; grade in Resolve, or render with lc render"
         )

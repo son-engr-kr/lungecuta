@@ -27,7 +27,7 @@ from .files import content_hash, content_hash_text
 from .geometry import mask_alpha, place
 from .media import Project
 from .schema.comp import StyleTime
-from .compose import composite_alpha, shown
+from .compose import composite_alpha, placed_layer, shown
 from .ticks import ticks_per_frame
 
 VIEWER_DISPLAY = "sRGB - Display"  # what Chrome expects, encoding the same light (01-architecture.md)
@@ -149,22 +149,13 @@ class Preview:
         # proxy) original pixels, and the preview canvas is the comp divided by `divisor`.
         video = record.probe.video
         density = video.size[1] / record.proxy.size[1]
-        if cut.placement is None:
-            position, scale, opacity, anchor = (0.5, 0.5), (1.0, 1.0), 1.0, (0.5, 0.5)
-        else:
-            position, scale, opacity = cut.placement.at(index * ticks_per_frame(cut.comp_rate))
-            anchor = cut.placement.anchor
-        opacity *= cut.opacity_at(index)
         factor = density / self.divisor
-        scale = (scale[0] * factor, scale[1] * factor)
-        rotation = 0.0 if cut.placement is None else cut.placement.rotation_at(index * ticks_per_frame(cut.comp_rate))
-        if frame.shape[1::-1] == canvas and scale == (1.0, 1.0) and position == (0.5, 0.5) and opacity == 1.0 \
-                and rotation == 0.0 and not cut.layer.masks:
-            return frame, 1.0
-        mask = mask_alpha(cut.layer.masks, frame.shape[1::-1]) if cut.layer.masks else None
-        placed, alpha = place(frame, canvas, position=position, anchor=anchor, scale=scale, rotation=rotation,
-                              mask=mask)
-        return placed * np.float32(opacity), alpha * np.float32(opacity)
+        faded = cut.opacity_at(index)
+        if cut.placement is None and not cut.layer.masks and frame.shape[1::-1] == canvas and factor == 1.0:
+            return (frame, 1.0) if faded == 1.0 else (frame * np.float32(faded), faded)
+        # the same placement, and motion blur, as a render's, at the preview's scale
+        placed, alpha = placed_layer(self.project, cut, index, frame, canvas, factor)
+        return placed * np.float32(faded), alpha * np.float32(faded)
 
     def _working(self, resolved: Resolved, index: int, canvas: tuple[int, int]) -> tuple[np.ndarray, np.ndarray]:
         """A comp's frame at the preview's scale on `canvas`, premultiplied, with coverage:

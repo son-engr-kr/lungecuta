@@ -158,6 +158,7 @@ class Cut:
     remap: Track | None = None  # source time in ticks against comp time in ticks
     speed_track: Track | None = None  # a style's speed against comp time, 1 outside its keys
     ramps: tuple[tuple[int, int, float, float], ...] = ()  # transitions: opacity from a0 to a1 over frames [f0, f1)
+    shutter: Track | None = None  # motion blur: the output shutter in degrees against comp ticks; None is none
 
     def opacity_at(self, frame: int) -> float:
         """The opacity transitions give comp frame `frame`, linear over each ramp's frames
@@ -518,8 +519,12 @@ def _footage(project: Project, layer: FootageLayer, rate: Fraction, grid: BeatGr
     placed = None
     if layer.transform is not None or scale_track is not None:
         placed = replace(placement(layer.transform or Transform(), start, rate, grid), scale_by=scale_track)
+    shutter = None
+    if layer.motion_blur is not None:
+        shutter = _track(layer.motion_blur.shutter_deg, start, rate, grid, 1)
     cut = Cut(layer=layer, record=record, start=start, first=first, end=end, source_start=source,
-              speed=speed_of(layer), comp_rate=rate, placement=placed, remap=remap, speed_track=speed_track)
+              speed=speed_of(layer), comp_rate=rate, placement=placed, remap=remap, speed_track=speed_track,
+              shutter=shutter)
     return _checked(cut)
 
 

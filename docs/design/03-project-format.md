@@ -180,6 +180,9 @@ declared ([04-color.md](04-color.md#operations-come-from-opencolorio)); or a nod
 `{ "nodes": [ { "ops": [...], "window": [...], "mix": 1 } ] }`
 ([04-color.md](04-color.md#node-graph)). The example's separate file
 (`grades/shot3.json`) and qualifier keys come later in M4.
+Footage layers also take `motion_blur`, `{ "shutter_deg": 180 }` (degrees of a frame,
+0 to 720, a constant or keys), the layer's own movement averaged over that shutter
+([06-editing.md](06-editing.md#motion-blur)).
 Footage layers also take `masks`, in order, each a `rectangle` or `ellipse` in the layer's
 own frame as shown (`centre` and `size` in fractions of its width and height, as After
 Effects' masks are in layer space), its edge ramped linearly over `feather` (a fraction

@@ -84,6 +84,21 @@ class Transform(_Part):
                                    "as in After Effects")
 
 
+class MotionBlur(_Part):
+    """The layer's motion blur (06-editing.md, Motion blur): its own movement over an
+    output shutter, `shutter_deg` of a frame from the frame's time (keyable in layer
+    time, so a style or a key can open it only during a whip)."""
+
+    shutter_deg: float | Keys = Field(description="degrees of a frame, 0 to 720 as After Effects allows")
+
+    @model_validator(mode="after")
+    def _range(self) -> MotionBlur:
+        values = [self.shutter_deg] if isinstance(self.shutter_deg, (int, float)) else [k.v for k in self.shutter_deg.keys]
+        for value in values:
+            assert isinstance(value, (int, float)) and 0 <= value <= 720, f"a shutter of {value} degrees"
+        return self
+
+
 class StyleTime(_Part):
     """A style instance (03-project-format.md#styles): the style's tracks placed at `at`
     in layer time, speed 1 from `source_start` outside its speed track."""
@@ -233,6 +248,7 @@ class FootageLayer(_MediaLayer):
                                               "placed; or a graph of serial nodes")
     masks: list[Mask] = Field(default_factory=list, description="in order; the layer is seen only where they "
                               "leave it, none showing the whole layer")
+    motion_blur: MotionBlur | None = None
 
     @model_validator(mode="after")
     def _source(self) -> FootageLayer:

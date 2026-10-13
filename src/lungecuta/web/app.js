@@ -486,7 +486,7 @@ function el(tag, attrs = {}, ...children) {
   return node;
 }
 
-const DEFAULTS = { position: [0.5, 0.5], scale: [1, 1], opacity: 1, rotation: 0, gain: 0 };
+const DEFAULTS = { position: [0.5, 0.5], scale: [1, 1], opacity: 1, rotation: 0, gain: 0, shutter: 0 };
 
 function valueAt(prop) {
   // The property's value at the playhead, as the engine evaluated it.
@@ -517,7 +517,7 @@ function propertyRow(prop) {
   // A transform property: its value at the playhead, a key button, and the key's ease.
   const value = valueAt(prop);
   const here = keyHere(prop);
-  const single = ["opacity", "rotation", "gain"].includes(prop);
+  const single = ["opacity", "rotation", "gain", "shutter"].includes(prop);
   const read = (inputs) => single ? Number(inputs[0].value)
     : prop === "scale" && Number(inputs[0].value) === Number(inputs[1].value) ? Number(inputs[0].value)
     : inputs.map((i) => Number(i.value));
@@ -528,7 +528,7 @@ function propertyRow(prop) {
                                       ease: here ? here.ease : null });
     else edit("set", { layer_id: state.selected, prop, value: v });
   };
-  if (single) inputs.push(number(value, prop === "opacity" ? 0.01 : 0.5, apply));
+  if (single) inputs.push(number(value, prop === "opacity" ? 0.01 : prop === "shutter" ? 15 : 0.5, apply));
   else inputs.push(number(value[0], 0.01, apply), number(value[1], 0.01, apply));
   const field = inputs.length === 1 ? inputs[0] : el("div", { class: "pair" }, ...inputs);
   const key = el("button", { class: here ? "key on" : "key", title: here ? "Delete this key" : "Add a key here",
@@ -731,6 +731,8 @@ function renderInspector() {
     return;
   }
   box.append(el("h3", {}, "Transform"), ...["position", "scale", "rotation", "opacity"].map(propertyRow));
+  box.append(el("h3", {}, "Motion blur"), propertyRow("shutter"),
+             el("p", { class: "dim" }, "shutter in degrees of a frame: the layer's own movement over it, averaged"));
   box.append(el("h3", {}, "Time"), timeSection(layer));
   box.append(el("h3", {}, "Masks"), maskSection(layer));
   box.append(el("h3", {}, "Transitions"), transitionSection(layer));
@@ -780,6 +782,8 @@ const GRAPHS = {
   opacity: { label: "opacity", prop: "opacity", lines: [0, 1], range: [-0.05, 1.05], clamp: [0, 1], curve: (c) => c.opacity },
   rotation: { label: "rotation", prop: "rotation", lines: [0], unit: "°", digits: 2, curve: (c) => c.rotation },
   gain: { label: "gain", prop: "gain", lines: [0], unit: " dB", digits: 2, curve: (c) => c.gain },
+  shutter: { label: "shutter", prop: "shutter", lines: [0, 180, 360], unit: "°", digits: 1, range: [-10, 370],
+             clamp: [0, 720], curve: (c) => c.shutter },
 };
 
 function graphModes(layer, c) {

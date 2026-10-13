@@ -365,9 +365,19 @@ def untransition(project: Project, name: str, kind: str, layer_ids: list[str], e
     return edit.save()
 
 
-KEYED = ("position", "scale", "opacity", "rotation", "remap", "gain")
+KEYED = ("position", "scale", "opacity", "rotation", "remap", "gain", "shutter")
 LAYER_OF = {"position": "footage", "scale": "footage", "opacity": "footage", "rotation": "footage", "remap": "footage",
-            "gain": "audio"}
+            "gain": "audio", "shutter": "footage"}
+
+
+def _holder(layer: dict, prop: str, create: bool = False) -> tuple[dict, str]:
+    """Where a property's value sits in the layer's JSON, and its field there: the
+    transform's, the layer's own (gain, fades), or the motion blur's shutter."""
+    if prop == "shutter":
+        return (layer.setdefault("motion_blur", {}) if create else layer.get("motion_blur") or {}), "shutter_deg"
+    if prop in ("gain", "fade_in", "fade_out"):
+        return layer, prop
+    return (layer.setdefault("transform", {}) if create else layer.get("transform") or {}), prop
 
 
 def _key_time(edit: Edit, layer: dict, at: str) -> tuple[int, str]:
@@ -393,7 +403,8 @@ def _keys(edit: Edit, layer: dict, prop: str) -> list[dict]:
         time = layer.get("time") or {}
         assert "remap" in time, f"{layer['id']} is not remapped; enable time remapping first (lc op remap)"
         return time["remap"]
-    current = layer.get("gain") if prop == "gain" else (layer.get("transform") or {}).get(prop)
+    holder, field = _holder(layer, prop)
+    current = holder.get(field)
     return list(current["keys"]) if isinstance(current, dict) else []
 
 
@@ -405,10 +416,9 @@ def _key_tick(edit: Edit, layer: dict, key: dict) -> int:
 def _put_keys(layer: dict, prop: str, keys: list[dict]) -> None:
     if prop == "remap":
         layer["time"]["remap"] = keys
-    elif prop == "gain":
-        layer["gain"] = {"keys": keys}
     else:
-        layer.setdefault("transform", {})[prop] = {"keys": keys}
+        holder, field = _holder(layer, prop, create=True)
+        holder[field] = {"keys": keys}
 
 
 def key(project: Project, name: str, layer_id: str, prop: str, at: str, value: Any, ease: str | None = None,
@@ -463,10 +473,9 @@ def unkey(project: Project, name: str, layer_id: str, prop: str, at: str, expect
         _put_keys(layer, prop, keys)
     elif keys:
         _put_keys(layer, prop, keys)
-    elif prop == "gain":
-        layer["gain"] = removed["v"]
     else:
-        layer["transform"][prop] = removed["v"]
+        holder, field = _holder(layer, prop, create=True)
+        holder[field] = removed["v"]
     edit.changes.append(f"{layer_id} {prop} key at {removed['t']} deleted"
                         + ("" if keys else f"; {prop} stays {removed['v']}"))
     _resolves(project, edit)
@@ -492,18 +501,20 @@ def set_value(project: Project, name: str, layer_id: str, prop: str, value: Any,
     in After Effects): a footage layer's transform, an audio layer's gain in dB, or its
     fades as spans (None takes a fade off)."""
     owners = {"position": "footage", "scale": "footage", "opacity": "footage", "rotation": "footage",
-              "anchor": "footage", "gain": "audio", "fade_in": "audio", "fade_out": "audio"}
+              "anchor": "footage", "shutter": "footage", "gain": "audio", "fade_in": "audio", "fade_out": "audio"}
     assert prop in owners, f"{prop!r} is not a property `set` takes ({', '.join(owners)})"
     edit = Edit.open(project, name, expect)
     layer = edit.layer(layer_id)
     assert layer["type"] == owners[prop], f"{prop} is a property of {owners[prop]} layers, and {layer_id} is not one"
-    holder = layer.setdefault("transform", {}) if owners[prop] == "footage" else layer
-    old = holder.get(prop)
+    holder, field = _holder(layer, prop, create=True)
+    old = holder.get(field)
     assert not isinstance(old, dict), f"{layer_id}'s {prop} has keys; set a key at a time instead"
     if value is None:
-        holder.pop(prop, None)
+        holder.pop(field, None)
+        if prop == "shutter":
+            layer.pop("motion_blur")  # no shutter is no motion blur
     else:
-        holder[prop] = value
+        holder[field] = value
     edit.changes.append(f"{layer_id} {prop} {'set to' if old is None else f'{old} to'} {value}")
     _resolves(project, edit)
     return edit.save()

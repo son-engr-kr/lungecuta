@@ -117,6 +117,19 @@ interval is `[t, t + shutter]`, and what the layer does during it has two parts:
 Averaging interpolated sub-frames stays available as a quality option for shots where
 vector blur visibly fails, and its cost is measured before it is offered.
 
+Written so far (`src/lungecuta/compose.py`): the layer's own movement. A footage layer's
+`motion_blur.shutter_deg` (0 to 720, a constant or keys in layer time) gives the shutter;
+the layer is placed at the middles of equal parts of `[t, t + shutter]`, one part for
+every pixel its corners travel on the canvas, so neighbouring samples are at most a pixel
+apart and a still layer is placed once (at the shutter's middle). The path is measured on
+a polyline whose segments are halved until there are at least as many as pixels it is
+long. The samples are averaged in linear light, weighted by coverage, and brought back to
+the working space; renders, checks, stills of a comp and the editor's preview all place
+through the same function, the preview at its own scale. A render's cost grows with the
+travel: a layer moving 40 pixels during the shutter is placed 40 times. `lc op set` and
+`lc op key` take `shutter`, the inspector has a row for it and the graph editor a curve,
+and FCPXML refuses it. Motion inside the footage (vector blur from flow) waits for M6.
+
 ## Transitions
 
 A transition is an object on a cut point, Resolve style, because that is easy to place,

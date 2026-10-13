@@ -49,8 +49,9 @@ the Phase 0 media tests need samples of your own (see Conventions).
   node graph whose nodes take windows and an HSL qualifier in OCIO's HSY), and M2's
   minimal style instance (`schema/style.py`: linked speed and scale tracks from
   `styles/`, the speed integrated exactly; `lc op style`), and looks (styles holding a
-  grade, linked from a node: `lc op look`). Not written yet: flow retiming, parallel
-  nodes, FCPXML transforms. Graphics under
+  grade, linked from a node: `lc op look`), and motion blur of a layer's own movement
+  over its shutter (`motion_blur.shutter_deg`). Not written yet: flow retiming and the
+  vector blur of motion inside footage, parallel nodes, FCPXML transforms. Graphics under
   footage render through the inverse output view; the editor does not draw them yet.
 - **M3 has started**: `lc serve` opens the editor (`server.py`, `preview.py`, `journal.py`,
   `web/`): the viewer on proxies through PyAV, the timeline with the beat grid and

@@ -361,6 +361,17 @@
           },
           "title": "Masks",
           "type": "array"
+        },
+        "motion_blur": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MotionBlur"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -733,6 +744,29 @@
         "size"
       ],
       "title": "Mask",
+      "type": "object"
+    },
+    "MotionBlur": {
+      "additionalProperties": false,
+      "description": "The layer's motion blur (06-editing.md, Motion blur): its own movement over an\noutput shutter, `shutter_deg` of a frame from the frame's time (keyable in layer\ntime, so a style or a key can open it only during a whip).",
+      "properties": {
+        "shutter_deg": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/$defs/Keys"
+            }
+          ],
+          "description": "degrees of a frame, 0 to 720 as After Effects allows",
+          "title": "Shutter Deg"
+        }
+      },
+      "required": [
+        "shutter_deg"
+      ],
+      "title": "MotionBlur",
       "type": "object"
     },
     "Node": {

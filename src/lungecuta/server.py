@@ -199,6 +199,8 @@ class Editor:
             out |= {"position": [list(v[0]) for v in values], "scale": [list(v[1]) for v in values],
                     "opacity": [v[2] for v in values],
                     "rotation": [cut.placement.rotation_at(f * tick) for f in frames]}
+        if cut.shutter is not None:
+            out["shutter"] = [cut.shutter.at(f * tick)[0] for f in frames]
         return out
 
     def styles(self) -> list[dict[str, Any]]:
@@ -296,6 +298,11 @@ def _key_frames(edit: ops.Edit, cut, tick: int) -> list[dict[str, Any]]:
             keys += [{"prop": prop, "frame": t / tick, "value": list(v) if len(v) > 1 else v[0], "ease": e,
                       "at": ops.key_position(edit, layer, key)}
                      for t, v, e, key in zip(track.times, track.values, track.eases, transform[prop]["keys"])]
+    blur = layer.get("motion_blur") or {}
+    if isinstance(blur.get("shutter_deg"), dict):
+        keys += [{"prop": "shutter", "frame": t / tick, "value": v[0], "ease": e, "at": ops.key_position(edit, layer, key)}
+                 for t, v, e, key in zip(cut.shutter.times, cut.shutter.values, cut.shutter.eases,
+                                         blur["shutter_deg"]["keys"])]
     if cut.remap is not None:
         keys += [{"prop": "remap", "frame": t / tick, "value": v[0] / TICKS_PER_SECOND, "ease": e,
                   "at": ops.key_position(edit, layer, key)}

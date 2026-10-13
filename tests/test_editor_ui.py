@@ -239,3 +239,14 @@ def test_a_look_is_added_and_taken_off_in_the_inspector(page, cut_project):
     page.wait_for_function("document.getElementById('inspector').textContent.includes('node 1: look warm')")
     page.get_by_role("button", name="Remove").first.click()
     until(page, cut_project, lambda layer: "grade" not in layer, "taking the look off")
+
+
+def test_the_inspector_opens_a_layer_s_shutter(page, cut_project):
+    click_layer(page, "shot1")
+    page.wait_for_function("document.querySelector('#inspector h2')?.textContent.startsWith('shot1')")
+    field = page.locator("#inspector .row", has_text="shutter").locator("input[type=number]")
+    field.fill("180")
+    field.press("Enter")
+    until(page, cut_project, lambda layer: "motion_blur" in layer, "the shutter")
+    assert shot1(cut_project)["motion_blur"] == {"shutter_deg": 180.0}
+    page.wait_for_function("[...document.querySelectorAll('input[name=graph]')].some(r => r.value === 'shutter')")
