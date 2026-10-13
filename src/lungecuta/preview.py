@@ -87,12 +87,23 @@ class Preview:
 
     def reload(self) -> None:
         """Read the comp again (after an edit); frames of other versions stay cached under
-        their own hash and age out."""
-        self.project = Project.load(self.project.directory)
-        self.comp = load_comp(self.project, self.name)
-        self.hash = content_hash(self.project.directory / "comps" / f"{self.name}.json")
-        self.resolved: Resolved = resolve(self.project, self.comp)
-        self.inputs = self._inputs()
+        their own hash and age out. The comp's hash and the stamps of the files it depends
+        on are taken before they are read, and read again until nothing changed while they
+        were read, so a write in the middle of a read is never taken for the version read:
+        that once kept an old comp under a new hash, and every later edit was refused."""
+        comp_path = self.project.directory / "comps" / f"{self.name}.json"
+        paths = self._paths() if hasattr(self, "resolved") else set()
+        while True:
+            read_hash = content_hash(comp_path)
+            before = self._stamps(paths)
+            self.project = Project.load(self.project.directory)
+            self.comp = load_comp(self.project, self.name)
+            self.resolved: Resolved = resolve(self.project, self.comp)
+            now = self._paths()
+            if now == paths and self._stamps(now) == before and content_hash(comp_path) == read_hash:
+                break
+            paths = now
+        self.hash, self.inputs = read_hash, before
         self.version = content_hash_text(self.hash + repr(self.inputs))
         divisor = preview_divisor(tuple(self.comp.size), self.project.file.proxy_height)
         self.divisor = divisor
@@ -103,21 +114,28 @@ class Preview:
         self.to_viewer = cfg.getProcessor(
             ocio.ColorSpaceTransform(src=settings.display, dst=VIEWER_DISPLAY)).getDefaultCPUProcessor()
 
-    def _inputs(self) -> tuple:
-        """The files besides the comp that decide its frames, by size and modification time:
-        the comps it places as precomps, the styles its layers and theirs place (linked, so
-        editing one changes every placement) and the LUTs their grades read."""
+    def _paths(self) -> set[str]:
+        """The files besides the comp that decide its frames: the comps it places as
+        precomps, the styles its layers and theirs place (linked, so editing one changes
+        every placement) and the looks and LUTs their grades read."""
         paths = {f"comps/{name}.json" for name in self.resolved.precomps()}
         for cut in self.resolved.every_cut():
             if isinstance(cut.layer.time, StyleTime):
                 paths.add(f"styles/{cut.layer.time.style}.json")
             paths.update(f"styles/{name}.json" for name in grade.looks(self.project, cut.layer.grade))
             paths.update(op.path for op in grade.operations(self.project, cut.layer.grade) if op.op == "lut")
+        return paths
+
+    def _stamps(self, paths: set[str]) -> tuple:
+        """Each file's size and modification time."""
         stats = []
         for relative in sorted(paths):
             stat = (self.project.directory / relative).stat()
             stats.append((relative, stat.st_size, stat.st_mtime_ns))
         return tuple(stats)
+
+    def _inputs(self) -> tuple:
+        return self._stamps(self._paths())
 
     def stale(self) -> bool:
         """Whether the comp or a file it depends on changed since it was read."""

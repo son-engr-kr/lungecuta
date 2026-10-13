@@ -139,3 +139,28 @@ def test_the_editor_s_scopes_are_lc_scope_s_on_the_proxy(client):
     assert numbers["on"] == "proxy" and set(numbers["luma"]) == {"p1", "p50", "p99"}
     image = client.get("/api/comp/main/scope.png", params={"frame": 30}).content
     assert image[:8] == b"\x89PNG\r\n\x1a\n"
+
+
+def test_a_write_during_a_read_is_never_taken_for_the_version_read(cut_project, monkeypatch):
+    """The preview hashes the comp before reading it and reads again until nothing moved:
+    a write landing just after the read once left the old comp under the new hash."""
+    import lungecuta.preview as preview_module
+    from lungecuta.media import Project
+    from lungecuta.preview import Preview
+
+    original = preview_module.load_comp
+    path = cut_project / "comps" / "main.json"
+    newer = json.loads(path.read_text())
+    newer["layers"][2]["start"] = "b:5"
+    calls = []
+
+    def load_then_written(project, name):
+        comp = original(project, name)
+        if not calls:
+            path.write_text(json.dumps(newer))  # someone writes right after this read
+        calls.append(name)
+        return comp
+
+    monkeypatch.setattr(preview_module, "load_comp", load_then_written)
+    preview = Preview(Project.load(cut_project), "main")
+    assert preview.comp.layers[2].start == "b:5" and not preview.stale() and len(calls) == 2

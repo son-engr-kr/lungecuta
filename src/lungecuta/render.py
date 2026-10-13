@@ -29,27 +29,47 @@ from .tools import run, tool
 RENDER_DIR = Path("cache") / "lc" / "render"
 
 
-def manifest(project: Project, resolved: Resolved, preset: Preset, out: Path, clipped: float,
-             audio: dict[str, Any]) -> dict:
+def read(project: Project, name: str) -> tuple[Resolved, dict[str, Any]]:
+    """The comp resolved, and the hashes of the files that decided it, each taken before
+    the file was read: a write after a hash can only make the render look stale, never
+    current. A write to a precomp, a look or a LUT while the comp is read sends it round
+    again."""
+    comp_path = project.directory / "comps" / f"{name}.json"
+    files: dict[str, Any] = {}
+    while True:
+        comp_hash = content_hash(comp_path)
+        before = {path: content_hash(project.directory / path) for path in files}
+        resolved = resolve(project, load_comp(project, name))
+        files = {f"comps/{c}.json": None for c in resolved.precomps()}
+        files |= {op.path: None for c in resolved.every_cut() for op in grade.operations(project, c.layer.grade)
+                  if op.op == "lut"}
+        files |= {f"styles/{look}.json": None for c in resolved.every_cut() for look in grade.looks(project, c.layer.grade)}
+        if set(before) == set(files) and content_hash(comp_path) == comp_hash and all(
+                content_hash(project.directory / path) == digest for path, digest in before.items()):
+            break
+    hashes = {"comp": comp_hash,
+              "precomps": sorted((Path(p).stem, d) for p, d in before.items() if p.startswith("comps/")),
+              "luts": sorted((p, d) for p, d in before.items() if not p.startswith(("comps/", "styles/"))),
+              "looks": sorted((Path(p).stem, d) for p, d in before.items() if p.startswith("styles/"))}
+    return resolved, hashes
+
+
+def manifest(project: Project, resolved: Resolved, hashes: dict[str, Any], preset: Preset, out: Path,
+             clipped: float, audio: dict[str, Any]) -> dict:
     """What decided the file's pixels and samples (01-architecture.md, Playback)."""
-    comp_path = project.directory / "comps" / f"{resolved.comp.id}.json"
     ffmpeg = run(["ffmpeg", "-hide_banner", "-version"]).stdout.decode().splitlines()[0]
     settings = project.file.color
     return {
         "file": out.name,
         "hash": content_hash(out),
         "preset": preset.name,
-        "comp": {"id": resolved.comp.id, "hash": content_hash(comp_path), "frames": resolved.end,
+        "comp": {"id": resolved.comp.id, "hash": hashes["comp"], "frames": resolved.end,
                  "rate": format_rate(resolved.rate), "size": list(resolved.comp.size)},
-        "precomps": sorted((name, content_hash(project.directory / "comps" / f"{name}.json"))
-                           for name in resolved.precomps()),
+        "precomps": hashes["precomps"],
         "media": sorted({(c.record.key, c.record.hash) for c in resolved.every_cut()}
                         | {(s.record.key, s.record.wav.hash) for s in resolved.every_sound()}),
-        "luts": sorted({(op.path, content_hash(project.directory / op.path))
-                        for c in resolved.every_cut() for op in grade.operations(project, c.layer.grade)
-                        if op.op == "lut"}),
-        "looks": sorted({(name, content_hash(project.directory / "styles" / f"{name}.json"))
-                         for c in resolved.every_cut() for name in grade.looks(project, c.layer.grade)}),
+        "luts": hashes["luts"],
+        "looks": hashes["looks"],
         "color": settings.model_dump(),
         "versions": {"lungecuta": version("lungecuta"), "opencolorio": version("opencolorio"),
                      "numpy": np.__version__, "ffmpeg": ffmpeg, "python": platform.python_version()},
@@ -65,7 +85,7 @@ def render(project: Project, name: str, preset_name: str, out: Path | None = Non
     workers = workers or os.cpu_count() or 1
     assert preset_name in PRESETS, f"unknown preset {preset_name!r} (presets: {', '.join(PRESETS)})"
     preset = PRESETS[preset_name]
-    resolved = resolve(project, load_comp(project, name))
+    resolved, hashes = read(project, name)
     if out is None:
         out = project.directory / RENDER_DIR / f"{name}.{preset_name}{preset.suffix}"
     assert out.suffix == preset.suffix, f"a {preset_name} file is a {preset.suffix} file, not {out.name}"
@@ -112,7 +132,7 @@ def render(project: Project, name: str, preset_name: str, out: Path | None = Non
     if mix_path is not None:
         mix_path.unlink()
     partial.rename(out)
-    record = manifest(project, resolved, preset, out, clipped / count, chain)
+    record = manifest(project, resolved, hashes, preset, out, clipped / count, chain)
     write_atomic(out.with_name(out.name + ".manifest.json"), json_text(record))
     return {"file": str(out), "manifest": str(out.with_name(out.name + ".manifest.json")), "frames": count,
             "seconds": round(resolved.end * ticks_per_frame(resolved.rate) / TICKS_PER_SECOND, 6),
