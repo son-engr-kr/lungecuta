@@ -21,7 +21,10 @@ def run(*args: str):
 def test_lc_init_creates_the_project_layout(tmp_path):
     directory = tmp_path / "myedit.lc"
     printed = run("init", str(directory))
-    assert printed == {"project": str(directory.resolve())}
+    assert printed["project"] == str(directory.resolve())
+    from lungecuta.cli.project_commands import on_path
+    # .mcp.json starts `lc mcp`, so init says when lc is not on the PATH outside this venv
+    assert ("mcp" in printed) == (not on_path("lc"))
 
     for name in PROJECT_DIRS:
         assert (directory / name).is_dir()

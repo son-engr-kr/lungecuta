@@ -14,6 +14,7 @@ from ..detect import detect as detect_clip
 from ..files import json_text, write_atomic
 from ..media import import_file, relink as relink_root, set_root, summary
 from ..probe import probe
+from ..guide import SERVER
 from ..project import find_project, init_project
 from ..schema import SCHEMAS, schema_text
 from ..validate import validate as validate_project
@@ -28,10 +29,31 @@ def init(directory: Path) -> None:
     Writes project.json with the colour defaults, roots.local.json (empty) and a
     .gitignore for it and cache/, the empty media/, comps/, grades/, styles/,
     graphics/, luts/ and cache/ directories, and the guide a coding agent reads
-    (AGENTS.md for Codex, CLAUDE.md importing it for Claude Code; see lc guide). The
-    .lc suffix is a convention only.
+    (AGENTS.md for Codex, CLAUDE.md importing it for Claude Code; see lc guide) with
+    the .mcp.json that starts lc mcp. The .lc suffix is a convention only. When `lc` is
+    not on the PATH, which .mcp.json needs, the output says so and how to put it there.
     """
-    print_json({"project": str(init_project(directory))})
+    printed = {"project": str(init_project(directory))}
+    if not on_path(SERVER["command"]):
+        printed["mcp"] = (f"{SERVER['command']} is not on the PATH outside this virtual environment, so an agent "
+                          "started elsewhere cannot run the project's .mcp.json; `uv tool install --editable .` in "
+                          "the lungecuta repository puts it there")
+    print_json(printed)
+
+
+def on_path(command: str) -> bool:
+    """Whether `command` is on the PATH as a program started outside this process would
+    see it: the bin directory of the virtual environment running lc (`uv run` puts it
+    first) does not count."""
+    import os
+    import shutil
+    import sys
+
+    directories = os.environ.get("PATH", "").split(os.pathsep)
+    if sys.prefix != sys.base_prefix:
+        ours = (Path(sys.prefix) / "bin").resolve()
+        directories = [d for d in directories if d and Path(d).resolve() != ours]
+    return shutil.which(command, path=os.pathsep.join(directories)) is not None
 
 
 @main.command()
