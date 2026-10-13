@@ -143,14 +143,21 @@ def op_split(comp: str, layer: str, at: str, project_dir: Path | None) -> None:
 @click.argument("comp")
 @click.argument("media")
 @click.option("--at", required=True, help="The comp position the layer starts at.")
+@click.option("--for", "length", help="How long the layer runs, a span from --at (b:4, f:48, 2s), written as "
+              "given; as long as the media lasts, up to the comp's end, when absent.")
+@click.option("--source", help="The source in point: f:N at the media's own rate or seconds for footage, seconds "
+              "for sound; its first frame or sample when absent.")
 @click.option("--size", type=click.Choice(["fit", "fill", "own"]), default="fit", show_default=True,
               help="Footage of another size: scaled to fit the comp (all of it seen), to fill it (cropped), or at "
                    "its own size.")
 @project_option
-def op_place(comp: str, media: str, at: str, size: str, project_dir: Path | None) -> None:
-    """Put MEDIA on the comp at a position, as long as it lasts: footage under any graphics,
-    scaled to the comp as --size says, music and sounds as audio layers."""
-    print_json(ops.place(project_of(project_dir), comp, media, at, size))
+def op_place(comp: str, media: str, at: str, length: str | None, source: str | None, size: str,
+             project_dir: Path | None) -> None:
+    """Put MEDIA on the comp at a position, from a source in point, for a length or as long
+    as it lasts: footage under any graphics, scaled to the comp as --size says, music and
+    sounds as audio layers. One place per shot builds a cut: `--at b:8 --for b:4 --source
+    2.5s`."""
+    print_json(ops.place(project_of(project_dir), comp, media, at, size, length, source))
 
 
 @op.command("snap")

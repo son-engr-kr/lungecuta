@@ -6,10 +6,11 @@ import re
 from fractions import Fraction
 from typing import Any
 
-from ..literals import Field, Frames, Seconds, format_literal, parse_literal, resolve_position, resolve_source, span_literal
+from ..literals import (Field, Frames, Seconds, format_literal, parse_literal, resolve_position, resolve_source,
+                        resolve_span, span_literal)
 from ..geometry import shown_size
 from ..media import Project, load_record
-from ..ticks import first_frame_at_or_after, parse_rate, ticks_per_frame
+from ..ticks import TICKS_PER_SECOND, first_frame_at_or_after, parse_rate, ticks_per_frame
 from .edit import Edit, _delta, _resolves, span_text
 
 
@@ -158,14 +159,16 @@ def snap(project: Project, name: str, layer_id: str, expect: str | None = None) 
 SIZES = ("fit", "fill", "own")
 
 
-def place(project: Project, name: str, media: str, at: str, size: str = "fit",
-          expect: str | None = None) -> dict[str, Any]:
-    """Put media on the comp at position `at`, on top of the stack: footage from its first
-    frame for as long as it lasts, music or a sound from its first sample. The layer is
-    named after the media (with `.2`, `.3` for more). Sound goes in as an audio layer at
-    unity gain. Footage of another size is scaled to `fit` the comp (all of it seen, as
-    Resolve's default for a mismatched resolution is), to `fill` it (no edge showing,
-    cropped), or left at its `own` size; the scale is written out, never implied."""
+def place(project: Project, name: str, media: str, at: str, size: str = "fit", length: str | None = None,
+          source: str | None = None, expect: str | None = None) -> dict[str, Any]:
+    """Put media on the comp at position `at`, on top of the stack: from `source` (a source
+    time: `f:` at the media's rate or seconds for footage, seconds for sound; its first
+    frame or sample when absent), for `length` (a span from `at`, written as given) or as
+    long as it lasts, cut off at the comp's end. The layer is named after the media (with
+    `.2`, `.3` for more). Sound goes in as an audio layer at unity gain. Footage of another
+    size is scaled to `fit` the comp (all of it seen, as Resolve's default for a mismatched
+    resolution is), to `fill` it (no edge showing, cropped), or left at its `own` size; the
+    scale is written out, never implied. Every frame the layer shows must be in the media."""
     assert size in SIZES, f"{size!r} is not a size ({', '.join(SIZES)})"
     edit = Edit.open(project, name, expect)
     record = load_record(project, media)
@@ -174,18 +177,34 @@ def place(project: Project, name: str, media: str, at: str, size: str = "fit",
     start = resolve_position(parse_literal(at, Field.POSITION), rate=edit.rate, grid=edit.grid)
     end = resolve_position(parse_literal(edit.data["end"], Field.POSITION), rate=edit.rate, grid=edit.grid)
     assert start < end, f"{at} is at or after the comp's end ({edit.data['end']})"
-    if record.wav is not None:
-        seconds = Fraction(record.wav.samples, record.wav.rate)
+    sound = record.wav is not None
+    if sound:
+        seconds, media_rate = Fraction(record.wav.samples, record.wav.rate), None
     else:
         video = record.probe.video
         assert video is not None, f"{media} has neither video nor sound"
-        seconds = Fraction(video.frames) / parse_rate(record.time.rate)
-    # As long as the media lasts, cut off at the comp's end: up to the comp's last frame,
-    # counted as the comp counts frames, each time on the first frame at or after it.
-    frames = min(int(seconds * edit.rate),
-                 first_frame_at_or_after(end, edit.rate) - first_frame_at_or_after(start, edit.rate))
-    kind, source = ("audio", "0s") if record.wav is not None else ("footage", "f:0")
-    layer = {"id": layer_id, "type": kind, "media": media, "start": at, "source_start": source, "out": f"f:{frames}"}
+        media_rate = parse_rate(record.time.rate)
+        seconds = Fraction(video.frames) / media_rate
+    source = source or ("0s" if sound else "f:0")
+    literal = parse_literal(source, Field.SOURCE_START)
+    assert isinstance(literal, Seconds if sound else Frames | Seconds), (
+        f"{media}'s source in point is a source time in {'seconds' if sound else 'frames or seconds'}, not {source}"
+    )
+    offset = Fraction(literal.ticks if isinstance(literal, Seconds) else literal.count * ticks_per_frame(media_rate),
+                      TICKS_PER_SECOND)
+    assert 0 <= offset < seconds, f"{media} has {float(seconds):.3f} s; it cannot start at {source}"
+    if length is None:
+        # As long as the media lasts, cut off at the comp's end: up to the comp's last frame,
+        # counted as the comp counts frames, each time on the first frame at or after it.
+        frames = min(int((seconds - offset) * edit.rate),
+                     first_frame_at_or_after(end, edit.rate) - first_frame_at_or_after(start, edit.rate))
+        out = f"f:{frames}"
+    else:
+        span = resolve_span(parse_literal(length, Field.LAYER), anchor=start, rate=edit.rate, grid=edit.grid)
+        assert span > 0, f"a layer {length} long shows nothing"
+        out = length
+    kind = "audio" if sound else "footage"
+    layer = {"id": layer_id, "type": kind, "media": media, "start": at, "source_start": source, "out": out}
     if kind == "footage" and size != "own":
         shown = shown_size(record.probe.video.size, record.probe.video.rotation)
         comp_w, comp_h = edit.data["size"]
@@ -197,6 +216,8 @@ def place(project: Project, name: str, media: str, at: str, size: str = "fit",
     # Footage goes under the graphics (they are top overlays); everything else on top.
     index = graphics[0] if graphics and layer["type"] == "footage" else len(edit.data["layers"])
     edit.data["layers"].insert(index, layer)
-    edit.changes.append(f"{media} placed at {at} as {layer_id}, {layer['out']} long"
+    edit.changes.append(f"{media} placed at {at} as {layer_id}, {out} long"
+                        + (f", from {source}" if offset else "")
                         + (f", scaled {layer['transform']['scale']} to {size} the comp" if "transform" in layer else ""))
+    _resolves(project, edit)  # every frame it shows is in the media
     return edit.save()

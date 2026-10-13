@@ -18,10 +18,12 @@ source offset, and both leave keyframes where they are in the comp.
 A span an edit writes keeps the unit it was written in when that unit holds the new
 length exactly, and otherwise takes the unit of the time the edit was given in: a cut on a
 beat of a clip whose length `place` wrote in frames is written in beats. A split's copy is
-named after the layer with the next free number (`shot.2`, `shot.3`). `place` scales
-footage of another size to fit the comp, all of it seen, as Resolve does by default
-(`--size fill` crops to fill it, `own` leaves it at its own size), writing the scale out,
-and runs it to the comp's last frame. When no unit holds a footage layer's new in or out
+named after the layer with the next free number (`shot.2`, `shot.3`). `place` puts media
+on the comp from a source in point (`--source`, its first frame by default) for a length
+(`--for`, written as given) or as long as it lasts up to the comp's last frame, so one
+`place` per shot builds a cut; it scales footage of another size to fit the comp, all of
+it seen, as Resolve does by default (`--size fill` crops to fill it, `own` leaves it at
+its own size), writing the scale out. When no unit holds a footage layer's new in or out
 point exactly (a beat cut on a layer that starts at 0 s, before the first beat), it is
 written in whole frames to the frame the time lands on, the frame the cut shows either
 way; a style's anchor there is written in seconds, to 10 microseconds. A footage layer's

@@ -56,16 +56,17 @@ cache still matches its comp. `lc validate` checks every file.
 1. `lc changes` before you edit: what the person did in the editor since you last asked.
    Never write over it.
 2. Prefer `lc op OP COMP ...` (move, trim, slip, slide, roll, ripple-delete, split, snap,
-   place, key, unkey, move-key, set, remap, style, unstyle, grade, look, unlook,
-   masks, transition, untransition, sfx): the editor's own functions, written only if the file is still the one
-   read, the change printed in editing terms. Edit the JSON for anything else, then run
-   `lc validate`.
+   place, key, unkey, move-key, set, remap, style, unstyle, grade, look, unlook, masks,
+   transition, untransition, sfx): the editor's own functions, written only if the file
+   is still the one read, the change printed in editing terms. Edit the JSON for anything
+   else, then run `lc validate`.
 3. Look at what you changed. `lc sheet COMP --every b:1 --from P --to P` over the range,
    `lc still COMP --at P` on the frames that matter (cuts, hits, titles, faces),
    `lc scope COMP --at P` for levels, and `lc framing COMP LAYER` after a transform
    reframes footage (it lists the frames where the source's edge shows). Trust the
    printed numbers over your reading of an image.
-4. Sound changed: `lc audio-check COMP` (cut offsets to beats, level per half beat).
+4. Sound changed: `lc audio-check COMP` (cut offsets to beats and to the mix's onsets,
+   level per half beat).
 5. Before showing the person: `lc lint COMP`, and `lc diff COMP` for what changed since
    the last commit.
 6. Delivering: `lc render COMP --preset P` (`web-h264`, `web-hevc10`, `master-prores-hq`,
@@ -73,6 +74,14 @@ cache still matches its comp. `lc validate` checks every file.
    Both exit with status 1 when the file fails.
 7. Commit each review round (the project is meant to be a git repository); never
    overwrite a version the person has seen.
+
+## Building a cut
+
+Choose in points from the footage itself: `lc sheet --media KEY --every f:15` labels each
+frame with its seconds. Then one `place` per shot, on the beat grid:
+`lc op place COMP KEY --at b:8 --for b:4 --source 2.5s` puts KEY from 2.5 s into it at
+beat 8 for four beats. A later layer is drawn over an earlier one, so shots that meet at
+cuts need no ordering. `lc audio-check COMP` then gives every cut's offset to its beat.
 
 ## What you cannot judge
 

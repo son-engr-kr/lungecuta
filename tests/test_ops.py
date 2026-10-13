@@ -312,3 +312,25 @@ def test_a_split_part_slips_back_past_its_layer_s_time_zero(cut_project):
     assert part.source_frames[0] >= 0
     with pytest.raises(AssertionError, match="before the first frame"):
         ops.slip(Project.load(cut_project), "main", "shot1.2", "f:-40")
+
+
+def test_a_shot_is_placed_from_a_source_in_point_for_a_length(cut_project):
+    comp = json.loads((cut_project / "comps" / "main.json").read_text())
+    comp["layers"] = comp["layers"][:1]
+    (cut_project / "comps" / "main.json").write_text(json.dumps(comp))
+    result = ops.place(Project.load(cut_project), "main", "C0001", "b:0", length="b:2", source="f:10")
+    shot = layers(cut_project)["C0001"]
+    assert (shot["start"], shot["out"], shot["source_start"]) == ("b:0", "b:2", "f:10")
+    assert result["changes"] == ["C0001 placed at b:0 as C0001, b:2 long, from f:10"]
+    # without a length it runs to the media's end from the in point: 70 frames less 10
+    ops.place(Project.load(cut_project), "main", "C0001", "b:2", source="1s")
+    assert layers(cut_project)["C0001.2"]["out"] == f"f:{70 - 30}"
+    # the track (10 s) from 2.5 s for four beats
+    ops.place(Project.load(cut_project), "main", "track", "b:0", length="b:4", source="2.5s")
+    assert layers(cut_project)["track"]["source_start"] == "2.5s"  # the grid layer is called music
+    with pytest.raises(AssertionError, match="needs source frame"):
+        ops.place(Project.load(cut_project), "main", "C0001", "b:4", length="b:4", source="f:60")
+    with pytest.raises(AssertionError, match="cannot start at f:70"):
+        ops.place(Project.load(cut_project), "main", "C0001", "b:4", source="f:70")
+    with pytest.raises(AssertionError, match="in seconds, not f:3"):
+        ops.place(Project.load(cut_project), "main", "track", "b:4", source="f:3")
