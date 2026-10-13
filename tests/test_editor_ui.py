@@ -250,3 +250,31 @@ def test_the_inspector_opens_a_layer_s_shutter(page, cut_project):
     until(page, cut_project, lambda layer: "motion_blur" in layer, "the shutter")
     assert shot1(cut_project)["motion_blur"] == {"shutter_deg": 180.0}
     page.wait_for_function("[...document.querySelectorAll('input[name=graph]')].some(r => r.value === 'shutter')")
+
+
+
+def test_a_key_dragged_across_the_graph_moves_in_time(page, cut_project):
+    from lungecuta import ops
+    from lungecuta.media import Project
+
+    project = Project.load(cut_project)
+    ops.key(project, "main", "shot1", "opacity", "b:1", 1.0)
+    ops.key(project, "main", "shot1", "opacity", "b:3", 0.5)
+    caught_up(page, "the keys written by lc op", curves=False)
+    click_layer(page, "shot1")
+    page.wait_for_function("state.curves !== null && state.curves.opacity !== undefined")
+    page.check("input[name=graph][value=opacity]")
+    target = json.loads(page.evaluate("""JSON.stringify((() => {
+      const key = state.curves.keys.filter(k => k.prop === 'opacity')[1];
+      return [graph.map.x(key.frame), graph.map.y(key.value), key.frame, graph.map.x(key.frame - 10)];
+    })())"""))
+    box = page.locator("#graph").bounding_box()
+    page.mouse.move(box["x"] + target[0], box["y"] + target[1])
+    page.mouse.down()
+    page.mouse.move(box["x"] + target[3], box["y"] + target[1], steps=6)
+    page.mouse.up()
+    before = ["b:1", "b:3"]
+    until(page, cut_project, lambda layer: [k["t"] for k in layer["transform"]["opacity"]["keys"]] != before,
+          "the key moved in time")
+    keys = shot1(cut_project)["transform"]["opacity"]["keys"]
+    assert keys[0] == {"t": "b:1", "v": 1.0} and keys[1]["v"] == 0.5 and keys[1]["t"] != "b:3"

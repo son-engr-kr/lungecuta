@@ -329,3 +329,16 @@ def op_sfx(comp: str, sounds: tuple[str, ...], on: str, start: str | None, end: 
     a layer an event, anchored there, sound (k * 7) mod n of the n given on event k, so
     neighbours differ, the rule past edits used."""
     print_json(ops.sfx(project_of(project_dir), comp, list(sounds), on, start, end, anchor, gain))
+
+
+@op.command("move-key")
+@click.argument("comp")
+@click.argument("layer")
+@click.argument("prop", type=click.Choice(ops.KEYED))
+@click.option("--at", required=True, help="The comp position of the key now.")
+@click.option("--to", "to", required=True, help="The comp position it moves to (f:130, b:17, 4.4s).")
+@project_option
+def op_move_key(comp: str, layer: str, prop: str, at: str, to: str, project_dir: Path | None) -> None:
+    """Move PROP's key on LAYER from one comp position to another, its value and ease kept;
+    a key already there is refused."""
+    print_json(ops.move_key(project_of(project_dir), comp, layer, prop, at, to))

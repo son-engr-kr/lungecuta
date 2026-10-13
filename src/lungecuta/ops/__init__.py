@@ -15,7 +15,7 @@ from __future__ import annotations
 from .comps import new_comp
 from .edit import Edit
 from .grading import look, set_grade, unlook
-from .properties import KEYED, LAYER_OF, key, key_position, remap, set_masks, set_value, unkey
+from .properties import KEYED, LAYER_OF, key, key_position, move_key, remap, set_masks, set_value, unkey
 from .sounds import EVENTS, ROTATION, sfx
 from .styles import style, transition, unstyle, untransition
 from .timing import move, place, ripple_delete, roll, slide, slip, snap, split, trim
@@ -26,7 +26,7 @@ OPERATIONS = {
     "move": move, "trim": trim, "slip": slip, "slide": slide, "roll": roll, "ripple-delete": ripple_delete,
     "split": split, "snap": snap, "place": place, "style": style, "unstyle": unstyle, "key": key, "unkey": unkey,
     "set": set_value, "remap": remap, "grade": set_grade, "masks": set_masks, "transition": transition,
-    "untransition": untransition, "look": look, "unlook": unlook, "sfx": sfx,
+    "untransition": untransition, "look": look, "unlook": unlook, "sfx": sfx, "move-key": move_key,
 }
 
-__all__ = ['EVENTS', 'Edit', 'KEYED', 'LAYER_OF', 'ROTATION', 'key', 'key_position', 'look', 'move', 'new_comp', 'place', 'remap', 'ripple_delete', 'roll', 'set_grade', 'set_masks', 'set_value', 'sfx', 'slide', 'slip', 'snap', 'split', 'style', 'transition', 'trim', 'unkey', 'unlook', 'unstyle', 'untransition', 'OPERATIONS']
+__all__ = ['EVENTS', 'Edit', 'KEYED', 'LAYER_OF', 'ROTATION', 'key', 'key_position', 'look', 'move', 'move_key', 'new_comp', 'place', 'remap', 'ripple_delete', 'roll', 'set_grade', 'set_masks', 'set_value', 'sfx', 'slide', 'slip', 'snap', 'split', 'style', 'transition', 'trim', 'unkey', 'unlook', 'unstyle', 'untransition', 'OPERATIONS']

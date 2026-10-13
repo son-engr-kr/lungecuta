@@ -826,7 +826,7 @@ function drawGraph() {
   const mode = state.graph, spec = GRAPHS[mode];
   const keys = graphKeys(mode, c);
   $("graph-title").textContent = layer.id;
-  $("graph-hint").textContent = !spec.fixed && keys.length ? "drag a key up or down to change its value" : "";
+  $("graph-hint").textContent = !spec.fixed && keys.length ? "drag a key up or down to change its value, across to move it" : "";
   const canvas = $("graph");
   const width = canvas.clientWidth, height = canvas.clientHeight;
   if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
@@ -865,8 +865,8 @@ function drawGraph() {
   values.forEach((v, k) => { const px = x(c.first + k), py = y(v); if (k) g.lineTo(px, py); else g.moveTo(px, py); });
   g.stroke(); g.lineWidth = 1;
   for (const key of keys) {
-    const kx = x(key.frame);
     const dragged = graph.drag && graph.drag.key === key;
+    const kx = x(dragged ? graph.drag.frame : key.frame);
     const ky = spec.fixed ? y(100) : y(dragged ? graph.drag.value : keyValue(mode, c, key));
     g.fillStyle = dragged ? "#ffffff" : "#7fd1ff";
     g.beginPath(); g.moveTo(kx, ky - 5); g.lineTo(kx + 5, ky); g.lineTo(kx, ky + 5); g.lineTo(kx - 5, ky); g.closePath(); g.fill();
@@ -876,7 +876,8 @@ function drawGraph() {
   if (px >= map.pad && px <= width - map.pad) { g.beginPath(); g.moveTo(px + 0.5, 0); g.lineTo(px + 0.5, height); g.stroke(); }
   if (graph.drag) {
     g.fillStyle = "#ffffff";
-    g.fillText(`${round(graph.drag.value, spec.digits || 4)}${unit}`, x(graph.drag.key.frame) + 8, y(graph.drag.value) - 6);
+    const label = graph.drag.along === "time" ? `f:${graph.drag.frame}` : `${round(graph.drag.value, spec.digits || 4)}${unit}`;
+    g.fillText(label, x(graph.drag.frame) + 8, y(graph.drag.value) - 6);
   }
 }
 const graph = { map: null, drag: null };
@@ -905,24 +906,41 @@ $("graph").addEventListener("mousedown", (event) => {
   const px = event.clientX - rect.left, py = event.clientY - rect.top;
   const key = GRAPHS[mode].fixed ? null : graphKeys(mode, c)
     .find((k) => Math.abs(m.x(k.frame) - px) < 7 && Math.abs(m.y(keyValue(mode, c, k)) - py) < 7);
-  if (key) graph.drag = { key, value: keyValue(mode, c, key), map: m };
+  // The first few pixels of movement decide: across moves the key in time, up or down
+  // changes its value.
+  if (key) graph.drag = { key, value: keyValue(mode, c, key), map: m, from: [px, py], along: null, frame: key.frame };
   else show(Math.round(c.first + (px - m.pad) / (m.width - 2 * m.pad) * (c.end - c.first)));
 });
 window.addEventListener("mousemove", (event) => {
   if (!graph.drag) return;
-  const m = graph.drag.map;
-  const py = event.clientY - $("graph").getBoundingClientRect().top;
-  let value = m.bottom + (m.height - 10 - py) / (m.height - 20) * (m.top - m.bottom);
-  if (state.graph === "source") value = Math.max(0, event.altKey ? value : Math.round(value));  // whole source frames unless Alt
-  graph.drag.value = value;
+  const drag = graph.drag, m = drag.map, c = state.curves;
+  const rect = $("graph").getBoundingClientRect();
+  const px = event.clientX - rect.left, py = event.clientY - rect.top;
+  if (drag.along === null) {
+    const dx = Math.abs(px - drag.from[0]), dy = Math.abs(py - drag.from[1]);
+    if (Math.max(dx, dy) < 4) return;
+    drag.along = dx > dy ? "time" : "value";
+  }
+  if (drag.along === "time") {
+    const frame = Math.round(c.first + (px - m.pad) / (m.width - 2 * m.pad) * (c.end - c.first));
+    drag.frame = Math.max(c.first, Math.min(c.end - 1, frame));  // whole frames, inside the layer
+  } else {
+    let value = m.bottom + (m.height - 10 - py) / (m.height - 20) * (m.top - m.bottom);
+    if (state.graph === "source") value = Math.max(0, event.altKey ? value : Math.round(value));  // whole source frames unless Alt
+    drag.value = value;
+  }
   drawGraph();
 });
 window.addEventListener("mouseup", () => {
   if (!graph.drag) return;
-  const { key, value } = graph.drag;
+  const { key, value, along, frame } = graph.drag;
   const mode = state.graph;
   graph.drag = null;
-  if (Math.abs(value - keyValue(mode, state.curves, key)) < 1e-6) return drawGraph();
+  if (along === "time") {
+    if (Math.abs(frame - key.frame) < 0.5) return drawGraph();
+    return edit("move-key", { layer_id: state.selected, prop: GRAPHS[mode].prop, at: key.at, to: `f:${frame}` });
+  }
+  if (along === null || Math.abs(value - keyValue(mode, state.curves, key)) < 1e-6) return drawGraph();
   edit("key", { layer_id: state.selected, prop: GRAPHS[mode].prop, at: key.at, value: draggedValue(mode, key, value),
                 ease: key.ease });
 });

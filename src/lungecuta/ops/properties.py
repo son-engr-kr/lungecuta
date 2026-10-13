@@ -98,6 +98,31 @@ def key(project: Project, name: str, layer_id: str, prop: str, at: str, value: A
     return edit.save()
 
 
+def move_key(project: Project, name: str, layer_id: str, prop: str, at: str, to: str,
+             expect: str | None = None) -> dict[str, Any]:
+    """Move the key of a property at comp position `at` to comp position `to`, its value
+    and ease kept, as dragging a key along the graph editor's time does; a key already at
+    `to` is refused, not replaced, and the keys stay in time order."""
+    assert prop in KEYED, f"{prop!r} is not a property with keys ({', '.join(KEYED)})"
+    edit = Edit.open(project, name, expect)
+    layer = edit.layer(layer_id)
+    point, _ = _key_time(edit, layer, at)
+    target, t = _key_time(edit, layer, to)
+    keys = _keys(edit, layer, prop)
+    ticks = [_key_tick(edit, layer, k) for k in keys]
+    assert point in ticks, f"{layer_id} has no {prop} key at {at}"
+    assert target not in ticks or target == point, f"{layer_id} has a {prop} key at {to} already"
+    moved = keys.pop(ticks.index(point))
+    ticks.remove(point)
+    old = moved["t"]
+    moved = moved | {"t": t}
+    keys.insert(sum(tick < target for tick in ticks), moved)
+    _put_keys(layer, prop, keys)
+    edit.changes.append(f"{layer_id} {prop} key moved {old} to {t}")
+    _resolves(project, edit)
+    return edit.save()
+
+
 def unkey(project: Project, name: str, layer_id: str, prop: str, at: str, expect: str | None = None) -> dict[str, Any]:
     """Delete the key of a property at comp position `at`. The last transform key leaves
     its value as the property's constant; a remap keeps at least two keys."""

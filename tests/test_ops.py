@@ -238,3 +238,16 @@ def test_a_slide_moves_the_layer_and_its_neighbours_cuts(cut_project):
     assert len(result["changes"]) == 3
     with pytest.raises(AssertionError, match="would move before its start"):
         ops.slide(Project.load(cut_project), "main", "shot2", "b:-1")
+
+
+def test_a_key_moves_in_time_with_its_value_and_ease(cut_project):
+    ops.key(Project.load(cut_project), "main", "shot1", "scale", "b:1", 1.2, "out")
+    ops.key(Project.load(cut_project), "main", "shot1", "scale", "b:3", 1.0)
+    result = ops.move_key(Project.load(cut_project), "main", "shot1", "scale", "b:1", "b:3+0.5")
+    assert result["changes"] == ["shot1 scale key moved b:1 to b:3.5"]  # key times are spans from the start
+    keys = layers(cut_project)["shot1"]["transform"]["scale"]["keys"]
+    assert keys == [{"t": "b:3", "v": 1.0}, {"t": "b:3.5", "v": 1.2, "ease": "out"}]  # kept in time order
+    with pytest.raises(AssertionError, match="a scale key at b:3 already"):
+        ops.move_key(Project.load(cut_project), "main", "shot1", "scale", "b:3+0.5", "b:3")
+    with pytest.raises(AssertionError, match="no scale key"):
+        ops.move_key(Project.load(cut_project), "main", "shot1", "scale", "b:2", "b:1")
