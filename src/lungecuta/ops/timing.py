@@ -9,8 +9,8 @@ from typing import Any
 from ..literals import Field, Frames, Seconds, format_literal, parse_literal, resolve_position, resolve_source, span_literal
 from ..geometry import shown_size
 from ..media import Project, load_record
-from ..ticks import parse_rate, ticks_per_frame
-from .edit import Edit, _delta, _resolves, span_unit
+from ..ticks import first_frame_at_or_after, parse_rate, ticks_per_frame
+from .edit import Edit, _delta, _resolves, span_text
 
 
 def move(project: Project, name: str, layer_id: str, by: str, expect: str | None = None) -> dict[str, Any]:
@@ -44,8 +44,9 @@ def slip(project: Project, name: str, layer_id: str, by: str, expect: str | None
     literal = parse_literal(by, Field.STYLE)
     assert isinstance(literal, Frames | Seconds), f"a slip is in source frames or seconds, not {by}"
     amount = literal.count * ticks_per_frame(rate) if isinstance(literal, Frames) else literal.ticks
-    source = resolve_source(parse_literal(layer["source_start"], Field.SOURCE), media_rate=rate)
+    source = resolve_source(parse_literal(layer["source_start"], Field.SOURCE_START), media_rate=rate)
     edit.set_source(layer, source + amount)
+    _resolves(project, edit)  # every frame it shows is still in the clip
     return edit.save()
 
 
@@ -129,8 +130,8 @@ def split(project: Project, name: str, layer_id: str, at: str, expect: str | Non
     taken = {other["id"] for other in edit.data["layers"]}
     second = dict(layer, id=next(f"{base}.{k}" for k in range(2, 100000) if f"{base}.{k}" not in taken))
     edit.set_span(layer, "out", point - start, given=at)
-    unit = span_unit(layer.get("in"), at, point - start, edit.rate, edit.grid)
-    second["in"] = format_literal(span_literal(point - start, unit, anchor=start, rate=edit.rate, grid=edit.grid))
+    second["in"] = span_text(layer.get("in"), at, point - start, start, edit.rate, edit.grid,
+                             frames_land=layer["type"] == "footage")
     edit.data["layers"].insert(edit.data["layers"].index(layer) + 1, second)
     edit.changes.append(f"{layer_id} split at {at}: {second['id']} from {second['in']}")
     return edit.save()
@@ -179,8 +180,10 @@ def place(project: Project, name: str, media: str, at: str, size: str = "fit",
         video = record.probe.video
         assert video is not None, f"{media} has neither video nor sound"
         seconds = Fraction(video.frames) / parse_rate(record.time.rate)
-    # As long as the media lasts, cut off at the comp's end: whole comp frames from the start.
-    frames = min(int(seconds * edit.rate), (end - start) // ticks_per_frame(edit.rate))
+    # As long as the media lasts, cut off at the comp's end: up to the comp's last frame,
+    # counted as the comp counts frames, each time on the first frame at or after it.
+    frames = min(int(seconds * edit.rate),
+                 first_frame_at_or_after(end, edit.rate) - first_frame_at_or_after(start, edit.rate))
     kind, source = ("audio", "0s") if record.wav is not None else ("footage", "f:0")
     layer = {"id": layer_id, "type": kind, "media": media, "start": at, "source_start": source, "out": f"f:{frames}"}
     if kind == "footage" and size != "own":

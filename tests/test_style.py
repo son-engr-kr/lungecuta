@@ -189,3 +189,19 @@ def test_a_style_s_shutter_holds_inside_its_keys_and_the_layer_s_outside(cut_pro
     cut = whipped(cut_project, motion_blur={"shutter_deg": 45})
     anchor = cut.start + 2 * BEAT
     assert cut.shutter_deg(anchor) == 180 and cut.shutter_deg(anchor + BEAT) == 45
+
+
+
+def test_a_style_on_a_layer_that_starts_before_the_grid_is_anchored_in_seconds(cut_project):
+    from lungecuta import ops
+
+    write_style(cut_project)
+    comp = comp_json()
+    comp["layers"][1] |= {"start": "0s", "in": "0.25s", "out": "2.25s", "markers": []}  # starts before the grid
+    put_comp(cut_project, comp)
+    ops.style(Project.load(cut_project), "main", "shot1", "dip", "b:2")
+    written = json.loads((cut_project / "comps" / "main.json").read_text())["layers"][1]["time"]
+    assert written["at"] == "1.25s"  # b:2 is at 1.25 s, a beat span from 0 s does not exist
+    project = Project.load(cut_project)
+    shot1 = {c.layer.id: c for c in resolve(project, load_comp(project, "main")).cuts}["shot1"]
+    assert shot1.speed_track.at(1 * TICKS_PER_SECOND + TICKS_PER_SECOND // 4)[0] == pytest.approx(0.5)  # on b:2

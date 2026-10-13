@@ -37,7 +37,7 @@ def test_a_slip_changes_the_source_in_its_own_unit(cut_project):
     assert layers(cut_project)["shot1"]["source_start"] == "f:5"
     ops.slip(Project.load(cut_project), "main", "shot1", "f:-5")
     assert layers(cut_project)["shot1"]["source_start"] == "f:0"
-    with pytest.raises(AssertionError, match="cannot be negative"):
+    with pytest.raises(AssertionError, match="before the first frame"):  # shot1 shows from its layer time 0
         ops.slip(Project.load(cut_project), "main", "shot1", "f:-1")
 
 
@@ -94,9 +94,10 @@ def test_placing_media_adds_a_layer_as_long_as_the_media(cut_project):
     found = layers(cut_project)
     assert found["C0001"] == {"id": "C0001", "type": "footage", "media": "C0001", "start": "b:1",
                               "source_start": "f:0", "out": "f:70"}
-    # Near the end it stops at the comp's end (b:12, frame 187.31; b:9 is frame 142.86).
+    # Near the end it stops at the comp's end: b:12 is at frame 187.31, so the comp runs to
+    # frame 187; b:9 at 142.86 lands on frame 143, and 45 frames from there reach frame 187.
     ops.place(Project.load(cut_project), "main", "C0001", "b:9")
-    assert layers(cut_project)["C0001.2"]["out"] == "f:44"
+    assert layers(cut_project)["C0001.2"]["out"] == "f:45"
     from lungecuta.comp import load_comp, resolve
     project = Project.load(cut_project)
     resolve(project, load_comp(project, "main"))
@@ -285,3 +286,29 @@ def test_placed_footage_fits_or_fills_the_comp(cut_project):
     assert layers(cut_project)["C0001.2"]["transform"]["scale"] == pytest.approx(64 / 72, abs=1e-6)
     ops.place(Project.load(cut_project), "main", "C0001", "b:8", size="own")
     assert "transform" not in layers(cut_project)["C0001.3"]
+
+
+def test_a_beat_split_of_a_clip_from_the_comp_s_start_lands_on_its_frame(cut_project):
+    # the first beat is at 0.25 s: a clip placed at 0 s (no black first frame) and split on b:4
+    # has an out point no beat span from its start can hold, so it is the frame b:4 lands on
+    comp = json.loads((cut_project / "comps" / "main.json").read_text())
+    comp["layers"] = comp["layers"][:1]
+    (cut_project / "comps" / "main.json").write_text(json.dumps(comp))
+    ops.place(Project.load(cut_project), "main", "C0001", "0s")
+    ops.split(Project.load(cut_project), "main", "C0001", "b:4")
+    assert layers(cut_project)["C0001"]["out"] == "f:68"  # 2.25 s at 29.97 lands on frame 68
+    assert layers(cut_project)["C0001.2"]["in"] == "f:68"
+
+
+def test_a_split_part_slips_back_past_its_layer_s_time_zero(cut_project):
+    # shot2's second part shows source from its in point on; its source start, at layer time 0,
+    # may go before the clip's first frame as long as every frame it shows exists
+    ops.split(Project.load(cut_project), "main", "shot1", "b:2")
+    ops.slip(Project.load(cut_project), "main", "shot1.2", "f:-20")
+    assert layers(cut_project)["shot1.2"]["source_start"] == "f:-18"  # it started at f:2
+    from lungecuta.comp import load_comp, resolve
+    project = Project.load(cut_project)
+    part = {c.layer.id: c for c in resolve(project, load_comp(project, "main")).cuts}["shot1.2"]
+    assert part.source_frames[0] >= 0
+    with pytest.raises(AssertionError, match="before the first frame"):
+        ops.slip(Project.load(cut_project), "main", "shot1.2", "f:-40")

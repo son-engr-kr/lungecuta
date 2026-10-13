@@ -76,9 +76,9 @@ def test_the_grid_layer_cannot_be_placed_on_beats(cut_project):
 
 def test_a_source_start_before_the_media_is_refused(cut_project):
     comp = comp_json()
-    comp["layers"][1]["source_start"] = "-1s"
+    comp["layers"][1]["source_start"] = "-1s"  # a negative source start is allowed; showing it is not
     put_comp(cut_project, comp)
-    with pytest.raises(AssertionError, match="cannot be negative"):
+    with pytest.raises(AssertionError, match="before the first frame"):
         resolved(cut_project)
 
 

@@ -20,7 +20,13 @@ length exactly, and otherwise takes the unit of the time the edit was given in: 
 beat of a clip whose length `place` wrote in frames is written in beats. A split's copy is
 named after the layer with the next free number (`shot.2`, `shot.3`). `place` scales
 footage of another size to fit the comp, all of it seen, as Resolve does by default
-(`--size fill` crops to fill it, `own` leaves it at its own size), writing the scale out.
+(`--size fill` crops to fill it, `own` leaves it at its own size), writing the scale out,
+and runs it to the comp's last frame. When no unit holds a footage layer's new in or out
+point exactly (a beat cut on a layer that starts at 0 s, before the first beat), it is
+written in whole frames to the frame the time lands on, the frame the cut shows either
+way; a style's anchor there is written in seconds, to 10 microseconds. A footage layer's
+`source_start` may be negative, the media starting after its layer time 0 (a split's
+part slipped back), as long as every frame it shows is in the clip.
 
 Written so far (`src/lungecuta/ops/`, one module an area, and `lc op OP COMP ...`): move, trim, slip, roll, ripple
 delete, split and snap to beats. Amounts are signed spans (`f:-3`, `-0.5s`, `b:1`,

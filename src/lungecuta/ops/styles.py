@@ -1,13 +1,13 @@
-"""Operations that place styles in time and transitions on cuts (03-project-
-format.md#styles, 06-editing.md#transitions)."""
+"""Operations that place styles in time and transitions on cuts
+(03-project-format.md#styles, 06-editing.md#transitions)."""
 from __future__ import annotations
 
 from typing import Any
 
-from ..literals import Field, format_literal, parse_literal, resolve_position, span_literal
+from ..literals import Field, parse_literal, resolve_position
 from ..media import Project
 from ..schema.comp import CompFile
-from .edit import Edit, _resolves
+from .edit import Edit, _resolves, span_text
 
 
 def style(project: Project, name: str, layer_id: str, style_id: str, at: str, intensity: float | None = None,
@@ -31,7 +31,8 @@ def style(project: Project, name: str, layer_id: str, style_id: str, at: str, in
     assert point >= start, f"{at} is before {layer_id}'s start"
     instance: dict[str, Any] = {
         "style": style_id,
-        "at": format_literal(span_literal(point - start, "b", anchor=start, rate=edit.rate, grid=edit.grid)),
+        # in beats from the layer's start, or, from a start before the grid, in seconds to 10 us
+        "at": span_text(None, at, point - start, start, edit.rate, edit.grid, nearest_seconds=True),
     }
     if intensity is not None:
         instance["overrides"] = {"intensity": intensity}

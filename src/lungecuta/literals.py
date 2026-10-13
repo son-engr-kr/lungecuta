@@ -40,6 +40,9 @@ class Field(Enum):
     LAYER = "layer time"  # a span from a layer's start, at least 0
     STYLE = "style time"  # a span from a style's anchor, negative before it
     SOURCE = "source time"  # a point in a media file, from its first presented frame
+    # a footage layer's source time at its layer time 0, which is before the media starts
+    # when the layer's in point is later than the media's first frame there (a split's part)
+    SOURCE_START = "a layer's source start"
 
 
 @dataclass(frozen=True)
@@ -132,20 +135,20 @@ def _parse_seconds(match: re.Match[str], text: str, field: Field) -> Seconds:
     )
     steps = int(whole) * 10**SECONDS_DIGITS + int(fraction.ljust(SECONDS_DIGITS, "0"))
     ticks = -steps * TICKS_PER_SECONDS_STEP if sign else steps * TICKS_PER_SECONDS_STEP
-    assert ticks >= 0 or field is Field.STYLE, f"{text!r}: {field.value} cannot be negative"
+    assert ticks >= 0 or field in (Field.STYLE, Field.SOURCE_START), f"{text!r}: {field.value} cannot be negative"
     return Seconds(ticks)
 
 
 def _parse_frames(match: re.Match[str], text: str, field: Field) -> Frames:
     base = int(match[1])
     count = base + sum(int(offset) for offset in _FRAME_OFFSET.findall(match[2]))
-    if field is not Field.STYLE:
+    if field not in (Field.STYLE, Field.SOURCE_START):
         assert base >= 0 and count >= 0, f"{text!r}: {field.value} cannot be negative"
     return Frames(count)
 
 
 def _parse_beats(match: re.Match[str], text: str, field: Field) -> BeatPosition | BeatSpan:
-    assert field is not Field.SOURCE, (
+    assert field not in (Field.SOURCE, Field.SOURCE_START), (
         f"{text!r}: source time cannot be written in beats, because a beat grid belongs to a comp"
     )
     base_text = match[1]
@@ -358,10 +361,11 @@ def span_literal(
     return BeatSpan(_shortest(exact, lambda d: _on_grid(grid, start + d), anchor + length))
 
 
-def source_literal(ticks: int, unit: str, *, media_rate: Fraction) -> TimeLiteral:
-    """The source time `ticks` written in seconds or in frames at the media's rate."""
+def source_literal(ticks: int, unit: str, *, media_rate: Fraction, start: bool = False) -> TimeLiteral:
+    """The source time `ticks` written in seconds or in frames at the media's rate; a
+    layer's source `start` may be negative (Field.SOURCE_START)."""
     assert unit in ("s", "f"), f"source time is written in s or f, not {unit!r}"
-    assert ticks >= 0, f"source time cannot be negative ({ticks} ticks)"
+    assert ticks >= 0 or start, f"source time cannot be negative ({ticks} ticks)"
     if unit == "s":
         return _seconds(ticks)
     return Frames(_whole_frames(ticks, media_rate))

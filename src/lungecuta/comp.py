@@ -513,9 +513,7 @@ def _style_tracks(project: Project, layer: FootageLayer, start: int, rate: Fract
     instance = layer.time
     style = load_style(project, instance.style)
     assert style.tracks is not None, f"layer {layer.id}: style {style.id} is a look, with no tracks to place in time"
-    assert _is_beat(instance.at, Field.LAYER), (
-        f"layer {layer.id}: style {style.id} is anchored on a beat, and {instance.at} is not a beat literal"
-    )
+    assert grid is not None, f"layer {layer.id}: style {style.id} is anchored on a beat, and the comp has no grid"
     for name, value in instance.overrides.items():
         assert name in style.params, f"layer {layer.id}: style {style.id} has no parameter {name!r}"
         param = style.params[name]
@@ -525,6 +523,10 @@ def _style_tracks(project: Project, layer: FootageLayer, start: int, rate: Fract
     intensity = instance.overrides.get("intensity", style.params["intensity"].default
                                        if "intensity" in style.params else 1.0)
     anchor = start + resolve_span(parse_literal(instance.at, Field.LAYER), anchor=start, rate=rate, grid=grid)
+    # a beat span from the start, or seconds to a beat from a start before the grid (to 10 us)
+    assert grid.times[0] - TICKS_PER_SECOND // 10**5 <= anchor <= grid.times[-1], (
+        f"layer {layer.id}: style {style.id}'s anchor {instance.at} is not on the beat grid"
+    )
 
     def track(keys, name: str) -> Track | None:
         if keys is None:
@@ -565,7 +567,7 @@ def _footage(project: Project, layer: FootageLayer, rate: Fraction, grid: BeatGr
                   for key in layer.time.remap]
         remap = Track(tuple(times), tuple(values), tuple(key.ease for key in layer.time.remap))
     else:
-        source = resolve_source(parse_literal(layer.source_start, Field.SOURCE), media_rate=media_rate)
+        source = resolve_source(parse_literal(layer.source_start, Field.SOURCE_START), media_rate=media_rate)
     styled: dict[str, Track] = {}
     if isinstance(layer.time, StyleTime):
         styled = _style_tracks(project, layer, start, rate, grid)
