@@ -12,7 +12,7 @@ import numpy as np
 from .decode import read_every
 from .files import write_atomic
 from .geometry import scaled_size
-from .images import draw_text, png8, quantize, text_height
+from .images import draw_text, font, png8, quantize, text_height
 from .literals import Field, parse_literal, resolve_source
 from .media import Project, load_record
 from .still import code_numbers, open_clip
@@ -26,6 +26,7 @@ ROWS = 6
 TILE_LONG_SIDE = 320
 LABEL_PAD = 3
 LABEL_COLOUR = (255, 255, 0)
+LINE_GAP = 4  # pixels between label lines: Pillow's own spacing for multiline text
 
 
 def source_step(text: str, *, rate: Fraction) -> int:
@@ -61,11 +62,25 @@ def label(index: int, rate: Fraction) -> str:
     return f"f:{index}  {float(index / rate):.3f}s"
 
 
+def fitted(text: str, width: int) -> str:
+    """Each line of `text` cut to `width` pixels, ending in an ellipsis where it was cut."""
+    lines = []
+    for line in text.split("\n"):
+        if font().getlength(line) > width:
+            while line and font().getlength(line + "...") > width:
+                line = line[:-1]
+            line += "..."
+        lines.append(line)
+    return "\n".join(lines)
+
+
 def pages(tiles: list[np.ndarray], labels: list[str], *, columns: int, rows: int) -> list[np.ndarray]:
     """Tiles left to right and top to bottom, `columns` by `rows` a page, each with its label
-    in a strip below it, on black."""
+    (one line or several) in a strip below it, on black."""
     height, width, _ = tiles[0].shape
-    strip = text_height() + 2 * LABEL_PAD
+    lines = max(label.count("\n") + 1 for label in labels)
+    strip = lines * text_height() + (lines - 1) * LINE_GAP + 2 * LABEL_PAD
+    labels = [fitted(label, width - 2 * LABEL_PAD) for label in labels]
     per_page = columns * rows
     out = []
     for first in range(0, len(tiles), per_page):
@@ -112,7 +127,7 @@ def sheet(
     images = pages(tiles, [label(index, clip.rate) for index in indices], columns=columns, rows=rows)
     if out is None:
         out = project.directory / SHEET_DIR / f"{key}_every{step}f_{size[0]}x{size[1]}.png"
-        out.parent.mkdir(parents=True, exist_ok=True)
+    out.parent.mkdir(parents=True, exist_ok=True)
     paths = page_paths(out, len(images))
     for path, image in zip(paths, images):
         write_atomic(path, png8(image))

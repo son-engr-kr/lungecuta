@@ -31,9 +31,10 @@ lc import FILES --root NAME         media records: colour and time decisions wit
                                     decoder check, proxy with its parity test; music gets a
                                     48 kHz WAV and a beat map (Beat This!)
 lc detect FILE                      the colour-space decision without importing
-lc still --media KEY --at f:N       one frame through the input transform and the view, PNG and numbers
-lc sheet --media KEY --every f:30   a contact sheet
-lc scope --media KEY --at f:N       waveform, parade, vectorscope and their numbers
+lc still COMP --at b:16             a comp's frame as the render delivers it, PNG and numbers
+lc sheet COMP --every b:1           a contact sheet of a comp, each tile labelled with its beat and layers
+lc scope COMP --at b:16             waveform, parade, vectorscope and their numbers
+lc still --media KEY --at f:N       the same three for one imported clip
 lc beats KEY                        the beat analysis again, applied only if no beat literal moves
 lc validate                         every project file, original and comp checked
 lc fcpxml COMP                      the comp as FCPXML 1.10 for Resolve's File > Import > Timeline

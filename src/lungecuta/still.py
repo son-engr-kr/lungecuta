@@ -125,7 +125,7 @@ def still(
     size = (frame.shape[1], frame.shape[0])
     if out is None:
         out = project.directory / STILL_DIR / f"{key}_f{index}_{size[0]}x{size[1]}.png"
-        out.parent.mkdir(parents=True, exist_ok=True)
+    out.parent.mkdir(parents=True, exist_ok=True)
     write_atomic(out, png(frame))
     settings = project.file.color
     return {

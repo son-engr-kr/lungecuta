@@ -179,7 +179,7 @@ def scope(
     shown = (frame.shape[1], frame.shape[0])
     if out is None:
         out = project.directory / SCOPE_DIR / f"{key}_f{index}_{shown[0]}x{shown[1]}.png"
-        out.parent.mkdir(parents=True, exist_ok=True)
+    out.parent.mkdir(parents=True, exist_ok=True)
     write_atomic(out, png8(scope_image(frame)))
     settings = project.file.color
     return {

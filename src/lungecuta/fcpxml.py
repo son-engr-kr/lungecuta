@@ -373,7 +373,7 @@ def export(project: Project, name: str, out: Path | None = None) -> dict[str, An
         )
     if out is None:
         out = project.directory / FCPXML_DIR / f"{name}.fcpxml"
-        out.parent.mkdir(parents=True, exist_ok=True)
+    out.parent.mkdir(parents=True, exist_ok=True)
     # Graphics layers go to Resolve as ProRes 4444 with alpha, rendered over their visible
     # frames by `lc graphic`, next to the FCPXML.
     graphics_files = []

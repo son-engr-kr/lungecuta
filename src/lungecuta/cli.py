@@ -127,19 +127,24 @@ def import_(files: tuple[Path, ...], root_name: str, key: str | None, project_di
     _print_json({"imported": imported})
 
 
+def _one_of(comp: str | None, key: str | None) -> None:
+    assert (comp is None) != (key is None), "name a comp, or a clip with --media, not both and not neither"
+
+
 @main.command()
-@click.option("--media", "key", required=True, help="The media key of an imported clip.")
+@click.argument("comp", required=False)
+@click.option("--media", "key", help="The media key of an imported clip, instead of a comp.")
 @click.option(
     "--at",
     required=True,
-    help="Source time in the clip: f:N counts frames from its first presented frame at its own rate; "
-    "seconds name the frame whose interval holds them.",
+    help="With a comp, a comp position (f:120, 4.5s, b:16+0.5, bar:4, tc:00:00:04:15), landing on the first "
+    "frame at or after it. With --media, source time in the clip: f:N counts frames from its first presented "
+    "frame at its own rate; seconds name the frame whose interval holds them.",
 )
 @click.option(
     "--height",
     type=click.IntRange(min=1),
-    help="Height in lines of the frame as shown, area-downscaled in the working space; "
-    "by default the clip's own size.",
+    help="Height in lines of the picture; by default the comp's or the clip's own size.",
 )
 @_threads_option
 @click.option(
@@ -149,11 +154,18 @@ def import_(files: tuple[Path, ...], root_name: str, key: str | None, project_di
 )
 @_project_option
 def still(
-    key: str, at: str, height: int | None, threads: int | None, out: Path | None, project_dir: Path | None
+    comp: str | None, key: str | None, at: str, height: int | None, threads: int | None, out: Path | None,
+    project_dir: Path | None,
 ) -> None:
-    """One frame of an imported clip at final quality, read from the original.
+    """One frame at final quality: of COMP as lc render delivers it, or of an imported clip
+    read from its original.
 
-    The frame is decoded with the record's matrix and range, sent through the clip's
+    A comp's frame is composed as the render composes it, graphics included, at the
+    comp's size; --height area-averages that picture, as a player shows a smaller copy,
+    and the numbers come from the full frame. The JSON says which layers are on screen
+    and where the frame is on the beat grid.
+
+    A clip's frame is decoded with the record's matrix and range, sent through the clip's
     input transform into the working space, turned by its rotation tag, and sent through
     the project's display and view (by default Rec.1886 Rec.709 with the ACES 2.0 SDR
     view) with CPU OpenColorIO. A clip whose colour space is undecided has no still.
@@ -163,18 +175,26 @@ def still(
     (per channel: minimum, 1st, 50th and 99th percentiles and maximum, in 10-bit output
     codes) come from the float frame before it is quantized.
     """
-    result = still_frame(_project(project_dir), key, at, height=height, threads=threads, out=out)
-    _print_json(result)
+    _one_of(comp, key)
+    if comp is not None:
+        from .look import comp_still
+
+        _print_json(comp_still(_project(project_dir), comp, at, height=height, threads=threads, out=out))
+        return
+    _print_json(still_frame(_project(project_dir), key, at, height=height, threads=threads, out=out))
 
 
 @main.command()
-@click.option("--media", "key", required=True, help="The media key of an imported clip.")
+@click.argument("comp", required=False)
+@click.option("--media", "key", help="The media key of an imported clip, instead of a comp.")
 @click.option(
     "--every",
     required=True,
-    help="The interval between frames: f:N, or seconds that are a whole number of frames. "
-    "Frames are taken from frame 0.",
+    help="The interval between frames. With a comp, a span: b:1 (a beat), f:30, 0.1s for a dense sheet. "
+    "With --media, f:N or seconds that are a whole number of frames, from frame 0.",
 )
+@click.option("--from", "start", help="With a comp: the position the sheet starts at (the comp's start).")
+@click.option("--to", "end", help="With a comp: the position it stops before (the comp's end).")
 @click.option("--columns", type=click.IntRange(min=1), default=COLUMNS, show_default=True, help="Tiles a row.")
 @click.option("--rows", type=click.IntRange(min=1), default=ROWS, show_default=True, help="Rows a page.")
 @click.option(
@@ -191,33 +211,42 @@ def still(
 )
 @_project_option
 def sheet(
-    key: str, every: str, columns: int, rows: int, height: int | None, threads: int | None, out: Path | None,
-    project_dir: Path | None,
+    comp: str | None, key: str | None, every: str, start: str | None, end: str | None, columns: int, rows: int,
+    height: int | None, threads: int | None, out: Path | None, project_dir: Path | None,
 ) -> None:
-    """A contact sheet of one imported clip: a frame at every interval from frame 0, each
-    labelled with its frame number and its seconds from the first frame (to the
-    millisecond).
+    """A contact sheet: of COMP, a frame at every interval as lc still COMP shows it, each
+    labelled with its frame, seconds, beat and the layers on screen; or of an imported clip,
+    a frame at every interval from frame 0, each labelled with its frame number and its
+    seconds from the first frame (to the millisecond).
 
-    Frames come from one decode of the original and go through the same chain as
+    A clip's frames come from one decode of the original and go through the same chain as
     lc still, each area-downscaled to the tile size in the working space. Pages are
     8-bit PNGs, untagged, holding display-encoded code values for the project's
     display and view. The JSON lists every tile with the numbers lc still prints,
     computed on the float tile.
     """
-    result = contact_sheet(
+    _one_of(comp, key)
+    if comp is not None:
+        from .look import comp_sheet
+
+        _print_json(comp_sheet(_project(project_dir), comp, every, start=start, end=end, columns=columns, rows=rows,
+                               height=height, threads=threads, out=out))
+        return
+    assert start is None and end is None, "--from and --to are for a comp's sheet"
+    _print_json(contact_sheet(
         _project(project_dir), key, every, columns=columns, rows=rows, height=height, threads=threads, out=out,
-    )
-    _print_json(result)
+    ))
 
 
 @main.command()
-@click.option("--media", "key", required=True, help="The media key of an imported clip.")
-@click.option("--at", required=True, help="Source time in the clip, as for lc still.")
+@click.argument("comp", required=False)
+@click.option("--media", "key", help="The media key of an imported clip, instead of a comp.")
+@click.option("--at", required=True, help="A comp position, or with --media a source time, as for lc still.")
 @click.option(
     "--height",
     type=click.IntRange(min=1),
-    help="Analyse the frame at this many lines, area-downscaled in the working space; "
-    "by default at the clip's own size.",
+    help="Analyse the frame at this many lines (a clip's area-downscaled in the working space, a comp's on "
+    "its display-encoded values); by default at its own size.",
 )
 @_threads_option
 @click.option(
@@ -227,10 +256,11 @@ def sheet(
 )
 @_project_option
 def scope(
-    key: str, at: str, height: int | None, threads: int | None, out: Path | None, project_dir: Path | None
+    comp: str | None, key: str | None, at: str, height: int | None, threads: int | None, out: Path | None,
+    project_dir: Path | None,
 ) -> None:
-    """Waveform, RGB parade and vectorscope of one frame of an imported clip, read from
-    the original through the same chain as lc still.
+    """Waveform, RGB parade and vectorscope of one frame: of COMP as lc still COMP gives it,
+    or of an imported clip read from the original through the same chain as lc still.
 
     Computed on the display-encoded output of the project's display and view. Luma is
     Y' = 0.2126 R' + 0.7152 G' + 0.0722 B' on the encoded values, and Cb, Cr come from
@@ -245,8 +275,13 @@ def scope(
     magnitude. All are 10-bit output codes, except the fractions, from the float frame
     before it is quantized.
     """
-    result = scope_frame(_project(project_dir), key, at, height=height, threads=threads, out=out)
-    _print_json(result)
+    _one_of(comp, key)
+    if comp is not None:
+        from .look import comp_scope
+
+        _print_json(comp_scope(_project(project_dir), comp, at, height=height, threads=threads, out=out))
+        return
+    _print_json(scope_frame(_project(project_dir), key, at, height=height, threads=threads, out=out))
 
 
 @main.command()

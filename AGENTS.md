@@ -61,6 +61,9 @@ the Phase 0 media tests need samples of your own (see Conventions).
   operation (`key`, `unkey`, `set`, `remap`, `style`, `grade`, `masks`, `transition`),
   and scopes of the frame on screen (on the proxy). Not written yet: the colour page's
   node graph, the graph editor for transform curves.
+- **The agent sees a comp without rendering it**: `lc still COMP --at P`, `lc sheet COMP
+  --every b:1` and `lc scope COMP --at P` show the frame the render delivers, labelled with
+  its beat and the layers on screen (`look.py`).
 - **M5 and M7 have started**: transitions (`dissolve`, `dip`, `fade_in`, `fade_out` in
   the working space, `lc op transition`), precomps (`comp` layers, recursive, composited
   in the working space), layer rotation, masks (rectangles and ellipses, feathered,
