@@ -160,11 +160,12 @@ SIZES = ("fit", "fill", "own")
 
 
 def place(project: Project, name: str, media: str, at: str, size: str = "fit", length: str | None = None,
-          source: str | None = None, expect: str | None = None) -> dict[str, Any]:
+          source: str | None = None, to: str | None = None, expect: str | None = None) -> dict[str, Any]:
     """Put media on the comp at position `at`, on top of the stack: from `source` (a source
     time: `f:` at the media's rate or seconds for footage, seconds for sound; its first
-    frame or sample when absent), for `length` (a span from `at`, written as given) or as
-    long as it lasts, cut off at the comp's end. The layer is named after the media (with
+    frame or sample when absent), for `length` (a span from `at`, written as given), or up
+    to the comp position `to` (written by `span_text`'s rule, as a split writes its cut),
+    or as long as it lasts, cut off at the comp's end. The layer is named after the media (with
     `.2`, `.3` for more). Sound goes in as an audio layer at unity gain. Footage of another
     size is scaled to `fit` the comp (all of it seen, as Resolve's default for a mismatched
     resolution is), to `fill` it (no edge showing, cropped), or left at its `own` size; the
@@ -193,16 +194,17 @@ def place(project: Project, name: str, media: str, at: str, size: str = "fit", l
     offset = Fraction(literal.ticks if isinstance(literal, Seconds) else literal.count * ticks_per_frame(media_rate),
                       TICKS_PER_SECOND)
     assert 0 <= offset < seconds, f"{media} has {float(seconds):.3f} s; it cannot start at {source}"
-    if length is None:
+    assert length is None or to is None, "a layer runs for a length or up to a position, not both"
+    if to is not None:
+        out = _up_to(edit, to, start, frames_land=not sound)
+    elif length is None:
         # As long as the media lasts, cut off at the comp's end: up to the comp's last frame,
         # counted as the comp counts frames, each time on the first frame at or after it.
         frames = min(int((seconds - offset) * edit.rate),
                      first_frame_at_or_after(end, edit.rate) - first_frame_at_or_after(start, edit.rate))
         out = f"f:{frames}"
     else:
-        span = resolve_span(parse_literal(length, Field.LAYER), anchor=start, rate=edit.rate, grid=edit.grid)
-        assert span > 0, f"a layer {length} long shows nothing"
-        out = length
+        out = _length(edit, length, start)
     kind = "audio" if sound else "footage"
     layer = {"id": layer_id, "type": kind, "media": media, "start": at, "source_start": source, "out": out}
     if kind == "footage" and size != "own":
@@ -223,25 +225,41 @@ def place(project: Project, name: str, media: str, at: str, size: str = "fit", l
     return edit.save()
 
 
-def graphic(project: Project, name: str, page: str, at: str, length: str, params: dict[str, Any] | None = None,
-            expect: str | None = None) -> dict[str, Any]:
+def graphic(project: Project, name: str, page: str, at: str, length: str | None = None,
+            params: dict[str, Any] | None = None, to: str | None = None, expect: str | None = None) -> dict[str, Any]:
     """Put the web page `page` (`graphics/NAME.html`, 05-motion-graphics.md) on top of the
-    comp at position `at` for `length` (a span, written as given), drawn in display space
-    over everything, with `params` handed to the page. The layer is named after the page
-    (with `.2`, `.3` for more)."""
+    comp at position `at` for `length` (a span, written as given) or up to position `to`,
+    drawn in display space over everything, with `params` handed to the page. The layer is
+    named after the page (with `.2`, `.3` for more)."""
+    assert (length is None) != (to is None), "a graphic runs for a length or up to a position, one of the two"
     edit = Edit.open(project, name, expect)
     assert (project.directory / page).is_file(), f"{page} is not in the project"
     base = page.removeprefix("graphics/").removesuffix(".html")
     taken = {layer["id"] for layer in edit.data["layers"]}
     layer_id = base if base not in taken else next(f"{base}.{k}" for k in range(2, 1000) if f"{base}.{k}" not in taken)
     start = resolve_position(parse_literal(at, Field.POSITION), rate=edit.rate, grid=edit.grid)
-    span = resolve_span(parse_literal(length, Field.LAYER), anchor=start, rate=edit.rate, grid=edit.grid)
-    assert span > 0, f"a layer {length} long shows nothing"
-    layer = {"id": layer_id, "type": "graphics", "page": page, "space": "display", "start": at, "out": length}
+    out = _length(edit, length, start) if to is None else _up_to(edit, to, start, frames_land=True)
+    layer = {"id": layer_id, "type": "graphics", "page": page, "space": "display", "start": at, "out": out}
     if params:
         layer["params"] = params
     edit.data["layers"].append(layer)
-    edit.changes.append(f"{page} placed at {at} as {layer_id}, {length} long"
+    edit.changes.append(f"{page} placed at {at} as {layer_id}, {out} long"
                         + (f", with {', '.join(sorted(params))}" if params else ""))
     _resolves(project, edit)
     return edit.save()
+
+
+def _length(edit: Edit, length: str, start: int) -> str:
+    """A layer's out point given as its length from `start`: written as given."""
+    span = resolve_span(parse_literal(length, Field.LAYER), anchor=start, rate=edit.rate, grid=edit.grid)
+    assert span > 0, f"a layer {length} long shows nothing"
+    return length
+
+
+def _up_to(edit: Edit, to: str, start: int, *, frames_land: bool) -> str:
+    """A layer's out point given as the comp position it ends at, written as a span from
+    `start` in the unit `to` was given in when that holds it, else (for a layer shown on
+    frames) to the frame `to` lands on, as a split writes its cut."""
+    point = resolve_position(parse_literal(to, Field.POSITION), rate=edit.rate, grid=edit.grid)
+    assert point > start, f"{to} is not after the layer's start"
+    return span_text(None, to, point - start, start, edit.rate, edit.grid, frames_land=frames_land)

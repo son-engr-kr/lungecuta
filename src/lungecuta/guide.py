@@ -80,8 +80,11 @@ cache still matches its comp. `lc validate` checks every file.
 Choose in points from the footage itself: `lc sheet --media KEY --every f:15` labels each
 frame with its seconds. Then one `place` per shot, on the beat grid:
 `lc op place COMP KEY --at b:8 --for b:4 --source 2.5s` puts KEY from 2.5 s into it at
-beat 8 for four beats. A later layer is drawn over an earlier one, so shots that meet at
-cuts need no ordering. `lc audio-check COMP` then gives every cut's offset to its beat.
+beat 8 for four beats; `--to b:4` ends a layer at a position instead, as the first shot
+from `0s` needs (no beat span starts before the first beat). A later layer is drawn over
+an earlier one, so shots that meet at cuts need no ordering. `lc op graphic COMP
+graphics/title.html --at 0s --to b:4 --params '{{...}}'` puts a title page on top.
+`lc audio-check COMP` then gives every cut's offset to its beat.
 
 ## What you cannot judge
 

@@ -144,30 +144,34 @@ def op_split(comp: str, layer: str, at: str, project_dir: Path | None) -> None:
 @click.argument("media")
 @click.option("--at", required=True, help="The comp position the layer starts at.")
 @click.option("--for", "length", help="How long the layer runs, a span from --at (b:4, f:48, 2s), written as "
-              "given; as long as the media lasts, up to the comp's end, when absent.")
+              "given; as long as the media lasts, up to the comp's end, when neither this nor --to is given.")
+@click.option("--to", help="The comp position the layer ends at, instead of --for (b:4 from --at 0s, before the "
+              "first beat, is written as the frame b:4 lands on).")
 @click.option("--source", help="The source in point: f:N at the media's own rate or seconds for footage, seconds "
               "for sound; its first frame or sample when absent.")
 @click.option("--size", type=click.Choice(["fit", "fill", "own"]), default="fit", show_default=True,
               help="Footage of another size: scaled to fit the comp (all of it seen), to fill it (cropped), or at "
                    "its own size.")
 @project_option
-def op_place(comp: str, media: str, at: str, length: str | None, source: str | None, size: str,
+def op_place(comp: str, media: str, at: str, length: str | None, to: str | None, source: str | None, size: str,
              project_dir: Path | None) -> None:
     """Put MEDIA on the comp at a position, from a source in point, for a length or as long
     as it lasts: footage under any graphics, scaled to the comp as --size says, music and
     sounds as audio layers. One place per shot builds a cut: `--at b:8 --for b:4 --source
     2.5s`."""
-    print_json(ops.place(project_of(project_dir), comp, media, at, size, length, source))
+    print_json(ops.place(project_of(project_dir), comp, media, at, size, length, source, to))
 
 
 @op.command("graphic")
 @click.argument("comp")
 @click.argument("page")
 @click.option("--at", required=True, help="The comp position the layer starts at.")
-@click.option("--for", "length", required=True, help="How long it runs, a span from --at (b:2, 1.5s), written as given.")
+@click.option("--for", "length", help="How long it runs, a span from --at (b:2, 1.5s), written as given.")
+@click.option("--to", help="The comp position it ends at, instead of --for.")
 @click.option("--params", help="A JSON object handed to the page as its params.")
 @project_option
-def op_graphic(comp: str, page: str, at: str, length: str, params: str | None, project_dir: Path | None) -> None:
+def op_graphic(comp: str, page: str, at: str, length: str | None, to: str | None, params: str | None,
+               project_dir: Path | None) -> None:
     """Put the web page PAGE (graphics/NAME.html: it sets window.ready and draws layer time
     t in window.renderAt(t)) on top of the comp at a position for a length, in display
     space over everything, with --params handed to it."""
@@ -175,7 +179,7 @@ def op_graphic(comp: str, page: str, at: str, length: str, params: str | None, p
 
     given = None if params is None else json.loads(params)
     assert given is None or isinstance(given, dict), f"--params is a JSON object, not {params}"
-    print_json(ops.graphic(project_of(project_dir), comp, page, at, length, given))
+    print_json(ops.graphic(project_of(project_dir), comp, page, at, length, given, to))
 
 
 @op.command("snap")

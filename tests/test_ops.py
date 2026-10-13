@@ -353,3 +353,21 @@ def test_a_graphic_goes_on_top_for_its_length(cut_project):
     assert order[-3:] == ["C0001", "title", "title.2"]
     with pytest.raises(AssertionError, match="graphics/none.html is not in the project"):
         ops.graphic(Project.load(cut_project), "main", "graphics/none.html", "b:1", "b:1")
+
+
+def test_a_layer_placed_up_to_a_beat_from_before_the_grid_ends_on_its_frame(cut_project):
+    from clips import TITLE
+
+    # the first beat is at 0.25 s: no beat span from 0 s exists, so up to b:4 is the frame it lands on
+    comp = json.loads((cut_project / "comps" / "main.json").read_text())
+    comp["layers"] = comp["layers"][:1]
+    (cut_project / "comps" / "main.json").write_text(json.dumps(comp))
+    ops.place(Project.load(cut_project), "main", "C0001", "0s", to="b:4")
+    assert layers(cut_project)["C0001"]["out"] == "f:68"
+    ops.place(Project.load(cut_project), "main", "C0001", "b:4", to="b:6")
+    assert layers(cut_project)["C0001.2"]["out"] == "b:2"
+    (cut_project / "graphics" / "title.html").write_text(TITLE)
+    ops.graphic(Project.load(cut_project), "main", "graphics/title.html", "0s", to="b:2")
+    assert layers(cut_project)["title"]["out"].startswith("f:")
+    with pytest.raises(AssertionError, match="not both"):
+        ops.place(Project.load(cut_project), "main", "C0001", "b:6", length="b:1", to="b:8")

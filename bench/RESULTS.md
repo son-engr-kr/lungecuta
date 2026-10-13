@@ -677,3 +677,30 @@ on MPS.
 
 Quote them with their origin, and re-measure here before a decision rests on one. A
 private origin cannot be checked from this repository.
+
+## A second edit made as an agent makes one: `sh bench/dry_run2.sh FOOTAGE MUSIC WORKDIR`
+
+The S-Log3 sample and the music sample, 2026-10-13: a 16-beat comp built one `lc op place`
+per shot (four shots from 1, 6, 12 and 18 s of the clip, the first from 0 s up to `b:4`),
+a time-remap ramp on the third, a title page on the first bar (`lc op graphic`), a
+synthesized click on every cut (`lc op sfx --on cuts`), then the checks and the web-h264
+render.
+
+| stage | s |
+| --- | --- |
+| import the footage, the music, the click | 26, 3, under 1 |
+| the edit, 11 commands | 2 |
+| `lc lint`, `lc audio-check` | under 1, 1 |
+| `lc sheet` at every beat (16 tiles), `lc still` at a cut | 6, 2 |
+| `lc render --preset web-h264` (7.7 s of comp) | 23 |
+| `lc verify`, `lc flash` | 5, 5 |
+
+Every check passed (-14.0 LUFS, -1.6 dBTP, 39.33 dB PSNR against the reference frames;
+no flash). Cuts landed 10.5 to 25.8 ms after their beats. `lc lint` warned twice that
+consecutive clicks are the same sound, as its rule says with one sound given. The cuts'
+nearest onsets were 10 to 41 ms before them: SuperFlux combines onsets within 30 ms,
+keeping the first, so a click on a cut just after a drum hit is reported as the hit. The
+first run stopped on one thing: `--for b:4` from `0s` has no meaning before the first beat,
+so `place` and `graphic` take `--to`, the position a layer ends at. The footage import
+took 26 s here against 14 s in the first dry run's second pass, on a machine in use.
+
