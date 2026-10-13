@@ -45,10 +45,12 @@ def cuts(resolved: Resolved, first: int, last: int, onset_times: list[float] | N
     downbeats = set() if grid is None else {grid.times[k] for k in grid.downbeats}
     out = []
     for cut in resolved.cuts:
-        at = cut.first * tick
-        if not first <= at < last or cut.first == 0:
+        at = cut.cut_frame * tick  # under a dissolve, its middle, where the edit is
+        if not first <= at < last or cut.cut_frame == 0:
             continue
-        row: dict[str, Any] = {"layer": cut.layer.id, "frame": cut.first, "seconds": round(at / TICKS_PER_SECOND, 6)}
+        row: dict[str, Any] = {"layer": cut.layer.id, "frame": cut.cut_frame, "seconds": round(at / TICKS_PER_SECOND, 6)}
+        if cut.cut_at is not None:
+            row["dissolve_from_frame"] = cut.first
         if grid is not None:
             nearest = min(range(len(grid.times)), key=lambda k: abs(grid.times[k] - at))
             row |= {"nearest_beat": nearest, "offset_ms": round((at - grid.times[nearest]) / TICKS_PER_SECOND * 1000, 2),

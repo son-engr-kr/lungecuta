@@ -166,6 +166,7 @@ class Cut:
     speed_track: Track | None = None  # a style's speed against comp time, 1 outside its keys
     ramps: tuple[tuple[int, int, float, float], ...] = ()  # transitions: opacity from a0 to a1 over frames [f0, f1)
     shutter: Track | None = None  # motion blur: the output shutter in degrees against comp ticks; None is none
+    cut_at: int | None = None  # the frame its cut is on, when a dissolve has it begin before (else `first`)
     style_shutter: Track | None = None  # a style's shutter, which holds inside its keys
 
     def shutter_deg(self, ticks: int) -> float:
@@ -177,6 +178,12 @@ class Cut:
     @property
     def blurred(self) -> bool:
         return self.shutter is not None or self.style_shutter is not None
+
+    @property
+    def cut_frame(self) -> int:
+        """The frame the cut to this layer is on: its first, or under a dissolve the frame
+        the dissolve is centred on, where the edit is."""
+        return self.first if self.cut_at is None else self.cut_at
 
     def opacity_at(self, frame: int) -> float:
         """The opacity transitions give comp frame `frame`, linear over each ramp's frames
@@ -615,7 +622,8 @@ def _transitions(comp: CompFile, cuts: list[Cut], rate: Fraction, grid: BeatGrid
         return cuts
     tick = ticks_per_frame(rate)
     order = {layer.id: k for k, layer in enumerate(comp.layers)}
-    state = {cut.layer.id: {"first": cut.first, "end": cut.end, "ramps": list(cut.ramps)} for cut in cuts}
+    state = {cut.layer.id: {"first": cut.first, "end": cut.end, "ramps": list(cut.ramps), "cut_at": None}
+             for cut in cuts}
     by_id = {cut.layer.id: cut for cut in cuts}
     for transition in comp.transitions:
         literal = parse_literal(transition.length, Field.LAYER)
@@ -637,6 +645,7 @@ def _transitions(comp: CompFile, cuts: list[Cut], rate: Fraction, grid: BeatGrid
             assert f0 < a.end < f1, f"a {transition.type} of {transition.length} spans no frame on either side of the cut"
             if transition.type == "dissolve":
                 state[a.layer.id]["end"], state[b.layer.id]["first"] = f1, f0
+                state[b.layer.id]["cut_at"] = a.end
                 if order[b.layer.id] > order[a.layer.id]:
                     state[b.layer.id]["ramps"].append((f0, f1, 0.0, 1.0))
                 else:
@@ -659,7 +668,8 @@ def _transitions(comp: CompFile, cuts: list[Cut], rate: Fraction, grid: BeatGrid
     out = []
     for cut in cuts:
         changed = state[cut.layer.id]
-        out.append(_checked(replace(cut, first=changed["first"], end=changed["end"], ramps=tuple(changed["ramps"]))))
+        out.append(_checked(replace(cut, first=changed["first"], end=changed["end"], ramps=tuple(changed["ramps"]),
+                                    cut_at=changed["cut_at"])))
     return sorted(out, key=lambda cut: cut.first)
 
 

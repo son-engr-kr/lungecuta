@@ -28,7 +28,8 @@ def _events(edit: Edit, on: str, first: int, last: int) -> list[str]:
     resolved = resolve(edit.project, edit.comp)
     tick = ticks_per_frame(edit.rate)
     if on == "cuts":
-        frames = sorted({cut.first for cut in resolved.cuts if cut.first > 0 and first <= cut.first * tick < last})
+        frames = sorted({cut.cut_frame for cut in resolved.cuts
+                         if cut.cut_frame > 0 and first <= cut.cut_frame * tick < last})
         return [f"f:{frame}" for frame in frames]
     if on == "markers":
         return [f"f:{at.frame}" for at in resolved.markers if first <= at.frame * tick < last]

@@ -447,6 +447,33 @@ last bass note's cut-off click is found and nothing else, each 5 or 10 ms before
 31 ms after their beats and -14 to +38 ms from their nearest onsets, 102 onsets in the
 comp's 15.9 s.
 
+## An edit made as an agent makes one: `sh bench/dry_run.sh FOOTAGE MUSIC WORKDIR`
+
+The S-Log3 sample and the music sample, 2026-10-13, every stage through `lc` from an empty
+project: a 1080p comp 32 beats long on the song (15.4 s), the clip placed at 0 s and split
+on every bar, two parts slipped, a punch-in style on four parts, a look on all eight, a
+dissolve, then the checks and the web-h264 render. Each stage's wall time:
+
+| stage | s |
+| --- | --- |
+| import the 4K footage (probe, decoder check, proxy and its parity test) | 64 |
+| import the music (WAV and beat map) | 3 |
+| the edit, 30 `lc op` calls | 4 |
+| `lc lint`, `lc audio-check` | under 1 each |
+| `lc sheet` at every bar | 8 |
+| `lc render --preset web-h264` | 58 |
+| `lc verify` | 35 |
+| `lc flash` | 13 |
+
+The render verified (-14.0 LUFS, -1.6 dBTP, every check passed), the flash check passed,
+and every cut landed 0 to 26 ms after its beat. Building it first time round stopped on
+seven things the unit tests had not met, all fixed before these numbers: an end in beats
+refused by `new-comp`, beat splits of a clip `place` wrote in frames, split names
+growing `.2.2.2`, a 4K clip left at its own size in a 1080p comp, the comp's last frame left
+black by `place`, beat cuts and styles on a layer that starts at 0 s before the first beat,
+and a split part that could not be slipped back past its layer time 0; `lc audio-check`
+also reported a dissolved cut at the dissolve's start, 226 ms before its beat.
+
 ## 4K into numpy: `uv run bench/pipe_read.py CLIP 300 sw|hw`
 
 ffmpeg decode, `rgb48le` over a pipe, converted to float32 in numpy, 300 frames:

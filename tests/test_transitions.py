@@ -87,3 +87,16 @@ def test_lc_op_transition_adds_replaces_and_takes_off(cut_project):
     assert checked.exit_code == 0, checked.output
     assert runner.invoke(main, ["op", "untransition", "main", "dissolve", "shot1", "shot2", *args]).exit_code == 0
     assert "transitions" not in json.loads((cut_project / "comps" / "main.json").read_text())
+
+
+def test_a_dissolved_cut_is_reported_where_the_edit_is(cut_project):
+    from lungecuta.audio_check import audio_check
+
+    comp = comp_json()
+    comp["layers"][2]["source_start"] = "f:20"  # handles for the dissolve to reach into
+    comp["transitions"] = [{"type": "dissolve", "layers": ["shot1", "shot2"], "length": "b:1"}]
+    put_comp(cut_project, comp)
+    project = Project.load(cut_project)
+    (row,) = [c for c in audio_check(project, "main")["cuts"] if c["layer"] == "shot2"]
+    # shot2 begins half a beat early under the dissolve; its cut is still at b:4, frame 68
+    assert row["frame"] == 68 and row["dissolve_from_frame"] < 68 and row["nearest_beat"] == 4
