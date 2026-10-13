@@ -2,8 +2,9 @@
 a machine can check, as warnings, each with its threshold in `project.json`'s `lint`.
 
 Checked so far: graphics layers on screen long enough to read, no source frame shown by
-two layers, a licence record on every music file and sound a comp uses, and no sound
-on two consecutive sound layers ("SFX vary"). Flashes are checked on a render, by
+two layers, a licence record on every music file and sound a comp uses, no sound on two
+consecutive sound layers ("SFX vary"), and no frame with nothing on screen (a gap between
+cuts, or the frame before a first cut on a beat that falls just after the comp's start). Flashes are checked on a render, by
 `lc flash FILE` (`flash.py`), since any layer can make one. Not checked yet, and listed in
 every report so their absence is not mistaken for a pass: the dead gap before a hit (it
 needs the crescendo found), sources for on-screen numbers and font licences (no text
@@ -66,6 +67,14 @@ def lint(project: Project, name: str) -> dict[str, Any]:
                 warnings.append({"rule": "music_licence", "layers": [s.layer.id for s in sounds
                                                                      if s.record.key == key],
                                  "message": f"{key} has no licence record (lc licence {key} --name ... --source ...)"})
+    if settings.no_black:
+        empty = [index for index in range(resolved.end)
+                 if not resolved.stack(index) and not resolved.nests_at(index)
+                 and not any(o.first <= index < o.end for o in resolved.overlays)]
+        for first, last in _ranges(empty):
+            warnings.append({"rule": "no_black", "layers": [],
+                             "message": f"nothing is on screen on frame{'s' if last > first else ''} {first}"
+                                        + (f" to {last}" if last > first else "")})
     if settings.sfx_vary:
         effects = sorted((s for s in resolved.every_sound() if s.record.beats is None), key=lambda s: s.first)
         for before, after in zip(effects, effects[1:]):

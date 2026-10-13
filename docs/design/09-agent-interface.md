@@ -139,6 +139,7 @@ until the user chooses otherwise.
 | montage shots do not repeat | no source range is used twice in a comp |
 | SFX vary | the same sound is not on two consecutive sound layers (`lint.sfx_vary`) |
 | no dead gap before the hit | no silence or black between the crescendo and the hit marker |
+| nothing black by accident | no comp frame with nothing on screen (`lint.no_black`): a gap between cuts, or the frame before a first cut on a beat that falls a few milliseconds after the comp's start |
 | on-screen claims have sources | a text layer containing a number carries a `source` note |
 | fonts are licensed | every font used is in the font registry with a licence that allows it (SF Pro was dropped for this reason) |
 | music is cleared | every music file carries a licence record (CC0 checked on the page, not the search filter) |

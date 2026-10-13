@@ -70,6 +70,12 @@
           "description": "the same sound is not on two consecutive sound layers",
           "title": "Sfx Vary",
           "type": "boolean"
+        },
+        "no_black": {
+          "default": true,
+          "description": "no comp frame has nothing on screen, a gap between cuts or a frame before the first, as when a cut on the first beat lands a frame in",
+          "title": "No Black",
+          "type": "boolean"
         }
       },
       "title": "LintSettings",

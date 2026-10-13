@@ -38,6 +38,8 @@ class LintSettings(BaseModel):
     music_licence: bool = Field(default=True, description="every music file and sound in a comp carries a licence "
                                 "record")
     sfx_vary: bool = Field(default=True, description="the same sound is not on two consecutive sound layers")
+    no_black: bool = Field(default=True, description="no comp frame has nothing on screen, a gap between cuts or a "
+                           "frame before the first, as when a cut on the first beat lands a frame in")
 
 
 class ProjectFile(BaseModel):

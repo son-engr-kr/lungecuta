@@ -9,10 +9,35 @@ from typing import Any
 
 from ..comp import beat_grid, load_comp
 from ..files import content_hash, json_text, replace_if_unchanged
-from ..literals import Bar, BeatGrid, BeatPosition, BeatSpan, Field, Frames, Seconds, Timecode, TimeLiteral, format_literal, parse_literal, position_literal, resolve_position, resolve_span, source_literal, span_literal
+from ..literals import TICKS_PER_SECONDS_STEP, Bar, BeatGrid, BeatPosition, BeatSpan, Field, Frames, Seconds, Timecode, TimeLiteral, format_literal, parse_literal, position_literal, resolve_position, resolve_span, source_literal, span_literal
 from ..media import Project, load_record
 from ..schema.comp import CompFile
-from ..ticks import parse_rate
+from ..ticks import parse_rate, ticks_per_frame
+
+
+def _holds(unit: str, ticks: int, rate: Fraction, grid: BeatGrid | None) -> bool:
+    """Whether a span of `ticks` can be written in `unit` exactly: frames and timecode in
+    whole frames, seconds to their digits, beats (to the nearest tick) on a grid."""
+    if unit in ("f", "tc"):
+        return ticks % ticks_per_frame(rate) == 0
+    if unit == "s":
+        return ticks % TICKS_PER_SECONDS_STEP == 0
+    return grid is not None
+
+
+def span_unit(old: str | None, given: str | None, ticks: int, rate: Fraction, grid: BeatGrid | None) -> str:
+    """The unit a span is written in: the one it has (`old`), unless that cannot hold the
+    new length exactly, then the unit of the time the edit was `given` in (a cut on a beat
+    of a layer whose length is in frames is written in beats). A bar counts as beats."""
+    units = [] if old is None else [_unit(parse_literal(old, Field.LAYER))]
+    if given is not None:  # a position or an amount: only its unit matters here
+        units.append(next(unit for prefix, unit in (("bar:", "b"), ("b:", "b"), ("f:", "f"), ("tc:", "tc"))
+                          if given.lstrip("-").startswith(prefix)) if ":" in given else "s")
+    units = ["b" if unit == "bar" else unit for unit in units]
+    for unit in units:
+        if _holds(unit, ticks, rate, grid):
+            return unit
+    raise AssertionError(f"a span of {ticks} ticks cannot be written exactly in {' or '.join(units)}")
 
 
 def _unit(literal: TimeLiteral) -> str:
@@ -90,8 +115,8 @@ class Edit:
         """Write a span of the layer; a field never written takes the unit of the amount
         `given` (an absent `in` is 0 in no unit of its own)."""
         old = layer.get(key, "0s")
-        unit = _unit(parse_literal(old, Field.LAYER)) if key in layer or given is None else \
-            _unit(parse_literal(given, Field.STYLE))
+        unit = span_unit(layer.get(key), given, ticks, self.rate, self.grid) if key in layer or given is not None \
+            else _unit(parse_literal(old, Field.LAYER))
         anchor = self.start(layer)
         new = format_literal(span_literal(ticks, unit, anchor=anchor, rate=self.rate, grid=self.grid))
         layer[key] = new

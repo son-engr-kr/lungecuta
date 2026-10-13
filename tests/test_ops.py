@@ -111,10 +111,15 @@ def test_a_new_comp_is_written_and_listed(cut_project):
     settings = json.loads((cut_project / "project.json").read_text())
     assert "comps/promo.json" in settings["comps"]
     comp = json.loads((cut_project / "comps" / "promo.json").read_text())
-    assert comp["beats"] == {"from_layers": ["music"]} and comp["layers"][0]["out"] == "f:239"
+    # 8 s is 239.76 frames: the comp runs 240 frames, and its music to the end of the last one
+    assert comp["beats"] == {"from_layers": ["music"]} and comp["layers"][0]["out"] == "f:240"
     from lungecuta.comp import load_comp, resolve
     project = Project.load(cut_project)
     assert resolve(project, load_comp(project, "promo")).grid is not None
+    beats = CliRunner().invoke(main, ["new-comp", "bars", "--size", "64x36", "--rate", "25", "--end", "bar:2",
+                                      "--music", "track", "--project", str(cut_project)])
+    assert beats.exit_code == 0, beats.output  # an end on the music's own bars and beats
+    assert json.loads((cut_project / "comps" / "bars.json").read_text())["layers"][0]["out"] == "f:107"  # 4.25 s
     again = CliRunner().invoke(main, ["new-comp", "promo", "--size", "64x36", "--rate", "25", "--end", "1s",
                                       "--project", str(cut_project)])
     assert again.exit_code != 0
@@ -251,3 +256,32 @@ def test_a_key_moves_in_time_with_its_value_and_ease(cut_project):
         ops.move_key(Project.load(cut_project), "main", "shot1", "scale", "b:3+0.5", "b:3")
     with pytest.raises(AssertionError, match="no scale key"):
         ops.move_key(Project.load(cut_project), "main", "shot1", "scale", "b:2", "b:1")
+
+
+def test_a_beat_split_of_a_placed_clip_writes_beats(cut_project):
+    # lc op place writes a clip's length in frames; a cut on a beat cannot be a whole number of
+    # frames from a beat start, so the new out and in points are written in beats instead
+    comp = json.loads((cut_project / "comps" / "main.json").read_text())
+    comp["layers"] = comp["layers"][:1]
+    (cut_project / "comps" / "main.json").write_text(json.dumps(comp))
+    ops.place(Project.load(cut_project), "main", "C0001", "b:0")
+    assert layers(cut_project)["C0001"]["out"].startswith("f:")
+    ops.split(Project.load(cut_project), "main", "C0001", "b:1")
+    assert layers(cut_project)["C0001"]["out"] == "b:1" and layers(cut_project)["C0001.2"]["in"] == "b:1"
+    ops.trim(Project.load(cut_project), "main", "C0001.2", "out", "b:-1")  # its out, in frames, takes a beat too
+    assert layers(cut_project)["C0001.2"]["out"].startswith("b:")
+
+
+
+def test_placed_footage_fits_or_fills_the_comp(cut_project):
+    comp = json.loads((cut_project / "comps" / "main.json").read_text())
+    comp["size"] = [36, 64]  # 9:16 from 16:9 footage
+    comp["layers"] = comp["layers"][:1]
+    (cut_project / "comps" / "main.json").write_text(json.dumps(comp))
+    result = ops.place(Project.load(cut_project), "main", "C0001", "b:0")
+    assert layers(cut_project)["C0001"]["transform"] == {"scale": 0.28125}  # the 128 x 72 clip, all of it seen
+    assert result["changes"][0].endswith("scaled 0.28125 to fit the comp")
+    ops.place(Project.load(cut_project), "main", "C0001", "b:4", size="fill")
+    assert layers(cut_project)["C0001.2"]["transform"]["scale"] == pytest.approx(64 / 72, abs=1e-6)
+    ops.place(Project.load(cut_project), "main", "C0001", "b:8", size="own")
+    assert "transform" not in layers(cut_project)["C0001.3"]

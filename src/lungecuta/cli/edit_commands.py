@@ -140,11 +140,14 @@ def op_split(comp: str, layer: str, at: str, project_dir: Path | None) -> None:
 @click.argument("comp")
 @click.argument("media")
 @click.option("--at", required=True, help="The comp position the layer starts at.")
+@click.option("--size", type=click.Choice(["fit", "fill", "own"]), default="fit", show_default=True,
+              help="Footage of another size: scaled to fit the comp (all of it seen), to fill it (cropped), or at "
+                   "its own size.")
 @project_option
-def op_place(comp: str, media: str, at: str, project_dir: Path | None) -> None:
+def op_place(comp: str, media: str, at: str, size: str, project_dir: Path | None) -> None:
     """Put MEDIA on the comp at a position, as long as it lasts: footage under any graphics,
-    music as an audio layer."""
-    print_json(ops.place(project_of(project_dir), comp, media, at))
+    scaled to the comp as --size says, music and sounds as audio layers."""
+    print_json(ops.place(project_of(project_dir), comp, media, at, size))
 
 
 @op.command("snap")

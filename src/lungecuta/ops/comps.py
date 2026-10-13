@@ -24,15 +24,20 @@ def new_comp(project: Project, name: str, *, size: tuple[int, int], rate: str, e
     layers = []
     data: dict[str, Any] = {"id": name, "size": list(size), "rate": rate, "end": end, "layers": layers}
     if music is not None:
+        from ..comp import beat_grid
+
         record = load_record(project, music)
         assert record.beats is not None, f"{music} has no beat map; import a music file"
-        parse_rate(rate)
-        end_ticks = resolve_position(parse_literal(end, Field.POSITION), rate=parse_rate(rate))
+        frame_rate = parse_rate(rate)
         seconds = Fraction(record.wav.samples, record.wav.rate)
-        frames = min(int(seconds * parse_rate(rate)), end_ticks // ticks_per_frame(parse_rate(rate)))
-        layers.append({"id": "music", "type": "audio", "media": music, "start": "0s", "out": f"f:{frames}",
+        whole = int(seconds * frame_rate)
+        layers.append({"id": "music", "type": "audio", "media": music, "start": "0s", "out": f"f:{whole}",
                        "source_start": "0s"})
         data["beats"] = {"from_layers": ["music"]}
+        # the end may be a beat or a bar of this music: its grid is the comp's
+        grid = beat_grid(project, CompFile.model_validate(data | {"end": f"f:{whole}"}), frame_rate)
+        end_ticks = resolve_position(parse_literal(end, Field.POSITION), rate=frame_rate, grid=grid)
+        layers[0]["out"] = f"f:{min(whole, -(-end_ticks // ticks_per_frame(frame_rate)))}"
     comp = CompFile.model_validate(data)
     project_path = project.directory / PROJECT_FILE
     read_hash = content_hash(project_path)

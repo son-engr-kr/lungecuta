@@ -2,13 +2,15 @@
 snap to beats, and placing media (06-editing.md#edit-operations)."""
 from __future__ import annotations
 
+import re
 from fractions import Fraction
 from typing import Any
 
 from ..literals import Field, Frames, Seconds, format_literal, parse_literal, resolve_position, resolve_source, span_literal
+from ..geometry import shown_size
 from ..media import Project, load_record
 from ..ticks import parse_rate, ticks_per_frame
-from .edit import Edit, _delta, _resolves, _unit
+from .edit import Edit, _delta, _resolves, span_unit
 
 
 def move(project: Project, name: str, layer_id: str, by: str, expect: str | None = None) -> dict[str, Any]:
@@ -112,9 +114,10 @@ def ripple_delete(project: Project, name: str, layer_id: str, expect: str | None
 
 
 def split(project: Project, name: str, layer_id: str, at: str, expect: str | None = None) -> dict[str, Any]:
-    """Cut a layer in two at comp position `at`: the first part ends there and a copy,
-    `ID.2`, starts there, both with the same start, source and keys, as After Effects'
-    split does."""
+    """Cut a layer in two at comp position `at`: the first part ends there and a copy
+    starts there, both with the same start, source and keys, as After Effects' split does.
+    The copy is named after the layer with the next free number (`shot.2`, then `shot.3`
+    for the next split, never `shot.2.2`)."""
     edit = Edit.open(project, name, expect)
     layer = edit.layer(layer_id)
     point = resolve_position(parse_literal(at, Field.POSITION), rate=edit.rate, grid=edit.grid)
@@ -122,11 +125,11 @@ def split(project: Project, name: str, layer_id: str, at: str, expect: str | Non
     assert start + edit.span(layer, "in") < point < start + edit.span(layer, "out"), (
         f"{at} is not inside {layer_id}'s visible range"
     )
-    second = dict(layer, id=f"{layer_id}.2")
-    assert all(other["id"] != second["id"] for other in edit.data["layers"]), f"{second['id']} exists already"
+    base = re.sub(r"\.\d+$", "", layer_id)
+    taken = {other["id"] for other in edit.data["layers"]}
+    second = dict(layer, id=next(f"{base}.{k}" for k in range(2, 100000) if f"{base}.{k}" not in taken))
     edit.set_span(layer, "out", point - start, given=at)
-    unit = _unit(parse_literal(layer["in"], Field.LAYER)) if "in" in layer else _unit(parse_literal(at, Field.POSITION))
-    unit = "b" if unit == "bar" else unit
+    unit = span_unit(layer.get("in"), at, point - start, edit.rate, edit.grid)
     second["in"] = format_literal(span_literal(point - start, unit, anchor=start, rate=edit.rate, grid=edit.grid))
     edit.data["layers"].insert(edit.data["layers"].index(layer) + 1, second)
     edit.changes.append(f"{layer_id} split at {at}: {second['id']} from {second['in']}")
@@ -151,11 +154,18 @@ def snap(project: Project, name: str, layer_id: str, expect: str | None = None) 
     return edit.save()
 
 
-def place(project: Project, name: str, media: str, at: str, expect: str | None = None) -> dict[str, Any]:
+SIZES = ("fit", "fill", "own")
+
+
+def place(project: Project, name: str, media: str, at: str, size: str = "fit",
+          expect: str | None = None) -> dict[str, Any]:
     """Put media on the comp at position `at`, on top of the stack: footage from its first
     frame for as long as it lasts, music or a sound from its first sample. The layer is
     named after the media (with `.2`, `.3` for more). Sound goes in as an audio layer at
-    unity gain."""
+    unity gain. Footage of another size is scaled to `fit` the comp (all of it seen, as
+    Resolve's default for a mismatched resolution is), to `fill` it (no edge showing,
+    cropped), or left at its `own` size; the scale is written out, never implied."""
+    assert size in SIZES, f"{size!r} is not a size ({', '.join(SIZES)})"
     edit = Edit.open(project, name, expect)
     record = load_record(project, media)
     taken = {layer["id"] for layer in edit.data["layers"]}
@@ -173,9 +183,17 @@ def place(project: Project, name: str, media: str, at: str, expect: str | None =
     frames = min(int(seconds * edit.rate), (end - start) // ticks_per_frame(edit.rate))
     kind, source = ("audio", "0s") if record.wav is not None else ("footage", "f:0")
     layer = {"id": layer_id, "type": kind, "media": media, "start": at, "source_start": source, "out": f"f:{frames}"}
+    if kind == "footage" and size != "own":
+        shown = shown_size(record.probe.video.size, record.probe.video.rotation)
+        comp_w, comp_h = edit.data["size"]
+        ratios = (comp_w / shown[0], comp_h / shown[1])
+        scale = min(ratios) if size == "fit" else max(ratios)
+        if scale != 1:
+            layer["transform"] = {"scale": round(scale, 6)}
     graphics = [k for k, other in enumerate(edit.data["layers"]) if other["type"] == "graphics"]
     # Footage goes under the graphics (they are top overlays); everything else on top.
     index = graphics[0] if graphics and layer["type"] == "footage" else len(edit.data["layers"])
     edit.data["layers"].insert(index, layer)
-    edit.changes.append(f"{media} placed at {at} as {layer_id}, {layer['out']} long")
+    edit.changes.append(f"{media} placed at {at} as {layer_id}, {layer['out']} long"
+                        + (f", scaled {layer['transform']['scale']} to {size} the comp" if "transform" in layer else ""))
     return edit.save()
