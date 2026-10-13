@@ -164,21 +164,27 @@ def finish(project: Project, resolved: Resolved, index: int, footage: dict[str, 
     return np.ascontiguousarray(np.concatenate([frame, cover], axis=2), dtype=np.float32)
 
 
-def footage_at(project: Project, resolved: Resolved, index: int, threads: int | None = None) -> dict[str, tuple]:
-    """Comp frame `index`'s footage layers read one frame at a time (no streaming decode),
-    placed: what checks, stills of a comp and precomps use."""
+def layer_frame(project: Project, cut: Cut, index: int, threads: int | None = None) -> np.ndarray:
+    """A footage layer's frame as shown on comp frame `index`, in the working space, before
+    it is placed: its source frames read one at a time (no streaming decode), through the
+    input transform, and `shown`."""
     from .still import open_clip
 
-    footage = {}
-    for cut in resolved.stack(index):
-        clip = open_clip(project, cut.record)
-        working = []
-        for source, weight in cut.samples(index):
-            decoded = clip.read(source)
-            color.apply(clip.into, decoded, threads)
-            working.append((decoded, weight))
-        footage[cut.layer.id] = in_comp(cut, index, shown(project, cut, working, threads), tuple(resolved.comp.size))
-    return footage
+    clip = open_clip(project, cut.record)
+    working = []
+    for source, weight in cut.samples(index):
+        decoded = clip.read(source)
+        color.apply(clip.into, decoded, threads)
+        working.append((decoded, weight))
+    return shown(project, cut, working, threads)
+
+
+def footage_at(project: Project, resolved: Resolved, index: int, threads: int | None = None) -> dict[str, tuple]:
+    """Comp frame `index`'s footage layers, placed: what checks, stills of a comp and
+    precomps use."""
+    size = tuple(resolved.comp.size)
+    return {cut.layer.id: in_comp(cut, index, layer_frame(project, cut, index, threads), size)
+            for cut in resolved.stack(index)}
 
 
 def working_frame(project: Project, resolved: Resolved, index: int, captures: dict[str, bytes],

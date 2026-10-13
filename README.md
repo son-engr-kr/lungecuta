@@ -37,6 +37,7 @@ lc still COMP --at b:16             a comp's frame as the render delivers it, PN
 lc sheet COMP --every b:1           a contact sheet of a comp, each tile labelled with its beat and layers
 lc scope COMP --at b:16             waveform, parade, vectorscope and their numbers
 lc still --media KEY --at f:N       the same three for one imported clip
+lc framing COMP LAYER               the comp's window in a layer's source frame, and where its edge shows
 lc beats KEY                        the beat analysis again, applied only if no beat literal moves
 lc validate                         every project file, original and comp checked
 lc fcpxml COMP                      the comp as FCPXML 1.10 for Resolve's File > Import > Timeline

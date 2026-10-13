@@ -60,16 +60,29 @@ def click_layer(page, layer_id):
     page.mouse.click(box["x"] + (rows[k][1] + 5) * zoom, box["y"] + 26 + 18 + k * 30 + 12)
 
 
+SHOWN = """(async (curves) => {
+  const tl = await (await fetch(`/api/comp/main`)).json();
+  return state.tl.hash === tl.hash && (!curves || state.curves !== null);
+})"""
+
+
+def caught_up(page, what, curves=True):
+    """Wait for the editor to show the comp as it is on disk (and the selected layer's
+    curves, with `curves`). Polled from here: given an async function, wait_for_function
+    takes the promise itself for a true value and does not wait."""
+    deadline = time.monotonic() + 10
+    while not page.evaluate(SHOWN, curves):
+        assert time.monotonic() < deadline, f"{what}: the editor did not catch up; status {page.inner_text('#status')!r}"
+        time.sleep(0.05)
+
+
 def until(page, project, check, what):
     """Wait for the comp file to show an edit, then for the editor to have reloaded it."""
     deadline = time.monotonic() + 10
     while not check(shot1(project)):
         assert time.monotonic() < deadline, f"{what}: not written; status {page.inner_text('#status')!r}"
         time.sleep(0.05)
-    page.wait_for_function("""(async () => {
-      const tl = await (await fetch(`/api/comp/main`)).json();
-      return state.tl.hash === tl.hash && state.curves !== null;
-    })()""", timeout=10000)
+    caught_up(page, what)
 
 
 def test_the_inspector_keys_grades_styles_and_remaps(page, cut_project):
@@ -192,10 +205,7 @@ def test_a_position_key_is_dragged_in_the_graph(page, cut_project):
     project = Project.load(cut_project)
     ops.key(project, "main", "shot1", "position", "b:1", [0.5, 0.5])
     ops.key(project, "main", "shot1", "position", "b:3", [0.5, 0.5])
-    page.wait_for_function("""(async () => {
-      const tl = await (await fetch(`/api/comp/main`)).json();
-      return state.tl.hash === tl.hash;
-    })()""", timeout=10000)
+    caught_up(page, "the keys written by lc op", curves=False)
     click_layer(page, "shot1")
     page.wait_for_function("state.curves !== null && state.curves.position !== undefined")
     modes = page.evaluate("[...document.querySelectorAll('input[name=graph]')].map(r => r.value)")

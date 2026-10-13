@@ -56,8 +56,9 @@ cache still matches its comp. `lc validate` checks every file.
    `lc validate`.
 3. Look at what you changed. `lc sheet COMP --every b:1 --from P --to P` over the range,
    `lc still COMP --at P` on the frames that matter (cuts, hits, titles, faces),
-   `lc scope COMP --at P` for levels. Trust the printed numbers over your reading of an
-   image.
+   `lc scope COMP --at P` for levels, and `lc framing COMP LAYER` after a transform
+   reframes footage (it lists the frames where the source's edge shows). Trust the
+   printed numbers over your reading of an image.
 4. Sound changed: `lc audio-check COMP` (cut offsets to beats, level per half beat).
 5. Before showing the person: `lc lint COMP`, and `lc diff COMP` for what changed since
    the last commit.

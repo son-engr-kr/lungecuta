@@ -162,3 +162,26 @@ def scope(
         print_json(comp_scope(project_of(project_dir), comp, at, height=height, threads=threads, out=out))
         return
     print_json(scope_frame(project_of(project_dir), key, at, height=height, threads=threads, out=out))
+
+
+@main.command()
+@click.argument("comp")
+@click.argument("layer")
+@click.option("--at", multiple=True, help="A comp position whose window is drawn too; give it more than once for more.")
+@click.option("--height", type=click.IntRange(min=1), default=540, show_default=True,
+              help="Lines of the picture (never more than the source's own).")
+@threads_option
+@click.option("--out", type=click.Path(dir_okay=False, path_type=Path),
+              help="Where the PNG goes; by default cache/lc/framing/ in the project.")
+@project_option
+def framing(comp: str, layer: str, at: tuple[str, ...], height: int, threads: int | None, out: Path | None,
+            project_dir: Path | None) -> None:
+    """Where COMP's frame sits in footage LAYER's own frame: the comp's corners taken back
+    through the layer's transform, in fractions of the layer's frame as shown, on its first
+    and last visible frames and at each --at, and every run of frames where the comp shows
+    past the source's edge (masks, opacity and transitions not counted). The PNG is the
+    layer's first visible frame with a 0.1 grid and those windows: first green, last red,
+    --at yellow."""
+    from ..framing import framing as layer_framing
+
+    print_json(layer_framing(project_of(project_dir), comp, layer, at, height=height, threads=threads, out=out))

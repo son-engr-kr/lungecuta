@@ -62,10 +62,13 @@ function connect() {
 
 function message(m) {
   if (m.type === "changed") {
-    // A file changed underneath the editor: the agent's edit, or another tool's.
+    // A file changed underneath the editor: the agent's edit, or another tool's. The comp
+    // on screen already read at that hash (a reload got there first) needs nothing.
+    if (state.tl && m.file === `comps/${state.tl.name}.json` && m.hash === state.tl.hash) return;
     status(`${m.file} changed on disk; reloading`);
-    if (state.tl && (m.file === `comps/${state.tl.name}.json` || m.file === "project.json"
-                     || ["media/", "styles/", "luts/"].some((prefix) => m.file.startsWith(prefix)))) {
+    // any comp, since the one shown may place it as a precomp
+    if (state.tl && (m.file === "project.json"
+                     || ["comps/", "media/", "styles/", "luts/"].some((prefix) => m.file.startsWith(prefix)))) {
       loadComp(state.tl.name, true);
     }
   } else if (m.type === "error") {
@@ -362,11 +365,12 @@ async function onUp(event) {
 
 async function edit(op, args) {
   try {
+    const asked = ++timelineAsks;
     const result = await api("/api/edit", {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ comp: state.tl.name, op, args, expect: state.tl.hash }),
     });
-    setTimeline(result.timeline);
+    if (asked === timelineAsks) setTimeline(result.timeline);
     status(result.changes.join("; "));
     journal();
   } catch (error) {
@@ -927,8 +931,15 @@ function setTimeline(tl) {
   inspect();
 }
 
+// Every request that brings a timeline back takes a number, and only the latest is shown:
+// two changes on disk in quick succession send two reloads, whose answers can arrive the
+// wrong way round, and an older timeline shown over a newer one has every edit refused.
+let timelineAsks = 0;
+
 async function loadComp(name, keepFrame = false) {
+  const asked = ++timelineAsks;
   const tl = await api(`/api/comp/${name}`);
+  if (asked !== timelineAsks) return;
   if (!keepFrame) state.frame = 0;
   setTimeline(tl);
 }
