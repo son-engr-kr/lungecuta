@@ -176,7 +176,7 @@ in the file, not an accident of the implementation. Pixel-sized parameters (shak
 amplitude, glitch slice height, grain size) are stored as fractions of comp height, so a
 540p preview and a 2160p render move the same way.
 
-Written so far (`comp.transitions`, `src/lungecuta/comp.py`): the basics. A `dissolve`
+Written so far (`_transitions` in `src/lungecuta/comp/resolve.py`): the basics. A `dissolve`
 names the outgoing and incoming footage layers, which must meet on a cut (the first ends
 on the frame the second starts on); its span is centred on the cut's frame (beats counted
 on the grid either side), both layers are extended into their source handles over the

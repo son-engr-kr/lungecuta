@@ -20,7 +20,7 @@ the Phase 0 media tests need samples of your own (see Conventions).
   and `lc scope` for one clip (`still.py`, `sheet.py`, `scope.py`, `geometry.py`,
   `images.py`); music import with its WAV and beat map, and `lc beats` (`music.py`,
   `beats.py`); the Phase 0 comp format, `lc validate` and `lc fcpxml` (`schema/comp.py`,
-  `comp.py`, `fcpxml.py`, `validate.py`); `lc graphic`, `lc patch-card` and `lc patches`
+  `comp/`, `fcpxml.py`, `validate.py`); `lc graphic`, `lc patch-card` and `lc patches`
   (`graphics.py`, `patches.py`). Frames are decoded from the decoder's own planes: chroma
   upsampled by linear interpolation where the stream says it sits, then ITU-T H.273, in
   numpy; ffmpeg's scale filter is not used to decode, since it was found off by a gain and

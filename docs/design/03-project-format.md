@@ -544,7 +544,7 @@ footage layer's `time` is one of:
 - `{ "style": "...", "at": "...", "overrides": {...} }`: a style instance, `at` in layer
   time, speed 1 from `source_start` outside the style's tracks.
 
-As written so far (`src/lungecuta/comp.py`): `time: { "remap": [ { "t": <layer time>,
+As written so far (`src/lungecuta/comp/resolve.py`): `time: { "remap": [ { "t": <layer time>,
 "v": <source time>, "ease": ... } ] }` (at least two keys; a layer with them has no
 `source_start`) evaluates between keys with the same easing as every other property
 ([keyframes](#properties-keyframes-easing-expressions)), to the tick; a remap may run
