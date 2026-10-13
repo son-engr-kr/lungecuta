@@ -100,3 +100,20 @@ def test_lint_finds_the_same_sound_twice_in_a_row(sounding):
     run(sounding, "import", str(sounding / "footage" / "other.wav"), "--root", "project", "--sound")
     with_sounds(sounding, hit_layer("hit1", "b:4"), {**hit_layer("hit2", "b:8"), "media": "other"})
     assert "sfx_vary" not in [w["rule"] for w in run(sounding, "lint", "main")["warnings"]]
+
+
+def test_lc_op_sfx_puts_a_sound_on_every_cut_in_turn(sounding):
+    (sounding / "footage" / "two.wav").write_bytes(wav_bytes(impact() * 0.7, RATE))
+    run(sounding, "import", str(sounding / "footage" / "two.wav"), "--root", "project", "--sound")
+    with_sounds(sounding)
+    printed = run(sounding, "op", "sfx", "main", "hit", "two", "--on", "beats", "--from", "b:2", "--to", "b:6")
+    layers = json.loads((sounding / "comps" / "main.json").read_text())["layers"]
+    placed = [layer for layer in layers if layer.get("anchor") == "rise"]
+    assert [layer["start"] for layer in placed] == ["b:2", "b:3", "b:4", "b:5"]
+    assert [layer["media"] for layer in placed] == ["hit", "two", "hit", "two"]  # (k * 7) mod 2
+    assert len(printed["changes"]) == 4 and "sfx_vary" not in [w["rule"] for w in run(sounding, "lint", "main")["warnings"]]
+    cuts = run(sounding, "op", "sfx", "main", "hit", "--on", "cuts")["changes"]
+    # from black to shot1 at b:0 (frame 8) is a cut too, then shot2's at b:4 (frame 68)
+    assert cuts == ["hit placed on f:8 as hit.3 by its rise", "hit placed on f:68 as hit.4 by its rise"]
+    refused = run(sounding, "op", "sfx", "main", *["hit"] * 7, "--on", "beats", ok=False)
+    assert "repeats one sound" in str(refused.exception)

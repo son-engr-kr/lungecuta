@@ -311,3 +311,21 @@ def op_look(comp: str, layer: str, look: str, mix: float, project_dir: Path | No
 def op_unlook(comp: str, layer: str, look: str, project_dir: Path | None) -> None:
     """Take LOOK off LAYER's grade."""
     print_json(ops.unlook(project_of(project_dir), comp, layer, look))
+
+
+@op.command("sfx")
+@click.argument("comp")
+@click.argument("sounds", nargs=-1, required=True)
+@click.option("--on", type=click.Choice(ops.EVENTS), required=True, help="The events to put a sound on.")
+@click.option("--from", "start", help="Where the span starts (the comp's start).")
+@click.option("--to", "end", help="Where it stops, before (the comp's end).")
+@click.option("--anchor", type=click.Choice(["start", "peak", "rise"]), default="rise", show_default=True,
+              help="The point of the sound that lands on each event.")
+@click.option("--gain", type=float, default=0.0, show_default=True, help="Each layer's gain in dB.")
+@project_option
+def op_sfx(comp: str, sounds: tuple[str, ...], on: str, start: str | None, end: str | None, anchor: str, gain: float,
+           project_dir: Path | None) -> None:
+    """Put SOUNDS (imported with --sound) on every cut, beat, downbeat or marker in a span:
+    a layer an event, anchored there, sound (k * 7) mod n of the n given on event k, so
+    neighbours differ, the rule past edits used."""
+    print_json(ops.sfx(project_of(project_dir), comp, list(sounds), on, start, end, anchor, gain))

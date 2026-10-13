@@ -97,8 +97,13 @@ lands on its `start`, the sound beginning that much earlier and its pre-roll bef
 comp's start cut. `peak` is its loudest sample on either channel; `rise` is the steepest
 rise of its 2 ms envelope, the moving mean over 96 samples of the channels' mean
 magnitude, searched over the first 0.6 s, the definition a past project's audio builder
-used (`src/lungecuta/comp.py`). Music is placed by its start. Pools and placement on
-events are not written yet.
+used (`src/lungecuta/comp.py`). Music is placed by its start. `lc op sfx COMP SOUND...
+--on cuts|beats|downbeats|markers [--from P --to P]` places a layer on every such event
+in the span, anchored there (`rise` by default), sound `(k * 7) mod n` of the n given on
+event k, each as long as its sound and cut at the comp's end; seven or fourteen sounds
+are refused, since the rule would repeat one. A cut is a footage layer's first frame
+after the comp's start, from black included. Pools with repitch jitter, keyframes and
+graphics events as events are not written yet.
 
 ## Music editing
 
