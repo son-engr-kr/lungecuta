@@ -1,12 +1,14 @@
 """The guide a coding agent reads in a project (docs/design/09-agent-interface.md, Working
 in a project): `AGENTS.md`, which Codex reads, and `CLAUDE.md`, which Claude Code reads and
-which imports `AGENTS.md`; and `.mcp.json`, which starts `lc mcp` for Claude Code. `lc init`
-writes them; `lc guide --write` brings the guide up to this version of lungecuta. The guide
-sits between two markers in `AGENTS.md`, so whatever the person writes outside them is
-kept, and `.mcp.json` keeps the other servers it lists."""
+which imports `AGENTS.md`; and `.mcp.json` and `.codex/config.toml`, which start `lc mcp`
+for Claude Code and for Codex (Codex reads a project's own config once the project is
+trusted). `lc init` writes them; `lc guide --write` brings the guide up to this version of
+lungecuta. The guide sits between two markers in `AGENTS.md`, so whatever the person
+writes outside them is kept, and both configs keep the other servers they list."""
 from __future__ import annotations
 
 import json
+import tomllib
 from importlib.metadata import version
 from pathlib import Path
 from typing import Any
@@ -17,6 +19,8 @@ START = "<!-- lc:guide start: written by lc guide --write; edit outside these ma
 END = "<!-- lc:guide end -->"
 IMPORT = "@AGENTS.md"
 SERVER = {"command": "lc", "args": ["mcp"]}  # lc on the PATH; it finds the project from where it starts
+# How the repository puts lc on the PATH, with the versions uv.lock pins (README.md says it too)
+INSTALL = "uv tool install --editable . --constraints <(uv export --frozen --no-dev --no-emit-project --no-hashes)"
 
 GUIDE = """\
 # Working in this lungecuta project (lungecuta {version})
@@ -27,7 +31,8 @@ you, an agent, and a person edit together. The person watches and listens in the
 Every `lc` command prints one JSON object; `lc COMMAND --help` says exactly what it does,
 `lc commands` lists every command with its arguments and options as JSON, and
 `lc schema` prints the JSON Schema of every file. The same commands are MCP tools when
-`lc mcp` runs (this project's `.mcp.json` starts it for Claude Code): `lc_still`,
+`lc mcp` runs (this project's `.mcp.json` starts it for Claude Code, and its
+`.codex/config.toml` for Codex once the project is trusted): `lc_still`,
 `lc_op_move` and so on, with the pictures they write returned as images.
 
 ## Files
@@ -139,12 +144,30 @@ def write_guide(directory: Path) -> dict[str, Any]:
         written["CLAUDE.md"] = "updated"
     else:
         written["CLAUDE.md"] = "unchanged"
-    config = directory / ".mcp.json"
-    servers = json.loads(config.read_text()) if config.exists() else {}
-    if servers.get("mcpServers", {}).get("lungecuta") is None:
-        servers.setdefault("mcpServers", {})["lungecuta"] = SERVER
-        write_atomic(config, json_text(servers))
-        written[".mcp.json"] = "updated" if len(servers["mcpServers"]) > 1 else "created"
-    else:
-        written[".mcp.json"] = "unchanged"
+    written[".mcp.json"] = _claude_server(directory / ".mcp.json")
+    written[".codex/config.toml"] = _codex_server(directory / ".codex" / "config.toml")
     return {"directory": str(directory), "files": written, "lungecuta": version("lungecuta")}
+
+
+def _claude_server(config: Path) -> str:
+    servers = json.loads(config.read_text()) if config.exists() else {}
+    if servers.get("mcpServers", {}).get("lungecuta") is not None:
+        return "unchanged"
+    servers.setdefault("mcpServers", {})["lungecuta"] = SERVER
+    write_atomic(config, json_text(servers))
+    return "updated" if len(servers["mcpServers"]) > 1 else "created"
+
+
+def _codex_server(config: Path) -> str:
+    """The server as a table appended to the TOML; JSON's strings and arrays of strings
+    are TOML's too. The result is read back, so a file the table cannot join fails here."""
+    text = config.read_text() if config.exists() else ""
+    if tomllib.loads(text).get("mcp_servers", {}).get("lungecuta") is not None:
+        return "unchanged"
+    table = (f"[mcp_servers.lungecuta]\ncommand = {json.dumps(SERVER['command'])}\n"
+             f"args = {json.dumps(SERVER['args'])}\n")
+    updated = text.rstrip("\n") + "\n\n" + table if text.strip() else table
+    assert tomllib.loads(updated)["mcp_servers"]["lungecuta"] == SERVER, updated
+    config.parent.mkdir(exist_ok=True)
+    write_atomic(config, updated)
+    return "updated" if text.strip() else "created"

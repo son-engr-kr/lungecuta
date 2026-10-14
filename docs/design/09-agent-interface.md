@@ -17,7 +17,7 @@ that fails returns its error and traceback as the tool's error; the server keeps
 | `lc init DIR` | a new project directory: `project.json` with the colour defaults of [03-project-format.md](03-project-format.md#projectjson), `proxy_height` 540, `media_roots` `[]`, `comps` `[]`, `deliver` `[]`; empty `media/`, `comps/`, `grades/`, `styles/`, `graphics/`, `luts/`, `cache/`; `roots.local.json` `{}` and a `.gitignore` naming it and `cache/`; the agent guide (`AGENTS.md`, `CLAUDE.md`); refuses a non-empty directory. The `.lc` suffix is a convention, not required |
 | `lc status` | what is in the project for an agent arriving: media (footage with its colour space and whether it is usable, music with its tempo and licence), comps (size, rate, length, layers by type, markers, transitions), the editor changes `lc changes` has not shown, and each render in the cache with whether its comp and media still match (`src/lungecuta/status.py`) |
 | `lc commands` | every command as data: its summary, arguments and options (flags, types, defaults, choices, whether required), the `op` group's operations among them, so an agent reads the CLI without parsing help text |
-| `lc mcp [--project DIR]` | every command above (but `serve`) as an MCP tool on stdio, defaulting to the project; the guide is the server's instructions; a project's `.mcp.json` starts it for Claude Code |
+| `lc mcp [--project DIR]` | every command above (but `serve`) as an MCP tool on stdio, defaulting to the project; the guide is the server's instructions; a project's `.mcp.json` starts it for Claude Code and its `.codex/config.toml` for Codex |
 | `lc guide [--write]` | the guide a coding agent reads in a project (below); `--write` puts it into the project's `AGENTS.md` between its markers and makes `CLAUDE.md` import it |
 | `lc import FILES...` | media records, one file each under `media/`: probe, rates and timecode, colour decision with evidence, decoder check, proxy, PCM WAV and beat map for music, or with `--sound` a PCM WAV and no beat map (effects, voices). Each file must lie under a root named with `--root NAME` |
 | `lc beats KEY` | runs the beat analysis of a music record again on its WAV and writes the new times only if every beat and downbeat index is kept; otherwise lists the inserted and removed beats and exits with status 1, and `--replace` applies it anyway ([03-project-format.md](03-project-format.md#beat-maps)) |
@@ -68,8 +68,12 @@ that fails returns its error and traceback as the tool's error; the server keeps
 
 An agent opened in a project directory reads its instructions from a file there: Codex
 from `AGENTS.md`, Claude Code from `CLAUDE.md`, which can import another file with
-`@AGENTS.md`. `lc init` writes both, and a `.mcp.json` that starts `lc mcp` for Claude
-Code (keeping any other server the file lists), so the agent arrives knowing the project's files, the
+`@AGENTS.md`. `lc init` writes both, a `.mcp.json` that starts `lc mcp` for Claude
+Code and a `.codex/config.toml` that starts it for Codex (each keeping any other server
+it lists; Claude Code asks once before starting a project's server, and Codex reads a
+project's own config only once the person has trusted the project; both checked with
+Claude Code and Codex 0.142.5 on 2026-10-13: the server starts in the project directory
+and finds the project there), so the agent arrives knowing the project's files, the
 time literals, the steps of every edit (`lc changes` first, `lc op` where it can, look
 with `lc still`, `lc sheet` and `lc scope`, check with `lc audio-check` and `lc lint`,
 deliver with `lc render`, `lc verify` and `lc flash`) and what it cannot judge. The

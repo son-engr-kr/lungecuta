@@ -25,6 +25,8 @@ myedit.lc/
   .gitignore            written by lc init: cache/ and roots.local.json
   AGENTS.md             the guide a coding agent reads (Codex), written by lc init and lc guide
   CLAUDE.md             imports AGENTS.md, for Claude Code
+  .mcp.json             starts lc mcp for Claude Code
+  .codex/config.toml    starts lc mcp for Codex
 ```
 
 Splitting comps and styles into their own files keeps an agent's edit small and its diff

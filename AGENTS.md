@@ -71,7 +71,7 @@ the Phase 0 media tests need samples of your own (see Conventions).
   `lc guide --write` updates it (`guide.py`); keep it in step with the CLI, which
   `tests/test_guide.py` checks. `lc status` describes a project, `lc commands` the CLI as
   JSON, and `lc mcp` serves every command as an MCP tool (`mcp_server.py`), started for
-  Claude Code by the project's `.mcp.json`.
+  Claude Code by the project's `.mcp.json` and for Codex by its `.codex/config.toml`.
 - **M5 and M7 have started**: transitions (`dissolve`, `dip`, `fade_in`, `fade_out` in
   the working space, `lc op transition`), precomps (`comp` layers, recursive, composited
   in the working space), layer rotation, masks (rectangles and ellipses, feathered,

@@ -14,7 +14,7 @@ from ..detect import detect as detect_clip
 from ..files import json_text, write_atomic
 from ..media import import_files, relink as relink_root, set_root, summary
 from ..probe import probe
-from ..guide import SERVER
+from ..guide import INSTALL, SERVER
 from ..project import find_project, init_project
 from ..schema import SCHEMAS, schema_text
 from ..validate import validate as validate_project
@@ -30,14 +30,15 @@ def init(directory: Path) -> None:
     .gitignore for it and cache/, the empty media/, comps/, grades/, styles/,
     graphics/, luts/ and cache/ directories, and the guide a coding agent reads
     (AGENTS.md for Codex, CLAUDE.md importing it for Claude Code; see lc guide) with
-    the .mcp.json that starts lc mcp. The .lc suffix is a convention only. When `lc` is
-    not on the PATH, which .mcp.json needs, the output says so and how to put it there.
+    the .mcp.json and .codex/config.toml that start lc mcp. The .lc suffix is a
+    convention only. When `lc` is not on the PATH, which both need, the output says so
+    and how to put it there.
     """
     printed = {"project": str(init_project(directory))}
     if not on_path(SERVER["command"]):
         printed["mcp"] = (f"{SERVER['command']} is not on the PATH outside this virtual environment, so an agent "
-                          "started elsewhere cannot run the project's .mcp.json; `uv tool install --editable .` in "
-                          "the lungecuta repository puts it there")
+                          "started elsewhere cannot start the project's MCP server; `"
+                          f"{INSTALL}` in the lungecuta repository puts it there")
     print_json(printed)
 
 
@@ -289,7 +290,8 @@ def mcp(project_dir: Path | None) -> None:
     options, a call returns what the command prints, and the pictures it writes come back
     as images. Tools default to this project (--project, or the nearest project.json above
     the current directory, if there is one); the project guide is the server's
-    instructions. A project's .mcp.json (lc init writes it) starts it for Claude Code."""
+    instructions. A project's .mcp.json and .codex/config.toml (lc init writes them)
+    start it for Claude Code and Codex."""
     from ..mcp_server import run
     from ..project import nearest_project
 

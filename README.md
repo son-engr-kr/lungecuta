@@ -23,18 +23,19 @@ design are in [bench/RESULTS.md](bench/RESULTS.md).
 
 ## Working with Claude Code or Codex
 
-Install the `lc` command where an agent can run it (`uv tool install --editable .` from
-this repository puts it on the PATH), then make a project with `lc init DIR`. The project
-gets the guide the agent reads (`AGENTS.md`, imported by `CLAUDE.md`) and a `.mcp.json`
-that starts `lc mcp`, so Claude Code opened in the project offers every command as an MCP
-tool, with frames and sheets returned as images. For Codex, add the server to
-`~/.codex/config.toml`:
+Put the `lc` command on the PATH, from this repository, with the versions `uv.lock`
+pins (editable, so a `git pull` updates it):
 
-```toml
-[mcp_servers.lungecuta]
-command = "lc"
-args = ["mcp", "--project", "/path/to/edit.lc"]
+```sh
+uv tool install --editable . --constraints <(uv export --frozen --no-dev --no-emit-project --no-hashes)
 ```
+
+Then make a project with `lc init DIR` and open Claude Code or Codex in it. The project
+gets the guide the agent reads (`AGENTS.md`, imported by `CLAUDE.md`), a `.mcp.json` that
+starts `lc mcp` for Claude Code and a `.codex/config.toml` that starts it for Codex, so the
+agent offers every command as an MCP tool, with frames and sheets returned as images.
+Claude Code asks once before it starts a project's server; Codex reads the project's
+config once you trust the project when it asks.
 
 Without MCP the agent runs `lc` in a shell: every command prints one JSON object, and
 `lc commands` describes them all.
@@ -53,6 +54,7 @@ lc import FILES --root NAME         media records: colour and time decisions wit
                                     decoder check, proxy with its parity test; music gets a
                                     48 kHz WAV and a beat map (Beat This!)
 lc detect FILE                      the colour-space decision without importing
+lc new-comp NAME --music KEY ...    a new comp (size, rate, end), its music at 0s giving the beat grid
 lc still COMP --at b:16             a comp's frame as the render delivers it, PNG and numbers
 lc sheet COMP --every b:1           a contact sheet of a comp, each tile labelled with its beat and layers
 lc scope COMP --at b:16             waveform, parade, vectorscope and their numbers
@@ -66,9 +68,10 @@ lc verify FILE --comp COMP ...      the deliverable checked against its comp and
 lc flash FILE                       WCAG 2.2's general flash threshold on a render
 lc graphic PAGE ...                 a web page rendered to ProRes 4444 with alpha
 lc patch-card DIR ... / lc patches  a card of known colours, and reading an export back at it
-lc op OP COMP ...                   an edit operation: move, trim, slip, slide, roll, ripple-delete,
-                                    split, snap, place, key, unkey, set, remap, style, unstyle,
-                                    grade, masks, transition, untransition
+lc op OP COMP ...                   an edit operation: place, graphic, sfx, move, trim, slip, slide,
+                                    roll, ripple-delete, split, snap, key, unkey, move-key, set,
+                                    remap, style, unstyle, look, unlook, grade, masks, transition,
+                                    untransition
 lc changes                          what the editor wrote since the agent last asked
 lc audio-check COMP                 cut offsets to beats and loudness per half beat
 lc lint COMP                        the review rules a machine can check, as warnings
