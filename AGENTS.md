@@ -85,6 +85,10 @@ the Phase 0 media tests need samples of your own (see Conventions).
   the agent" gives each step and its check, and `lungecuta setup` writes the lungecuta skill
   (`skill.py`) into `~/.claude/skills/` and `~/.agents/skills/`, which takes the agent to a
   first project; keep it in step with the CLI, which `tests/test_skill.py` checks.
+- **The time an edit takes is logged**: every lungecuta command run in a project, with its
+  time, duration, parameters and outcome (`activity.py`, `cache/lungecuta/commands.jsonl`), and
+  `lungecuta stages` turns that and the editor's journal into minutes by stage, for Phase 0's
+  exit criterion (`stages.py`; the counting rule is *proposed*).
 - **M5 and M7 have started**: transitions (`dissolve`, `dip`, `fade_in`, `fade_out` in
   the working space, `lungecuta op transition`), precomps (`comp` layers, recursive, composited
   in the working space), layer rotation, masks (rectangles and ellipses, feathered,

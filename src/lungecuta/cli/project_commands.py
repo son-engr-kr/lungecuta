@@ -1,4 +1,4 @@
-"""lungecuta commands that set up and describe a project: init, guide, status, import and the media around it, beats, licence, validate, schema, changes, new-comp."""
+"""lungecuta commands that set up and describe a project: init, guide, status, import and the media around it, beats, licence, validate, schema, changes, stages, new-comp."""
 from __future__ import annotations
 
 import inspect
@@ -231,6 +231,25 @@ def changes(peek: bool, project_dir: Path | None) -> None:
 
     project = project_of(project_dir)
     print_json(journal.changes(project.directory, peek=peek) | {"editor": read_view(project)})
+
+
+@main.command()
+@click.option("--since", help="Count from this local time (2026-10-14T09:00); by default from the first logged.")
+@click.option("--until", help="Count up to this local time; by default to the last logged.")
+@click.option("--idle", "idle_minutes", type=click.FloatRange(min=0, min_open=True), default=10.0, show_default=True,
+              help="Minutes after which a gap is a break, not work (proposed).")
+@click.option("--comp", help="Describe the material of this comp: its length, shots, graphics and sounds.")
+@project_option
+def stages(since: str | None, until: str | None, idle_minutes: float, comp: str | None,
+           project_dir: Path | None) -> None:
+    """The time the edit took, by stage (material, cutting, grading, graphics, audio,
+    review, rendering), from every lungecuta command run in the project (logged in
+    cache/lungecuta/commands.jsonl) and the editor's journal: the time before each thing
+    done counts to its stage, and a gap over --idle is a break. Also the sessions the work
+    fell into and each render. Changes nothing."""
+    from ..stages import stages as report
+
+    print_json(report(project_of(project_dir), since=since, until=until, idle_minutes=idle_minutes, comp=comp))
 
 
 @main.command()

@@ -59,7 +59,10 @@ spans from its `start`: `b:4` there is four beats on.
 layers and markers, the editor changes you have not seen, and whether each render in the
 cache still matches its comp. `lungecuta validate` checks every file. `lungecuta doctor` checks
 the machine (the pinned ffmpeg, Chromium, the beat model) and says what to run when a part is
-missing; `lungecuta setup` fetches it.
+missing; `lungecuta setup` fetches it. Every lungecuta command you run here is logged with its
+time, and `lungecuta stages --comp COMP` gives the time the edit has taken by stage
+(material, cutting, grading, graphics, audio, review, rendering); give it to the person
+when they ask how long the edit took.
 
 ## Every edit
 

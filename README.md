@@ -119,6 +119,7 @@ lungecuta op OP COMP ...                   an edit operation: place, graphic, sf
                                            roll, ripple-delete, split, snap, key, unkey, move-key, set,
                                            remap, speed, style, unstyle, look, unlook, grade, masks,
                                            transition, untransition, sound
+lungecuta stages --comp COMP               the time the edit took by stage, from the log of every command
 lungecuta changes                          what the editor wrote since the agent last asked, and what is on
                                            its screen: the playhead, the selection, the range marked with I and O
 lungecuta audio-check COMP                 cut offsets to beats and loudness per half beat

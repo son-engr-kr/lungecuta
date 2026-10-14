@@ -194,6 +194,9 @@ def server(group: click.Group, project: Path | None) -> Server:
 
 
 def run(group: click.Group, project: Path | None) -> None:
+    from . import activity
+
+    activity.via = "mcp"  # the commands this server runs are logged as come through it
     app = server(group, project)
 
     async def main() -> None:

@@ -49,6 +49,15 @@ noisy baseline that the person also gets faster at, so Phase 0-style edits made 
 to M2 are built are logged the same way, and M3 is compared against all of them.
 *(proposed)*
 
+How it is recorded: every lungecuta command run in a project is logged with its start,
+duration, parameters and outcome, and the editor's journal holds each edit's time and
+operation; `lungecuta stages` counts the time before each thing done to that thing's stage,
+treats a gap over ten minutes as a break, and describes the comp's material (length,
+shots, clips, graphics, sounds). The stage of each command, the counting rule and the ten
+minutes are *proposed*. Time spent outside lungecuta (in Resolve, choosing music in a
+browser) shows only as the gap before the next command, or as a break, so a Phase 0 edit
+that goes through Resolve notes that time by hand.
+
 Phase 0's media code (time literals, detection, import, proxies, stills) is production
 code, written to M0's standards, and M0 continues it; Phase 0 does not claim M0's exit
 criteria. Its FCPXML exporter is a tool for the baseline and may be discarded later.

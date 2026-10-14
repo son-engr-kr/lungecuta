@@ -257,7 +257,7 @@ class Editor:
         before = path.read_text(encoding="utf-8")
         result = ops.OPERATIONS[operation](self.project, name, **args, expect=expect)
         after = path.read_text(encoding="utf-8")
-        entry = journal.record(self.directory, relative, before, after, result["changes"])
+        entry = journal.record(self.directory, relative, before, after, result["changes"], op=operation)
         self.known[relative] = entry["after_hash"]
         return {"changes": result["changes"], "seq": entry["seq"], "timeline": self.timeline(name)}
 
