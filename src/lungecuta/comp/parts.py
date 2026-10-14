@@ -220,6 +220,7 @@ class Sound:
     gain: Track | None = None  # dB against comp ticks; None is 0 dB
     fade_in: int = 0  # samples from `first` rising from silence
     fade_out: int = 0  # samples before `end` falling to silence
+    footage: bool = False  # a footage layer's own sound (`layer` stands for it), not an audio layer
 
     def envelope(self) -> np.ndarray:
         """The amplitude on each of the layer's samples: its gain and its fades (linear in

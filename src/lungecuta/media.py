@@ -1,9 +1,13 @@
 """`lungecuta import`: media records, one file each under `media/` (docs/design/02-media.md#ingest)."""
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
+from fractions import Fraction
 from pathlib import Path
 from typing import Any
+
+import numpy as np
 
 from . import music
 from .decode import decoder_check
@@ -26,6 +30,7 @@ from .schema.media import (
 )
 from .schema.project import PROJECT_ROOT, ProjectFile, RootsFile
 from .ticks import parse_rate
+from .tools import run
 
 # Provisional: the only candidate that passed the parity gate on both samples
 # (bench/RESULTS.md, "Proxy parity"); the choice is the user's (AGENTS.md, open decisions).
@@ -235,6 +240,38 @@ def music_wav(project: Project, record: MediaRecord) -> Path:
         )
     assert content_hash(path) == record.wav.hash, f"{record.key}: {path} has changed since import; import it again"
     return path
+
+
+def footage_wav(project: Project, record: MediaRecord) -> Path:
+    """A clip's own sound as a 48 kHz float WAV in the cache, decoded on first use, since
+    few of the clips imported are heard: its sample 0 is at the clip's source time 0, the
+    first presented frame, so an audio stream that starts before or after the picture is
+    trimmed or led in with silence by the difference. It is named by the original's hash,
+    so a changed original is never mixed from an older decode."""
+    assert record.probe.video is not None and record.probe.audio, f"{record.key} has no sound of its own"
+    path = project.directory / music.WAV_DIR / f"{record.key}.{record.hash.removeprefix('sha256:')[:16]}.wav"
+    if path.exists():
+        return path
+    source, stream = original(project, record), record.probe.audio[0]
+    signal = music.to_wav_rate(music.decode_audio(source, stream), stream.rate)
+    lead = round(audio_lead(source) * music.WAV_RATE)
+    if lead > 0:
+        signal = np.concatenate([np.zeros((lead, signal.shape[1]), np.float32), signal])
+    else:
+        signal = signal[-lead:]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    write_atomic(path, music.wav_bytes(signal, music.WAV_RATE))
+    return path
+
+
+def audio_lead(path: Path) -> float:
+    """Seconds by which a file's first audio stream starts after its video stream, by the
+    start times its container gives them (negative when the sound starts first)."""
+    out = run(["ffprobe", "-v", "error", "-show_entries", "stream=codec_type,start_time", "-of", "json",
+               str(path)]).stdout
+    streams = json.loads(out)["streams"]
+    starts = {kind: next(Fraction(s["start_time"]) for s in streams if s["codec_type"] == kind) for kind in ("video", "audio")}
+    return float(starts["audio"] - starts["video"])
 
 
 def relink(project: Project, name: str, place: Path) -> dict[str, Any]:

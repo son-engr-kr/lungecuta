@@ -370,6 +370,9 @@ def export(project: Project, name: str, out: Path | None = None) -> dict[str, An
             "or render with lungecuta render"
         )
     for sound in resolved.sounds:
+        assert not sound.footage, (
+            f"layer {sound.layer.id} plays its own sound, which is not written to FCPXML yet; Resolve imports the "
+            "clip with its audio, so take the sound off here and raise it there, or render with lungecuta render")
         # A constant gain is the DTD's `adjust-volume amount`; the parameter that animates it
         # is not read from Apple's reference yet, so keys and fades are refused, not guessed.
         assert not isinstance(sound.layer.gain, Keys) and not sound.fade_in and not sound.fade_out, (

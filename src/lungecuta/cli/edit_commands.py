@@ -319,6 +319,23 @@ def op_remap(comp: str, layer: str, project_dir: Path | None) -> None:
     print_json(ops.remap(project_of(project_dir), comp, layer))
 
 
+@op.command("sound")
+@click.argument("comp")
+@click.argument("layer")
+@click.option("--off", is_flag=True, help="Take the layer's own sound off.")
+@click.option("--gain", type=float, help="dB.")
+@click.option("--pan", type=click.FloatRange(-1, 1), help="-1 left to 1 right, constant power.")
+@click.option("--fade-in", help="A span from the visible in point (b:1, 0.5s), or none.")
+@click.option("--fade-out", help="A span before the visible out point, or none.")
+@project_option
+def op_sound(comp: str, layer: str, off: bool, gain: float | None, pan: float | None, fade_in: str | None,
+             fade_out: str | None, project_dir: Path | None) -> None:
+    """Play footage LAYER's own sound (the clip's audio) with its picture, or take it off
+    with --off. It cuts on the layer's frames and moves, trims, slips and splits with it;
+    only a layer at 100 % plays it. Options change only what they give."""
+    print_json(ops.sound(project_of(project_dir), comp, layer, not off, gain, pan, fade_in, fade_out))
+
+
 @op.command("speed")
 @click.argument("comp")
 @click.argument("layer")

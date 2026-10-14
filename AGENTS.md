@@ -316,6 +316,9 @@ describes.
   ([03-project-format.md](docs/design/03-project-format.md#from-time-to-frames-and-samples)).
 - The findings left open in
   [docs/research/design-review-2026-10-11.md](docs/research/design-review-2026-10-11.md).
+- A clip's own sound (`sound` on the footage layer, `lungecuta op sound`): a field of the
+  footage layer rather than a linked audio layer, and played only at 100 % (*proposed*,
+  `docs/design/07-audio.md#location-sound`).
 - `lungecuta op speed` (the speed graph's constant segment): the rest of the layer keeps its
   speeds and its in and out points stay, so the change does not ripple the comp
   (*proposed*, `docs/design/06-editing.md#speed`).

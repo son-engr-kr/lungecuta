@@ -66,7 +66,7 @@ def manifest(project: Project, resolved: Resolved, hashes: dict[str, Any], prese
                  "rate": format_rate(resolved.rate), "size": list(resolved.comp.size)},
         "precomps": hashes["precomps"],
         "media": sorted({(c.record.key, c.record.hash) for c in resolved.every_cut()}
-                        | {(s.record.key, s.record.wav.hash) for s in resolved.every_sound()}),
+                        | {(s.record.key, s.record.wav.hash) for s in resolved.every_sound() if not s.footage}),
         "luts": hashes["luts"],
         "looks": hashes["looks"],
         "color": settings.model_dump(),

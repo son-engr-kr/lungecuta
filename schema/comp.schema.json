@@ -457,6 +457,18 @@
             }
           ],
           "default": null
+        },
+        "sound": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FootageSound"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the clip's own sound; absent, the layer is silent"
         }
       },
       "required": [
@@ -467,6 +479,63 @@
         "type"
       ],
       "title": "FootageLayer",
+      "type": "object"
+    },
+    "FootageSound": {
+      "additionalProperties": false,
+      "description": "The clip's own sound, played with its picture (07-audio.md, Location sound): it\ncuts on the layer's frames and moves, trims, slips and splits with it, as a footage\nlayer's audio does in After Effects. Only a layer at 100 % plays it (*proposed*).",
+      "properties": {
+        "gain": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/$defs/Keys"
+            }
+          ],
+          "default": 0.0,
+          "description": "dB, a constant or keys in layer time",
+          "title": "Gain"
+        },
+        "pan": {
+          "default": 0.0,
+          "description": "-1 left to 1 right, constant power",
+          "maximum": 1,
+          "minimum": -1,
+          "title": "Pan",
+          "type": "number"
+        },
+        "fade_in": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "a span from the visible in point over which the sound rises from silence (linear in amplitude)",
+          "title": "Fade In",
+          "x-time": "layer"
+        },
+        "fade_out": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "a span before the visible out point over which it falls to silence (linear in amplitude)",
+          "title": "Fade Out",
+          "x-time": "layer"
+        }
+      },
+      "title": "FootageSound",
       "type": "object"
     },
     "GradeGraph": {

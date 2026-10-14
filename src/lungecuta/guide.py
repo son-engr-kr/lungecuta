@@ -69,7 +69,7 @@ missing; `lungecuta setup` fetches it.
    shot" and "this part" mean; `marked` gives the range as `--from` and `--to`.
 2. Prefer `lungecuta op OP COMP ...` (move, trim, slip, slide, roll, ripple-delete, split, snap,
    place, graphic, key, unkey, move-key, set, remap, speed, style, unstyle, grade, look, unlook,
-   masks, transition, untransition, sfx): the editor's own functions, written only if the
+   masks, transition, untransition, sfx, sound): the editor's own functions, written only if the
    file is still the one read, the change printed in editing terms. Edit the JSON for anything
    else, then run `lungecuta validate`.
 3. Look at what you changed. `lungecuta sheet COMP --every b:1 --from P --to P` over the range,
@@ -103,6 +103,11 @@ A speed ramp is a range at another speed: `lungecuta op speed COMP LAYER --from 
 it took, so its other speeds stay; `--at P` changes the one remap segment around P, as
 dragging it in the editor's speed graph does. When the person marks the range,
 `lungecuta changes` gives it as `marked.from` and `marked.to`.
+
+A shot is silent until its own sound is on: `lungecuta op sound COMP LAYER --gain -6` plays
+the clip's audio with its picture (a cheer, a line, the room), cutting on the layer's
+frames and going wherever the layer goes; `--off` takes it off. Only a layer at 100 %
+plays it, so split off a slowed part first. Music and effects are audio layers of their own.
 
 ## What you cannot judge
 

@@ -49,7 +49,7 @@ function drawTimeline() {
     g.fillRect(x0, y + 3, Math.max(2, x1 - x0), ROW - 6);
     g.globalAlpha = 1;
     if (layer.id === state.selected) { g.strokeStyle = "#ffffff"; g.strokeRect(x0 + 0.5, y + 3.5, Math.max(2, x1 - x0) - 1, ROW - 7); }
-    const wave = layer.type === "audio" && state.peaks.hash === tl.hash ? state.peaks.layers[layer.id] : null;
+    const wave = state.peaks.hash === tl.hash ? state.peaks.layers[layer.id] : null;  // audio, or a clip's own sound
     if (wave) {
       // The layer's waveform: its largest magnitude on each frame, about the row's middle.
       g.fillStyle = "rgba(255,255,255,0.32)";

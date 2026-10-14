@@ -185,6 +185,9 @@ declared ([04-color.md](04-color.md#operations-come-from-opencolorio)); or a nod
 Footage layers also take `motion_blur`, `{ "shutter_deg": 180 }` (degrees of a frame,
 0 to 720, a constant or keys), the layer's own movement averaged over that shutter
 ([06-editing.md](06-editing.md#motion-blur)).
+Footage layers also take `sound`, `{ "gain": -6 }` (and `pan`, `fade_in`, `fade_out`, as
+an audio layer's): the clip's own sound, played with its picture; absent, the layer is
+silent ([07-audio.md](07-audio.md#location-sound)).
 Footage layers also take `masks`, in order, each a `rectangle` or `ellipse` in the layer's
 own frame as shown (`centre` and `size` in fractions of its width and height, as After
 Effects' masks are in layer space), its edge ramped linearly over `feather` (a fraction

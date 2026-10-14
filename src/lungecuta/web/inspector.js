@@ -149,6 +149,22 @@ function timeSection(layer) {
   return box;
 }
 
+function soundSection(layer) {
+  // The clip's own sound, played with its picture (lungecuta op sound).
+  const box = el("div"), actions = el("div", { class: "actions" });
+  if (layer.sound) {
+    const gain = el("input", { type: "number", step: 1, value: layer.sound.gain ?? 0, title: "gain in dB",
+      onchange: (e) => edit("sound", { layer_id: layer.id, gain: Number(e.target.value) }) });
+    box.append(el("div", { class: "row" }, el("span", {}, "gain dB"), gain));
+    actions.append(el("button", { onclick: () => edit("sound", { layer_id: layer.id, on: false }) }, "Mute its sound"));
+  } else {
+    box.append(el("p", { class: "dim" }, "silent: its own sound is off"));
+    actions.append(el("button", { onclick: () => edit("sound", { layer_id: layer.id }) }, "Play its sound"));
+  }
+  box.append(actions);
+  return box;
+}
+
 function maskSection(layer) {
   // Each mask's fields; a change replaces the layer's mask list through the engine.
   const list = layer.masks || [];
@@ -292,6 +308,7 @@ function renderInspector() {
   box.append(el("h3", {}, "Motion blur"), propertyRow("shutter"),
              el("p", { class: "dim" }, "shutter in degrees of a frame: the layer's own movement over it, averaged"));
   box.append(el("h3", {}, "Time"), timeSection(layer));
+  if (state.project.media.find((m) => m.key === layer.media)?.audio) box.append(el("h3", {}, "Sound"), soundSection(layer));
   box.append(el("h3", {}, "Masks"), maskSection(layer));
   box.append(el("h3", {}, "Transitions"), transitionSection(layer));
   box.append(el("h3", {}, "Grade (primary, working-space codes)"), gradeSection(layer));

@@ -61,6 +61,34 @@ Written ahead of M7 so that renders deliver at their preset's loudness; the numb
   over full scale reaches the limiter intact; a precomp adds its own mix where its layer
   is visible. Pan, buses, sends and effects are not written yet.
 
+## Location sound
+
+A clip's own sound, as built (`src/lungecuta/comp/resolve.py`, `media.py`,
+`ops/sounds.py`). The design above has it linked to its footage layer, so a slip moves
+both and it cuts on the footage's frames. It is written as part of the footage layer
+itself, a `sound` field with its gain, pan and fades, as a footage layer carries its
+audio in After Effects: then a move, trim, slip, split or ripple delete of the shot
+carries its sound with no operation of its own, and there is no second layer whose link
+could break (*proposed*: the field rather than a linked audio layer).
+
+- It plays over the comp frames the layer shows, from the source time its first frame
+  shows, landing on the nearest sample, so picture and sound cut together on the
+  layer's frames (03-project-format.md, From time to frames and samples, *proposed*).
+- Only a layer at 100 % plays it (*proposed*): a slowed, ramped or styled shot would need
+  its sound retimed, which is not written. A shot whose sound should go on through a slow
+  part is split first.
+- The clip's first audio stream is decoded on first use, not at import, since few of the
+  clips imported are heard: to a 48 kHz float WAV in the cache named by the original's
+  hash, its sample 0 at the clip's first presented frame. A stream that starts after the
+  picture by its container's start time is led in with silence by the difference, and
+  one that starts before is trimmed (`tests/test_footage_sound.py`: a click at a known
+  time lands on its sample, also from a stream that starts 0.1 s late). On the S-Log3 and
+  HLG samples both streams start at 0.
+- It is mixed, levelled, checked by `lungecuta audio-check` and drawn as a waveform on its
+  footage row like any sound. Lint's music-licence and SFX rules leave it out (it is the
+  person's own recording). FCPXML refuses it for now: Resolve imports the clip with its
+  audio, so it is raised there.
+
 ## Effects
 
 The set past edits needed, each a parameterized engine effect:

@@ -111,6 +111,7 @@ class Editor:
         for path in sorted((self.directory / "media").glob("*.json")):
             record = json.loads(path.read_text())
             media.append({"key": record["key"], "music": record.get("beats") is not None,
+                          "audio": bool(record["probe"]["audio"]),
                           "color": (record.get("color") or {}).get("status"),
                           "frames": (record["probe"].get("video") or {}).get("frames")})
         return {"directory": str(self.directory), "comps": [Path(c).stem for c in project.file.comps],
@@ -130,7 +131,8 @@ class Editor:
                    "grade": [op.model_dump(mode="json", exclude_unset=True) | {"op": op.op} for op in cut.layer.grade]
                    if isinstance(cut.layer.grade, list) else cut.layer.grade.model_dump(mode="json", exclude_unset=True),
                    "masks": [m.model_dump(mode="json") for m in cut.layer.masks],
-                   "retime": cut.retime, "ramps": [list(r) for r in cut.ramps], "row": order[cut.layer.id]}
+                   "retime": cut.retime, "ramps": [list(r) for r in cut.ramps], "row": order[cut.layer.id],
+                   "sound": None if cut.layer.sound is None else cut.layer.sound.model_dump(mode="json", exclude_unset=True)}
                   for cut in resolved.cuts]
         # Audio lands on samples, not frames: its extent in (fractional) frames, for drawing.
         layers += [{"id": s.layer.id, "type": "audio", "media": s.record.key, "first": s.first / 48000 * float(rate),
@@ -138,7 +140,7 @@ class Editor:
                     "gain": s.layer.gain if isinstance(s.layer.gain, float) else None,
                     "fade_in": s.layer.fade_in, "fade_out": s.layer.fade_out,
                     "fades": [s.fade_in / 48000 * float(rate), s.fade_out / 48000 * float(rate)]}
-                   for s in resolved.sounds]
+                   for s in resolved.sounds if not s.footage]
         layers += [{"id": o.layer.id, "type": "graphics", "page": o.layer.page.removeprefix("graphics/"),
                     "params": o.layer.params, "first": o.first, "end": o.end, "start": o.start / frame,
                     "start_seconds": o.start / TICKS_PER_SECOND, "top": o.top, "row": order[o.layer.id]}

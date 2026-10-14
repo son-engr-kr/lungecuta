@@ -32,7 +32,7 @@ from ..schema.comp import (
     StyleTime,
     Transform,
 )
-from ..schema.media import ColorDecided, TimeDecided
+from ..schema.media import ColorDecided, MediaRecord, TimeDecided
 from ..ticks import (
     TICKS_PER_SECOND,
     first_frame_at_or_after,
@@ -253,6 +253,12 @@ def _sound(project: Project, layer: AudioLayer, rate: Fraction, grid: BeatGrid |
         f"layer {layer.id} needs {needed / MIX_RATE:.3f} s of {layer.media} from "
         f"{source_first / MIX_RATE:.3f} s, which has {record.wav.samples / MIX_RATE:.3f} s"
     )
+    return _levels(layer, record, start, visible_in, visible_out, first, end, source_first, rate, grid)
+
+
+def _levels(layer: AudioLayer, record: MediaRecord, start: int, visible_in: int, visible_out: int, first: int,
+            end: int, source_first: int, rate: Fraction, grid: BeatGrid | None, *, footage: bool = False) -> Sound:
+    """A sound with its gain and fades, which are spans from its visible in and out points."""
     gain = None
     if isinstance(layer.gain, Keys) or layer.gain != 0:
         gain = _track(layer.gain, start, rate, grid, 1)
@@ -272,7 +278,33 @@ def _sound(project: Project, layer: AudioLayer, rate: Fraction, grid: BeatGrid |
         f"layer {layer.id}: its fades ({layer.fade_in}, {layer.fade_out}) are longer than the layer"
     )
     return Sound(layer=layer, record=record, first=first, end=end, source_first=source_first, gain=gain,
-                 fade_in=fade_in, fade_out=fade_out)
+                 fade_in=fade_in, fade_out=fade_out, footage=footage)
+
+
+def _footage_sound(cut: Cut, rate: Fraction, grid: BeatGrid | None) -> Sound:
+    """A footage layer's own sound: the clip's audio over the comp frames the layer shows,
+    from the source time its first frame shows, so picture and its sound cut together on
+    the layer's frames (03-project-format.md, From time to frames and samples, *proposed*).
+    It plays only where the picture plays at 100 %, since at another speed the sound
+    would need its own retiming (*proposed*)."""
+    layer, record = cut.layer, cut.record
+    assert record.probe.audio, f"layer {layer.id}: {record.key} has no sound of its own"
+    assert cut.remap is None and cut.speed_track is None and cut.speed == 1, (
+        f"layer {layer.id} plays at another speed than 100 %, and its sound plays only at 100 % (proposed); "
+        "take its sound off, or split off the part at another speed")
+    tick = ticks_per_frame(rate)
+    visible_in, visible_out = cut.first * tick, cut.end * tick
+    first, end = nearest_sample(visible_in, MIX_RATE), nearest_sample(visible_out, MIX_RATE)
+    at_in = cut.source_ticks(cut.first)
+    assert at_in >= 0, f"layer {layer.id} starts before the first sample of {record.key}"
+    sound = layer.sound
+    stands_for = AudioLayer.model_validate({
+        "id": layer.id, "type": "audio", "media": layer.media, "start": layer.start, "in": layer.in_, "out": layer.out,
+        "source_start": "0s",
+        "gain": sound.gain.model_dump(mode="json", exclude_unset=True) if isinstance(sound.gain, Keys) else sound.gain,
+        "pan": sound.pan, "fade_in": sound.fade_in, "fade_out": sound.fade_out})
+    return _levels(stands_for, record, cut.start, visible_in, visible_out, first, end,
+                   nearest_sample(int(at_in), MIX_RATE), rate, grid, footage=True)
 
 
 def _nest(project: Project, layer: PrecompLayer, rate: Fraction, grid: BeatGrid | None, inside: tuple[str, ...],
@@ -308,6 +340,7 @@ def resolve(project: Project, comp: CompFile, inside: tuple[str, ...] = ()) -> R
         assert cut.first >= 0, f"layer {cut.layer.id} starts before the comp does"
         assert cut.end <= end, f"layer {cut.layer.id} runs past the comp's end ({comp.end})"
     sounds = [_sound(project, layer, rate, grid) for layer in comp.layers if isinstance(layer, AudioLayer)]
+    sounds += [_footage_sound(cut, rate, grid) for cut in cuts if cut.layer.sound is not None]
     nests = [_nest(project, layer, rate, grid, inside, end) for layer in comp.layers if isinstance(layer, PrecompLayer)]
     overlays = []
     last_footage = max((k for k, layer in enumerate(comp.layers) if isinstance(layer, FootageLayer | PrecompLayer)),

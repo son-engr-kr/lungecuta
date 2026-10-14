@@ -1,5 +1,5 @@
 """Placing sounds on events: a cut, a beat, a downbeat or a marker (07-audio.md, SFX
-placement)."""
+placement); and a footage layer's own sound (07-audio.md, Location sound)."""
 from __future__ import annotations
 
 import math
@@ -91,3 +91,33 @@ def _cut_at_end(edit: Edit, comp_end: int, layer_ids: set[str]) -> None:
             length = resolve_span(parse_literal(layer["out"], Field.LAYER), anchor=edit.start(layer), rate=edit.rate,
                                   grid=edit.grid)
             layer["out"] = format_literal(Seconds(length - over))
+
+
+def sound(project: Project, name: str, layer_id: str, on: bool = True, gain: float | None = None,
+          pan: float | None = None, fade_in: str | None = None, fade_out: str | None = None,
+          expect: str | None = None) -> dict[str, Any]:
+    """Play a footage layer's own sound with its picture, or with `on` false take it off.
+    `gain` (dB), `pan` (-1 to 1) and the fades (spans from the visible in and out points,
+    `none` for no fade) change only what is given. The sound cuts on the layer's frames and
+    moves, trims, slips and splits with it; only a layer at 100 % plays it (*proposed*)."""
+    edit = Edit.open(project, name, expect)
+    layer = edit.layer(layer_id)
+    assert layer["type"] == "footage", f"{layer_id} is not a footage layer"
+    if not on:
+        assert "sound" in layer, f"{layer_id} plays no sound of its own"
+        del layer["sound"]
+        edit.changes.append(f"{layer_id} plays no sound of its own")
+    else:
+        assert load_record(project, layer["media"]).probe.audio, f"{layer['media']} has no sound of its own"
+        settings = dict(layer.get("sound") or {})
+        for field, value in (("gain", gain), ("pan", pan), ("fade_in", fade_in), ("fade_out", fade_out)):
+            if value == "none":
+                settings.pop(field, None)
+            elif value is not None:
+                settings[field] = value
+        layer["sound"] = settings
+        described = ", ".join(f"{field.replace('_', ' ')} {value}{' dB' if field == 'gain' else ''}"
+                              for field, value in settings.items())
+        edit.changes.append(f"{layer_id} plays its own sound" + (f" ({described})" if described else ""))
+    _resolves(project, edit)
+    return edit.save()

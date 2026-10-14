@@ -60,7 +60,8 @@ def lint(project: Project, name: str) -> dict[str, Any]:
                                      "message": f"{a.layer.id} and {b.layer.id} both show {a.record.key} source "
                                                 f"frames {', '.join(f'{r[0]} to {r[1]}' for r in runs)}"})
     if settings.music_licence:
-        sounds = list(resolved.every_sound())  # precomps' music is in the piece too
+        # precomps' music is in the piece too; a clip's own sound is the person's recording
+        sounds = [sound for sound in resolved.every_sound() if not sound.footage]
         for key in sorted({sound.record.key for sound in sounds}):
             record = next(sound.record for sound in sounds if sound.record.key == key)
             if record.licence is None:
@@ -77,7 +78,8 @@ def lint(project: Project, name: str) -> dict[str, Any]:
                              "message": f"nothing is on screen on frame{'s' if last > first else ''} {first}"
                                         + (f" to {last}" if last > first else "")})
     if settings.sfx_vary:
-        effects = sorted((s for s in resolved.every_sound() if s.record.beats is None), key=lambda s: s.first)
+        effects = sorted((s for s in resolved.every_sound() if s.record.beats is None and not s.footage),
+                         key=lambda s: s.first)
         for before, after in zip(effects, effects[1:]):
             if before.record.key == after.record.key:
                 warnings.append({"rule": "sfx_vary", "layers": [before.layer.id, after.layer.id],

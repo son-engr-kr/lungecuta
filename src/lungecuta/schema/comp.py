@@ -234,6 +234,19 @@ class _MediaLayer(_Part):
     markers: list[Marker] = Field(default_factory=list)
 
 
+class FootageSound(_Part):
+    """The clip's own sound, played with its picture (07-audio.md, Location sound): it
+    cuts on the layer's frames and moves, trims, slips and splits with it, as a footage
+    layer's audio does in After Effects. Only a layer at 100 % plays it (*proposed*)."""
+
+    gain: float | Keys = Field(default=0.0, description="dB, a constant or keys in layer time")
+    pan: float = Field(default=0.0, ge=-1, le=1, description="-1 left to 1 right, constant power")
+    fade_in: str | None = Field(default=None, description="a span from the visible in point over which the sound "
+                                "rises from silence (linear in amplitude)", json_schema_extra={"x-time": "layer"})
+    fade_out: str | None = Field(default=None, description="a span before the visible out point over which it "
+                                 "falls to silence (linear in amplitude)", json_schema_extra={"x-time": "layer"})
+
+
 class FootageLayer(_MediaLayer):
     type: Literal["footage"]
     source_start: str | None = Field(default=None, description="the source time at layer time 0; "
@@ -249,6 +262,7 @@ class FootageLayer(_MediaLayer):
     masks: list[Mask] = Field(default_factory=list, description="in order; the layer is seen only where they "
                               "leave it, none showing the whole layer")
     motion_blur: MotionBlur | None = None
+    sound: FootageSound | None = Field(default=None, description="the clip's own sound; absent, the layer is silent")
 
     @model_validator(mode="after")
     def _source(self) -> FootageLayer:

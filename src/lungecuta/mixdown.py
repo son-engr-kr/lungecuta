@@ -12,7 +12,7 @@ from .audio import master, true_peak_db
 from .effects import apply as apply_effects, pan_gains, source_length
 from .comp import MIX_RATE, Nest, Resolved, Sound
 from .encode import Preset
-from .media import Project, music_wav
+from .media import Project, footage_wav, music_wav
 from .music import read_wav, wav_bytes
 from .ticks import nearest_sample, ticks_per_frame, ticks_per_sample
 from .tools import run, tool
@@ -47,11 +47,14 @@ def mix(project: Project, resolved: Resolved) -> np.ndarray:
 def layer_sound(project: Project, sound: Sound, total: int) -> np.ndarray:
     """What one audio layer adds to the mix from its first comp sample, up to comp sample
     `total`: its source through its effects, pan, gain and fades, frames x 2 channels."""
-    signal, rate = read_wav(music_wav(project, sound.record))
+    signal, rate = read_wav(footage_wav(project, sound.record) if sound.footage else music_wav(project, sound.record))
     assert rate == MIX_RATE and signal.shape[1] in (1, 2), f"{sound.record.key}: a {rate} Hz WAV"
     count = min(sound.end, total) - sound.first
     effects = sound.layer.effects
     piece = signal[sound.source_first:sound.source_first + source_length(effects, count)]
+    assert len(piece) == source_length(effects, count), (
+        f"layer {sound.layer.id} needs {source_length(effects, count) / MIX_RATE:.3f} s of {sound.record.key}'s sound "
+        f"from {sound.source_first / MIX_RATE:.3f} s, which has {len(signal) / MIX_RATE:.3f} s")
     piece = piece if piece.shape[1] == 2 else np.repeat(piece, 2, axis=1)
     if effects:
         piece = apply_effects(effects, piece, MIX_RATE, count)

@@ -38,6 +38,21 @@ def make_clip(path: Path, rotation: int | None = None, *, hflip: bool = False, f
     return path
 
 
+CLICK = 1.0  # seconds of the sound a clip with sound has its one click at
+
+
+def clip_with_sound(path: Path, *, frames: int = 70, lead: float = 0.0) -> Path:
+    """The test pattern with a sound: silence and one click of 0.5 at CLICK seconds of the
+    sound, as 24-bit PCM at 48 kHz like the camera's; with `lead`, the sound starts that
+    many seconds after the picture (by its stream's start time)."""
+    plain = make_clip(path.with_name(f"silent-{path.name}"), frames=frames)
+    seconds = frames * 1001 / 30000 - lead
+    run(["ffmpeg", "-v", "error", "-i", str(plain), *(["-itsoffset", str(lead)] if lead else []), "-f", "lavfi",
+         "-i", f"aevalsrc=if(eq(n\\,{round(CLICK * 48000)})\\,0.5\\,0):s=48000:c=stereo:d={seconds:.6f}",
+         "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "pcm_s24le", str(path)])
+    return path
+
+
 def write_record(project: Path, clip: Path, *, decided: bool = True, start_tc: str | None = None,
                  proxy: bool = False) -> str:
     """A media record for a clip under the project root, decided by hand (no sidecar exists);

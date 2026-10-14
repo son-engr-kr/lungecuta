@@ -363,3 +363,23 @@ def test_the_music_row_draws_its_waveform(page, cut_project):
     page.wait_for_function("state.peaks.hash === state.tl.hash")
     peaks = page.evaluate("state.peaks.layers.music.peaks")
     assert len(peaks) == page.evaluate("state.tl.frames") and max(peaks) > 0
+
+
+def test_a_clip_s_own_sound_is_turned_on_in_the_inspector(page, cut_project):
+    from clips import clip_with_sound, put_comp, write_record
+
+    write_record(cut_project, clip_with_sound(cut_project / "footage" / "C0002.mov"))
+    comp = json.loads((cut_project / "comps" / "main.json").read_text())
+    comp["layers"].append({"id": "talk", "type": "footage", "media": "C0002", "start": "b:1", "out": "1.5s",
+                           "source_start": "0.5s"})
+    put_comp(cut_project, comp)
+    page.reload()
+    page.wait_for_function("state.tl !== null && state.tl.layers.some(l => l.id === 'talk')")
+    click_layer(page, "talk")
+    page.get_by_role("button", name="Play its sound").click()
+    deadline = time.monotonic() + 10
+    while "sound" not in layer_of(cut_project, "talk"):
+        assert time.monotonic() < deadline, f"the sound: not written; status {page.inner_text('#status')!r}"
+        time.sleep(0.05)
+    page.wait_for_function("state.peaks.hash === state.tl.hash && state.peaks.layers.talk !== undefined")
+    assert max(page.evaluate("state.peaks.layers.talk.peaks")) == 0.5  # the click, drawn on the footage row
