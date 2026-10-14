@@ -315,6 +315,9 @@ describes.
   ([03-project-format.md](docs/design/03-project-format.md#from-time-to-frames-and-samples)).
 - The findings left open in
   [docs/research/design-review-2026-10-11.md](docs/research/design-review-2026-10-11.md).
+- `lungecuta op speed` (the speed graph's constant segment): the rest of the layer keeps its
+  speeds and its in and out points stay, so the change does not ripple the comp
+  (*proposed*, `docs/design/06-editing.md#speed`).
 - The `web-hevc10` preset: VideoToolbox at `-q:v 70`, the lowest setting with web-h264's
   PSNR on every plane, on the grainy check comp (`bench/RESULTS.md`), *proposed*; it
   smooths a little more grain than web-h264, which the person judges on screen.

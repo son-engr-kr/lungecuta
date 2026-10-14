@@ -68,7 +68,7 @@ missing; `lungecuta setup` fetches it.
    selected layer and the range they marked with I and O. That is what "here", "this
    shot" and "this part" mean; `marked` gives the range as `--from` and `--to`.
 2. Prefer `lungecuta op OP COMP ...` (move, trim, slip, slide, roll, ripple-delete, split, snap,
-   place, graphic, key, unkey, move-key, set, remap, style, unstyle, grade, look, unlook,
+   place, graphic, key, unkey, move-key, set, remap, speed, style, unstyle, grade, look, unlook,
    masks, transition, untransition, sfx): the editor's own functions, written only if the
    file is still the one read, the change printed in editing terms. Edit the JSON for anything
    else, then run `lungecuta validate`.
@@ -97,6 +97,12 @@ from `0s` needs (no beat span starts before the first beat). A later layer is dr
 an earlier one, so shots that meet at cuts need no ordering. `lungecuta op graphic COMP
 graphics/title.html --at 0s --to b:4 --params '{{...}}'` puts a title page on top.
 `lungecuta audio-check COMP` then gives every cut's offset to its beat.
+
+A speed ramp is a range at another speed: `lungecuta op speed COMP LAYER --from b:9 --to b:10
+--speed 0.4` plays that beat at 40 % and moves the rest of the shot on by the source time
+it took, so its other speeds stay; `--at P` changes the one remap segment around P, as
+dragging it in the editor's speed graph does. When the person marks the range,
+`lungecuta changes` gives it as `marked.from` and `marked.to`.
 
 ## What you cannot judge
 

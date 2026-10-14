@@ -2,12 +2,13 @@
 gain, time remapping, and masks."""
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from ..literals import TICKS_PER_SECONDS_STEP, Field, Seconds, format_literal, parse_literal, position_literal, resolve_position, resolve_span, span_literal
 from ..media import Project
 from ..schema.comp import CompFile
-from ..ticks import ticks_per_frame
+from ..ticks import TICKS_PER_SECOND, ticks_per_frame
 from .edit import Edit, _resolves, _unit
 
 
@@ -191,29 +192,116 @@ def remap(project: Project, name: str, layer_id: str, expect: str | None = None)
     visible in and out points, holding the source times shown there; the layer plays as
     before (checked frame by frame) and its source start and speed go. The source times
     are written in seconds to five places, so the check is what proves nothing moved."""
+    edit = Edit.open(project, name, expect)
+    _remapped(project, edit, edit.layer(layer_id))
+    return edit.save()
+
+
+def _cut(project: Project, edit: Edit, layer_id: str):
+    """A footage layer of the comp as edited so far, resolved."""
     from ..comp import resolve
 
-    edit = Edit.open(project, name, expect)
-    layer = edit.layer(layer_id)
+    return {c.layer.id: c for c in resolve(project, CompFile.model_validate(edit.data)).cuts}[layer_id]
+
+
+def _seconds(ticks: float) -> str:
+    """A source time in seconds to five places, as remap keys are written."""
+    step = TICKS_PER_SECONDS_STEP
+    return format_literal(Seconds(int(round(ticks / step)) * step))
+
+
+def _remapped(project: Project, edit: Edit, layer: dict) -> None:
+    """`remap` on a layer of an open edit."""
+    layer_id = layer["id"]
     assert layer["type"] == "footage", f"{layer_id} is not a footage layer"
     time = layer.get("time")
     assert time is None or "speed" in time, f"{layer_id} has {time}; only a layer at 100 % or a constant speed remaps"
-    before = {c.layer.id: c for c in resolve(project, edit.comp).cuts}[layer_id]
+    before = _cut(project, edit, layer_id)
     start = edit.start(layer)
     keys = []
     for side in ("in", "out"):
-        t = layer.get(side, "0s")
         at = start + edit.span(layer, side)
-        source = before.source_start + before.speed * (at - start)
-        step = TICKS_PER_SECONDS_STEP
-        keys.append({"t": t, "v": format_literal(Seconds(int(round(source / step)) * step))})
+        keys.append({"t": layer.get(side, "0s"), "v": _seconds(before.source_start + before.speed * (at - start))})
     layer["time"] = {"remap": keys}
     del layer["source_start"]
-    after = {c.layer.id: c for c in resolve(project, CompFile.model_validate(edit.data)).cuts}[layer_id]
+    after = _cut(project, edit, layer_id)
     moved = [f for f in range(before.first, before.end) if after.samples(f) != before.samples(f)]
     assert not moved, f"remapping {layer_id} would change comp frames {moved[:5]}; nothing written"
     edit.changes.append(f"{layer_id} time remapped: {keys[0]['v']} at {keys[0]['t']}, {keys[1]['v']} at {keys[1]['t']}")
+
+
+def speed(project: Project, name: str, layer_id: str, factor: float, at: str | None = None,
+          start: str | None = None, end: str | None = None, expect: str | None = None) -> dict[str, Any]:
+    """Play a footage layer at `factor` (source seconds per comp second: 0.5 is 50 %, 0
+    holds a frame, -1 plays backwards) over the remap segment around comp position `at`,
+    or from `start` to `end` (taken inside the layer's in and out points), as dragging a
+    segment of the speed graph does (06-editing.md, Speed). Keys are put at both ends, the
+    first holding the source shown there; keys between them go; every later key moves by
+    the same source time, so the rest of the layer keeps its speeds and shows later or
+    earlier source. A layer not remapped is remapped first. A new key may not split an
+    eased segment, whose shape it would change, and the source check refuses a speed that
+    runs out of footage."""
+    assert (at is None) != (start is None and end is None), "give --at, or --from and --to"
+    assert at is not None or (start is not None and end is not None), "a range needs both --from and --to"
+    assert math.isfinite(factor), f"a speed of {factor}"
+    edit = Edit.open(project, name, expect)
+    layer = edit.layer(layer_id)
+    assert layer["type"] == "footage", f"{layer_id} is not a footage layer"
+    if "remap" not in (layer.get("time") or {}):
+        _remapped(project, edit, layer)
+    cut = _cut(project, edit, layer_id)
+    keys = layer["time"]["remap"]
+    ticks = [_key_tick(edit, layer, k) for k in keys]
+    point = lambda literal: resolve_position(parse_literal(literal, Field.POSITION), rate=edit.rate, grid=edit.grid)
+    if at is not None:
+        here = point(at)
+        assert ticks[0] <= here < ticks[-1], f"{at} is outside {layer_id}'s remap keys ({keys[0]['t']} to {keys[-1]['t']} from its start)"
+        k = max(i for i, tick in enumerate(ticks) if tick <= here)
+        a, b = ticks[k], ticks[k + 1]
+        ends = key_position(edit, layer, keys[k]), key_position(edit, layer, keys[k + 1])
+    else:
+        visible = edit.start(layer) + edit.span(layer, "in"), edit.start(layer) + edit.span(layer, "out")
+        a, b = max(point(start), visible[0]), min(point(end), visible[1])
+        assert a < b, f"{start} to {end} does not overlap {layer_id}, which is visible from its in to its out point"
+        ends = start if a == point(start) else "its in point", end if b == point(end) else "its out point"
+    for tick, literal in zip((a, b), ends):
+        later = [i for i, t in enumerate(ticks) if t > tick]
+        if tick not in ticks and later and ticks[0] < tick:
+            assert keys[later[0]].get("ease") is None, (
+                f"{literal} falls inside the eased remap segment arriving at {keys[later[0]]['t']}: a key there "
+                "would change its shape; take its ease off or start and end the range on keys")
+    source = lambda tick: cut.remap.at(tick)[0]
+    shift = source(a) + factor * (b - a) - source(b)
+    removed = [key["t"] for key, tick in zip(keys, ticks) if a < tick < b]
+    eased = [key["t"] for key, tick in zip(keys, ticks) if tick == b and key.get("ease") is not None]
+    out = [key for key, tick in zip(keys, ticks) if tick <= a]
+    if a not in ticks:
+        out.append({"t": _key_time(edit, layer, start if ends[0] == start else _position_of(edit, a))[1],
+                    "v": _seconds(source(a))})
+    at_end = next((key for key, tick in zip(keys, ticks) if tick == b), None)
+    t_end = at_end["t"] if at_end is not None else _key_time(edit, layer, end if ends[1] == end else _position_of(edit, b))[1]
+    out.append({"t": t_end, "v": _seconds(source(a) + factor * (b - a))})  # no ease: the range is one speed
+    moved = [key | {"v": _seconds(source(tick) + shift)} for key, tick in zip(keys, ticks) if tick > b]
+    layer["time"]["remap"] = out + moved
+    change = f"{layer_id} plays at {factor * 100:g} % from {ends[0]} to {ends[1]}"
+    if removed:
+        change += f"; remap keys at {', '.join(removed)} between them deleted"
+    if eased:
+        change += f"; the ease of the key at {eased[0]} taken off"
+    if moved:
+        change += f"; {len(moved)} later key{'s' if len(moved) > 1 else ''} moved {shift / TICKS_PER_SECOND:+.5f} s in source"
+    edit.changes.append(change)
+    _resolves(project, edit)
     return edit.save()
+
+
+def _position_of(edit: Edit, tick: int) -> str:
+    """A comp tick as a position literal `_key_time` takes: in frames when it is on one,
+    else in beats."""
+    if tick % ticks_per_frame(edit.rate) == 0:
+        return format_literal(position_literal(tick, "f", rate=edit.rate))
+    assert edit.grid is not None, f"tick {tick} is between frames and the comp has no beat grid"
+    return format_literal(position_literal(tick, "b", rate=edit.rate, grid=edit.grid))
 
 
 def set_masks(project: Project, name: str, layer_id: str, masks: list[dict], expect: str | None = None) -> dict[str, Any]:

@@ -62,7 +62,7 @@ two. `set` sets a constant where there are no keys. `remap` enables time remappi
 After Effects does, keys at the in and out points holding the source shown there, the
 values written in seconds to five places and every frame of the layer checked to show
 what it showed before (or nothing is written). `grade` replaces a layer's grade after
-building it; `style` and `unstyle` place and take off a style instance
+building it; `speed` plays a range at one speed ([Speed](#speed)); `style` and `unstyle` place and take off a style instance
 ([03-project-format.md](03-project-format.md#m2s-part-of-styles)).
 
 ### What the agent sees of the editor
@@ -100,6 +100,21 @@ One curve, two editors (see [03-project-format.md](03-project-format.md#time-rem
 - the **speed graph**, Resolve's retime curve: its derivative, the natural view for "ramp
   up, then slow on the drop". An edit here is converted to remap keys, exactly for
   constant and linear segments and to a hundredth of a source frame for eased ones.
+
+What is written so far is the constant segment: `speed` plays a footage layer at one
+speed over a range, or over the remap segment around a position, which is what dragging
+a segment of the speed graph up or down does. Keys go at both ends of the range, the
+first holding the source shown there (in seconds to five places, as `remap` writes
+them); the keys between them go; and every later key moves by the same source time, so
+the rest of the layer keeps its speeds and only shows later or earlier source, while
+the layer's in and out points stay where they are on the comp, as remap keys leave them
+in After Effects (*proposed*: a speed change does not ripple the comp). A layer not
+remapped is remapped first. A range is taken inside the layer's in and out points. A
+new key may not fall inside an eased segment, since a named ease cannot be split into
+two that keep its shape; the range must start and end on that segment's keys, or the
+ease come off first. The source check refuses a speed that runs out of footage. Linear
+and eased segments drawn in the speed graph are not written yet
+(`src/lungecuta/ops/properties.py`, `tests/test_speed.py`).
 
 The source-duration check runs on every change, so a ramp that would run out of footage
 is flagged while it is being drawn.

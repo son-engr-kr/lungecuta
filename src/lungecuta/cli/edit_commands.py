@@ -319,6 +319,24 @@ def op_remap(comp: str, layer: str, project_dir: Path | None) -> None:
     print_json(ops.remap(project_of(project_dir), comp, layer))
 
 
+@op.command("speed")
+@click.argument("comp")
+@click.argument("layer")
+@click.option("--speed", "factor", required=True, type=float,
+              help="Source seconds per comp second: 0.5 plays at 50 %, 2 at 200 %, 0 holds a frame, -1 plays backwards.")
+@click.option("--at", help="A comp position inside the remap segment to change (b:6, f:120).")
+@click.option("--from", "start", help="Where the range starts, a comp position; with --to instead of --at.")
+@click.option("--to", "end", help="Where the range ends (the first frame after it, as lungecuta sheet --to).")
+@project_option
+def op_speed(comp: str, layer: str, factor: float, at: str | None, start: str | None, end: str | None,
+             project_dir: Path | None) -> None:
+    """Play footage LAYER at one speed over a range (--from, --to) or over the remap
+    segment around --at, as dragging a segment of the editor's speed graph does. Keys go
+    at both ends, keys between them go, and every later key moves by the same source time,
+    so the rest of the layer keeps its speeds. A layer not remapped is remapped first."""
+    print_json(ops.speed(project_of(project_dir), comp, layer, factor, at, start, end))
+
+
 @op.command("grade", epilog="\n\n".join([
     "Each operation's fields, with the value it takes when absent:",
     fields_help("primary", Primary), fields_help("cdl", Cdl), fields_help("lut", Lut)]))

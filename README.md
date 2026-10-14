@@ -117,9 +117,10 @@ lungecuta graphic PAGE ...                 a web page rendered to ProRes 4444 wi
 lungecuta patch-card DIR ... / lungecuta patches  a card of known colours, and reading an export back at it
 lungecuta op OP COMP ...                   an edit operation: place, graphic, sfx, move, trim, slip, slide,
                                            roll, ripple-delete, split, snap, key, unkey, move-key, set,
-                                           remap, style, unstyle, look, unlook, grade, masks, transition,
-                                           untransition
-lungecuta changes                          what the editor wrote since the agent last asked
+                                           remap, speed, style, unstyle, look, unlook, grade, masks,
+                                           transition, untransition
+lungecuta changes                          what the editor wrote since the agent last asked, and what is on
+                                           its screen: the playhead, the selection, the range marked with I and O
 lungecuta audio-check COMP                 cut offsets to beats and loudness per half beat
 lungecuta lint COMP                        the review rules a machine can check, as warnings
 lungecuta diff COMP [BEFORE] [AFTER]       what changed between two revisions, in editing terms

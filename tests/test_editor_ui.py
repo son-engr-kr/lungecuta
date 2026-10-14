@@ -307,3 +307,53 @@ def test_what_is_on_screen_reaches_the_agent(page, cut_project):
     assert view["marked"]["in"] is None and view["marked"]["from"] == "f:0"
     page.keyboard.press("Alt+KeyX")
     reported(lambda v: "marked" not in v, "clearing the marks")
+
+
+def layer_of(project, layer_id):
+    return next(layer for layer in json.loads((project / "comps" / "main.json").read_text())["layers"]
+                if layer["id"] == layer_id)
+
+
+def test_a_segment_of_the_speed_graph_is_dragged_to_another_speed(page, cut_project):
+    click_layer(page, "shot2")  # half speed, not remapped
+    page.wait_for_function("state.curves !== null && state.curves.speed !== undefined")
+    page.check("input[name=graph][value=speed]")
+    start, up = json.loads(page.evaluate("""JSON.stringify((() => {
+      const c = state.curves, f = c.first + Math.floor((c.end - c.first) / 2);
+      return [[graph.map.x(f), graph.map.y(c.speed[f - c.first] * 100)], graph.map.y(100) - graph.map.y(50)];
+    })())"""))
+    box = page.locator("#graph").bounding_box()
+    page.mouse.move(box["x"] + start[0], box["y"] + start[1])
+    page.mouse.down()
+    page.mouse.move(box["x"] + start[0], box["y"] + start[1] + up, steps=8)
+    page.mouse.up()
+    deadline = time.monotonic() + 10
+    while "remap" not in (layer_of(cut_project, "shot2").get("time") or {}):
+        assert time.monotonic() < deadline, f"the dragged segment: not written; status {page.inner_text('#status')!r}"
+        time.sleep(0.05)
+    keys = layer_of(cut_project, "shot2")["time"]["remap"]
+    assert [k["t"] for k in keys] == ["0s", "b:4"]  # the whole layer was one segment
+    speed = (float(keys[1]["v"].rstrip("s")) - float(keys[0]["v"].rstrip("s"))) / 2.0  # four beats of 0.5 s
+    assert speed == pytest.approx(1.0, abs=0.02)
+
+
+def test_the_marked_range_is_set_to_a_speed_from_the_inspector(page, cut_project):
+    click_layer(page, "shot2")
+    page.wait_for_function("document.querySelector('#inspector h2')?.textContent.startsWith('shot2')")
+    page.evaluate("show(83)")  # b:5 is 2.75 s, frame 82.42
+    page.keyboard.press("i")
+    page.evaluate("show(97)")  # to frame 97, before b:6 (3.25 s, frame 97.40)
+    page.keyboard.press("o")
+    row = page.locator("#inspector .actions", has=page.get_by_role("button", name="% over marked range"))
+    row.locator("input[type=number]").fill("100")
+    page.get_by_role("button", name="% over marked range").click()
+    deadline = time.monotonic() + 10
+    while "remap" not in (layer_of(cut_project, "shot2").get("time") or {}):
+        assert time.monotonic() < deadline, f"the marked range: not written; status {page.inner_text('#status')!r}"
+        time.sleep(0.05)
+    keys = layer_of(cut_project, "shot2")["time"]["remap"]
+    # shot2 starts on a beat, between frames, so its keys are written in beats (D15)
+    assert len(keys) == 4 and all(k["t"].startswith("b:") for k in keys[1:3])
+    beats = [float(k["t"].removeprefix("b:")) for k in keys[1:3]]
+    source = [float(k["v"].rstrip("s")) for k in keys[1:3]]
+    assert (source[1] - source[0]) / ((beats[1] - beats[0]) * 0.5) == pytest.approx(1.0, abs=1e-3)
