@@ -1,7 +1,7 @@
 """The journal of the editor's writes (docs/design/01-architecture.md, Files, edits and
 concurrency): every file the UI writes, with its content before and after and the change
 in editing terms, in `cache/journal.jsonl`. It protects the person's edits from the agent:
-`lc changes` shows the agent what was done since it last asked, an overwritten change can
+`lungecuta changes` shows the agent what was done since it last asked, an overwritten change can
 be recovered from it, and undo and redo walk it, each a write the agent sees too."""
 from __future__ import annotations
 

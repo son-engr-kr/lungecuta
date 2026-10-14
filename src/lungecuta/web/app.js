@@ -176,7 +176,7 @@ function buildGraphics() {
   for (const layer of state.tl.layers.filter((l) => l.type === "graphics")) {
     const frame = document.createElement("iframe");
     const query = new URLSearchParams({ id: layer.id, page: layer.page, params: JSON.stringify(layer.params || {}) });
-    frame.src = `${state.project.graphics_origin}/__lc_frame.html?${query}`;
+    frame.src = `${state.project.graphics_origin}/__lungecuta_frame.html?${query}`;
     frame.width = cw;
     frame.height = ch;
     frame.style.transform = `scale(${pw / cw})`;
@@ -187,7 +187,7 @@ function buildGraphics() {
 }
 
 window.addEventListener("message", (event) => {
-  if (event.data && event.data.lc === "ready") { state.ready.add(event.data.id); graphicsAt(state.frame); }
+  if (event.data && event.data.lungecuta === "ready") { state.ready.add(event.data.id); graphicsAt(state.frame); }
 });
 
 function graphicsAt(frame) {
@@ -197,7 +197,7 @@ function graphicsAt(frame) {
     // preview does not capture; drawing it over everything would show the wrong stack.
     const visible = layer.top && frame >= layer.first && frame < layer.end;
     iframe.hidden = !visible;
-    if (visible) iframe.contentWindow.postMessage({ lc: "at", t: (frame - layer.start) / state.tl.fps }, "*");
+    if (visible) iframe.contentWindow.postMessage({ lungecuta: "at", t: (frame - layer.start) / state.tl.fps }, "*");
   }
 }
 
@@ -658,7 +658,7 @@ function looksRow(layer) {
 
 function gradeSection(layer) {
   if (layer.grade && !Array.isArray(layer.grade)) {
-    // A node graph: shown, its looks added and taken off here (lc op grade writes the rest).
+    // A node graph: shown, its looks added and taken off here (lungecuta op grade writes the rest).
     const box = el("div");
     layer.grade.nodes.forEach((node, k) => {
       const what = node.look ? `look ${node.look}` : node.ops.map((op) => op.op).join(", ");
@@ -727,7 +727,7 @@ function renderInspector() {
   if (layer.type !== "footage") {
     box.append(el("p", { class: "dim" }, `graphics page ${layer.page}`));
     if (!layer.top) box.append(el("p", { class: "dim" },
-      "Under footage: composited in the working space in renders and lc still; the editor does not draw it yet."));
+      "Under footage: composited in the working space in renders and lungecuta still; the editor does not draw it yet."));
     return;
   }
   box.append(el("h3", {}, "Transform"), ...["position", "scale", "rotation", "opacity"].map(propertyRow));
@@ -770,7 +770,7 @@ function scopes() {
 // ----- graph editor -------------------------------------------------------
 
 // What the graph editor can show: each a curve on every frame the layer is visible and the
-// keys of one property, dragged up or down to change a key's value (`lc op key`).
+// keys of one property, dragged up or down to change a key's value (`lungecuta op key`).
 const GRAPHS = {
   speed: { label: "speed", prop: "remap", lines: [0, 100, 200], unit: "%", fixed: true,
            curve: (c) => c.speed && c.speed.map((v) => v * 100) },
@@ -883,7 +883,7 @@ function drawGraph() {
 const graph = { map: null, drag: null };
 
 function draggedValue(mode, key, value) {
-  // The key's new value as `lc op key` takes it, in the form the key already has.
+  // The key's new value as `lungecuta op key` takes it, in the form the key already has.
   const spec = GRAPHS[mode], c = state.curves;
   if (mode === "source") return sourceLiteral(value, c.media_fps);
   let v = round(value, spec.digits || 4);

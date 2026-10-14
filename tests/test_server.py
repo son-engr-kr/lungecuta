@@ -90,7 +90,7 @@ def test_the_graphics_origin_serves_only_the_projects_graphics_with_a_local_poli
     with urllib.request.urlopen(f"{origin}/title.html") as page:
         assert page.headers["Content-Security-Policy"] == "default-src 'self' 'unsafe-inline' data: blob:"
         assert b"renderAt" in page.read()
-    with urllib.request.urlopen(f"{origin}/__lc_frame.html") as wrapper:
+    with urllib.request.urlopen(f"{origin}/__lungecuta_frame.html") as wrapper:
         assert b"postMessage" in wrapper.read()
 
 
@@ -100,7 +100,7 @@ def test_an_agents_edit_reaches_the_editor_as_it_happens(client, cut_project):
 
     client.get("/api/comp/main")  # the editor has read the comp
     with client.websocket_connect("/ws") as socket:
-        ops.move(Project.load(cut_project), "main", "shot2", "b:1")  # as `lc op` would, from outside
+        ops.move(Project.load(cut_project), "main", "shot2", "b:1")  # as `lungecuta op` would, from outside
         message = json.loads(socket.receive_text())
     assert message["type"] == "changed" and message["file"] == "comps/main.json"
     # The editor's own writes are not echoed back as changes from outside.
@@ -134,7 +134,7 @@ def test_the_editor_lists_the_project_s_styles(client, cut_project):
     assert [style["id"] for style in client.get("/api/styles").json()] == ["dip"]
 
 
-def test_the_editor_s_scopes_are_lc_scope_s_on_the_proxy(client):
+def test_the_editor_s_scopes_are_lungecuta_scope_s_on_the_proxy(client):
     numbers = client.get("/api/comp/main/scope", params={"frame": 30}).json()
     assert numbers["on"] == "proxy" and set(numbers["luma"]) == {"p1", "p50", "p99"}
     image = client.get("/api/comp/main/scope.png", params={"frame": 30}).content

@@ -78,7 +78,7 @@ def test_clipped_pixels_are_counted_not_hidden():
 
 
 @pytest.mark.parametrize("preset", sorted(PRESETS))
-def test_lc_render_writes_a_file_lc_verify_accepts(cut_project, preset):
+def test_render_writes_a_file_verify_accepts(cut_project, preset):
     result = CliRunner().invoke(main, ["render", "main", "--preset", preset, "--project", str(cut_project)])
     assert result.exit_code == 0, result.output
     printed = json.loads(result.output)
@@ -124,7 +124,7 @@ def test_lossy_audio_is_muxed_as_measured_and_in_time(cut_project):
     assert best == 0  # the AAC's priming is trimmed after the mux too
 
 
-def test_lc_verify_catches_a_cut_a_frame_off(cut_project):
+def test_verify_catches_a_cut_a_frame_off(cut_project):
     result = CliRunner().invoke(main, ["render", "main", "--preset", "master-prores-hq", "--project", str(cut_project)])
     assert result.exit_code == 0, result.output
     rendered = json.loads(result.output)["file"]

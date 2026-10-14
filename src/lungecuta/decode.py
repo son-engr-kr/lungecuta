@@ -126,7 +126,7 @@ class Layout:
     @classmethod
     def of(cls, pix_fmt: str) -> Layout:
         match = _PLANAR_YUV.fullmatch(pix_fmt)
-        assert match, f"{pix_fmt} is not a planar Y'CbCr format lc reads"
+        assert match, f"{pix_fmt} is not a planar Y'CbCr format lungecuta reads"
         sub_x, sub_y = _SUBSAMPLING[match[2]]
         return cls(int(match[3]) if match[3] else 8, sub_x, sub_y, bool(match[1]))
 
@@ -261,7 +261,7 @@ def read_rgb(
     """Frame `index` as float32 R'G'B', the file's own encoded values (0 to 1 is black to
     nominal white), in the coded orientation (rotation is applied in the render's geometry
     stage, never here). ffmpeg hands over the decoder's own planes (`pix_fmt`, no
-    conversion); chroma upsampling, range and matrix are lc's, as stated."""
+    conversion); chroma upsampling, range and matrix are lungecuta's, as stated."""
     out = read_raw(path, index, rate=rate, size=size, pix_fmt=pix_fmt)
     return frame_rgb(out, size, pix_fmt=pix_fmt, chroma_location=chroma_location, matrix=matrix, range_=range_)
 

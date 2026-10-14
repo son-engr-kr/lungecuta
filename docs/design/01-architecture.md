@@ -9,7 +9,7 @@
 | UI | vanilla JS, Canvas | viewer, layer timeline, graph editor, colour page, audio, deliver; runs in the same pinned Chromium build that captures graphics (D8) |
 | graphics runtime | web layers in pinned Chromium (tier 1), Skia in the engine (tier 2); see [05-motion-graphics.md](05-motion-graphics.md) | renders code-driven and keyframed graphics at frame N, size WxH, with alpha |
 | expression runtime | embedded sandboxed JS engine (QuickJS is the first candidate), from M9 | evaluates property expressions with no file or network access |
-| `lc` CLI | Python | everything the agent needs: validate, probe, detect, beats, stills, sheets, scopes, render, checks |
+| `lungecuta` CLI | Python | everything the agent needs: validate, probe, detect, beats, stills, sheets, scopes, render, checks |
 
 The stack is Pickapicka's (FastAPI plus a vanilla JS client, PyInstaller for the app),
 because the server and packaging problems are solved there. Its render engine is a
@@ -128,24 +128,24 @@ can cost more than either effect.
 - The server keeps the content hash of every file it last read. A UI write states the
   hash it was based on; if the file changed underneath (the agent edited it), the write
   is refused and the UI shows both versions. Nothing in the files themselves has to be
-  maintained for this, so the agent edits them like any other JSON. `lc` commands that
+  maintained for this, so the agent edits them like any other JSON. `lungecuta` commands that
   write files follow the same rule.
 - **That protects the agent's edits from the UI, not the other way round.** An agent that
   reads a file, works, and writes it back by hand can overwrite a UI change made in
   between, and nothing would notice. So every UI write also goes into a journal in the
-  cache (file, hash before and after, the change in editing terms), `lc changes` shows the
+  cache (file, hash before and after, the change in editing terms), `lungecuta changes` shows the
   agent what the person did since it last asked, and an overwritten UI change can be
   recovered from the journal. The journal is also how principle 1 is kept: the agent sees
   exactly what the person adjusted, without waiting for a commit.
 - **Undo and redo** in the UI walk the same journal, file by file, so an undo is itself a
-  write the agent sees in `lc changes`.
+  write the agent sees in `lungecuta changes`.
 - The project directory is meant to be a git repository. Every review round is a commit,
   so a version someone has seen is never overwritten (the rule past projects arrived at
   by hand).
 
 ## The editor as first written
 
-`lc serve` (`src/lungecuta/server.py`, `preview.py`, `web/`) is M3's first form:
+`lungecuta serve` (`src/lungecuta/server.py`, `preview.py`, `web/`) is M3's first form:
 
 - **Preview frames** come from `Preview`: each clip's proxy read by PyAV with its
   container kept open, the same chain as a render (H.273, input transform, transform and
@@ -158,7 +158,7 @@ can cost more than either effect.
   layers in stack order (the top row is the top of the stack), the ruler, the beat grid
   (beats as ticks, downbeats as lines with bar numbers) and markers; dragging a layer
   moves it and dragging an edge trims it, both snapped to beats (Alt for whole frames)
-  and sent as `lc op`'s own operations with the comp hash the UI showed; S splits at the
+  and sent as `lungecuta op`'s own operations with the comp hash the UI showed; S splits at the
   playhead, Delete ripples, Shift with the arrows steps by beats, Cmd+Z and Shift+Cmd+Z
   undo and redo. A frame not rendered yet shows as missing. Keys show as diamonds on
   their layer's row (white for the transform, blue for remap).
@@ -169,7 +169,7 @@ can cost more than either effect.
   the constant when it is not, as in After Effects. Its time section enables time
   remapping, keys the source shown at the playhead, and places a style on the nearest
   beat or takes it off; its grade section edits the primary grade in working-space codes
-  (`offset`, `contrast`, `pivot`, `gamma`, `saturation`), every change one `lc op`
+  (`offset`, `contrast`, `pivot`, `gamma`, `saturation`), every change one `lungecuta op`
   operation (`key`, `unkey`, `set`, `remap`, `style`, `unstyle`, `grade`).
 - **The graph editor** under the timeline draws the selected layer's speed (the source
   time to the next shown frame, per comp frame) or its source time against comp time,
@@ -177,13 +177,13 @@ can cost more than either effect.
   source time, in whole source frames unless Alt is held. The speed view is a view of
   the remap, not a second store. It also draws a footage layer's position (x and y),
   scale, opacity and rotation and an audio layer's gain on every visible frame, with
-  their keys, each dragged up or down to change its value as `lc op key` does; a key
+  their keys, each dragged up or down to change its value as `lungecuta op key` does; a key
   keeps its form (a scale pair scales both axes by the same factor, a position key
   changes only the axis shown), and the axes hold still while a key is dragged.
-- **Scopes** (the Scopes button): the waveform, vectorscope and parade `lc scope` draws,
+- **Scopes** (the Scopes button): the waveform, vectorscope and parade `lungecuta scope` draws,
   with its luma numbers, of the frame on screen once the playhead rests, computed by the
   engine on the preview frame in the project's display encoding, so on the proxy and
-  without the graphics the editor draws live; `lc scope` on the original is the number to
+  without the graphics the editor draws live; `lungecuta scope` on the original is the number to
   quote.
 - **Playback** plays the comp's mixdown (`render.mix`, as WAV) through Web Audio, and the
   frame on screen is the one under `AudioContext.getOutputTimestamp().contextTime`, the
@@ -192,9 +192,9 @@ can cost more than either effect.
   (another port) that serves only the project's `graphics/` with a policy allowing
   nothing but that origin; a wrapper page there takes the editor's `postMessage` with the
   layer time and calls the page's `renderAt`.
-- **Writes** from the UI go through `lc op`'s functions with the hash the UI was based
+- **Writes** from the UI go through `lungecuta op`'s functions with the hash the UI was based
   on and into the journal (`cache/journal.jsonl`) with their content before and after;
-  undo and redo walk it and refuse to overwrite a change made since; `lc changes` shows
+  undo and redo walk it and refuse to overwrite a change made since; `lungecuta changes` shows
   the agent the entries it has not seen. The server polls the project's JSON files four
   times a second from a snapshot taken at start-up and tells the UI when one changes
   underneath it, which is how the agent's edits appear.
@@ -213,7 +213,7 @@ to replies by id.
 - The graphics runtime and the expression runtime are separate sandboxes, reached by
   message.
 - Media I/O uses ffmpeg as a subprocess for sequential work (proxy builds, final reads,
-  encodes). In-process random access (`lc still` at final quality reads originals at
+  encodes). In-process random access (`lungecuta still` at final quality reads originals at
   arbitrary frames) goes through PyAV, which bundles an LGPL FFmpeg, only once its decode
   has passed a framemd5 check against the ffmpeg CLI. It has, on the S-Log3 sample and its
   FFV1 proxy (705 of 705 frames each, `bench/pyav_check.py`, 2026-10-13); Phase 0's stills

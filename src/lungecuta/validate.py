@@ -1,7 +1,7 @@
-"""`lc validate`, Phase 0's part: every project file against its schema, every original
+"""`lungecuta validate`, Phase 0's part: every project file against its schema, every original
 found and unchanged since import, every comp resolved to frames and every layer's grade
 built (docs/design/03-project-format.md#validation). The first problem stops it with its
-message, as every `lc` command does."""
+message, as every `lungecuta` command does."""
 from __future__ import annotations
 
 from pathlib import Path

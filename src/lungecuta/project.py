@@ -37,7 +37,7 @@ def init_project(directory: Path) -> Path:
     """Create a project in `directory`, which must not exist yet or be empty."""
     if directory.exists():
         assert directory.is_dir(), f"{directory} exists and is not a directory"
-        assert not any(directory.iterdir()), f"{directory} is not empty; lc init only starts new projects"
+        assert not any(directory.iterdir()), f"{directory} is not empty; lungecuta init only starts new projects"
     else:
         directory.mkdir(parents=True)
     for name in PROJECT_DIRS:

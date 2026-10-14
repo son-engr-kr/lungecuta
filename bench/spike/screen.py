@@ -10,7 +10,7 @@ viewer with putImageData and captured with a page screenshot; and a real engine 
 (*proposed*, docs/design/10-roadmap.md, Phase 1).
 
 Graphics parity: a title page (gradient-clipped text, a translucent rounded card with a
-shadow, a bar), captured on a transparent background as `lc graphic` captures it and
+shadow, a bar), captured on a transparent background as `lungecuta graphic` captures it and
 composited over the engine frame in numpy (straight alpha, on the 8-bit sRGB-encoded
 values, as a top overlay is composited on display-encoded values), against the same page
 live in a transparent iframe over the same frame, screenshotted. Criterion: p99 within

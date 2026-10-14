@@ -37,7 +37,7 @@
     },
     "LintSettings": {
       "additionalProperties": false,
-      "description": "`lc lint`'s thresholds (09-agent-interface.md, Lint), each from the past projects'\nreview rules; `null` or `false` turns a rule off.",
+      "description": "`lungecuta lint`'s thresholds (09-agent-interface.md, Lint), each from the past projects'\nreview rules; `null` or `false` turns a rule off.",
       "properties": {
         "graphics_min_seconds": {
           "anyOf": [

@@ -2,7 +2,7 @@
 
 ## Presets
 
-A preset names everything that decides what the file is, so that `lc verify` can check
+A preset names everything that decides what the file is, so that `lungecuta verify` can check
 the result against it.
 
 | preset | video | audio | for |
@@ -19,9 +19,9 @@ held in the delivered file ([07-audio.md](07-audio.md#the-master-chain-as-built-
 `prores-4444-alpha` is written too: the comp composited with its coverage, the output
 view applied to un-premultiplied colour (a colour transform of premultiplied values is
 wrong wherever coverage is partial), the top graphics composited straight over it, and
-the result written as straight alpha, full range, the convention `lc graphic` already
+the result written as straight alpha, full range, the convention `lungecuta graphic` already
 uses; whether Resolve reads it as straight is one of the Phase 0 checks. It carries no
-audio; ffmpeg's ProRes decoder gives it back as `yuva444p12le`, and `lc verify` compares
+audio; ffmpeg's ProRes decoder gives it back as `yuva444p12le`, and `lungecuta verify` compares
 its colour over black with the engine's and its alpha within one 10-bit code (half a code
 of rounding, and two of the decoder's 12-bit steps; 0.685 measured on a 4K render with a
 feathered mask). `web-hevc10` is VideoToolbox HEVC Main 10 at `-q:v 70`, handed 4:2:0
@@ -64,7 +64,7 @@ For SDR deliverables:
   engine hands frames to ffmpeg as rawvideo, and in that case the `-color_primaries` and
   `-color_trc` output options are silently ignored: only `colorspace` and `range`
   survive, the other two come out `unknown` (`bench/rawvideo_tags.sh`, x264, x265 and
-  ProRes alike). Then they are checked after the fact by `lc verify`.
+  ProRes alike). Then they are checked after the fact by `lungecuta verify`.
 
 ## Quantization
 
@@ -93,7 +93,7 @@ because AAC chunks would each carry encoder priming and leave gaps at the joins.
 
 ## Verification
 
-`lc verify FILE --preset P` after every render:
+`lungecuta verify FILE --preset P` after every render:
 
 - probe: codec, profile, pixel format, size, rate, frame count, duration, all four colour
   tags, audio format;
@@ -109,7 +109,7 @@ because AAC chunks would each carry encoder priming and leave gaps at the joins.
 - edit: cut times and frame counts against the project's own edit list, and, when the
   project rebuilds an existing deliverable, against that deliverable frame by frame at
   every cut, so a render that is wrong but self-consistent cannot pass;
-- for presets with faces: `lc face-audit`.
+- for presets with faces: `lungecuta face-audit`.
 
 ## Licences
 
@@ -127,7 +127,7 @@ weights), PyTorch (BSD-3-Clause with Apache-2.0 and other permissive parts), tor
 loaded library, which an MIT-licensed tool can depend on); for the editor and the master
 chain, FastAPI (MIT), Starlette and uvicorn (BSD-3-Clause), Playwright (Apache-2.0), PyAV
 (BSD-3-Clause; its wheels bundle FFmpeg libraries, under a licence not checked here),
-pyloudnorm (MIT) and SciPy (BSD-3-Clause); for `lc mcp`, the MCP Python SDK `mcp` and
+pyloudnorm (MIT) and SciPy (BSD-3-Clause); for `lungecuta mcp`, the MCP Python SDK `mcp` and
 `mcp-types` (MIT) with what they bring (anyio, jsonschema, PyJWT: MIT; httpx2, Starlette,
 sse-starlette: BSD-3-Clause; OpenTelemetry API, python-multipart: Apache-2.0). The labels on sheets and scopes use the Aileron
 Regular subset that Pillow bundles, which its author releases under CC0 ("Aileron is No

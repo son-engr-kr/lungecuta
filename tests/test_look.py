@@ -1,4 +1,4 @@
-"""Looking at a comp: lc still, sheet and scope with a comp (tests/clips.py's `cut_project`)."""
+"""Looking at a comp: lungecuta still, sheet and scope with a comp (tests/clips.py's `cut_project`)."""
 import json
 
 import numpy as np

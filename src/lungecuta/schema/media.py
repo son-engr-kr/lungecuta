@@ -33,7 +33,7 @@ class MediaPath(_Record):
 
 
 class FileStat(_Record):
-    """What `lc` compares on open to decide whether a file must be hashed again."""
+    """What `lungecuta` compares on open to decide whether a file must be hashed again."""
 
     size: int
     mtime_ns: int

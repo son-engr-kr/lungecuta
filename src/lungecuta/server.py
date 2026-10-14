@@ -52,7 +52,7 @@ class GraphicsHandler(http.server.SimpleHTTPRequestHandler):
         super().__init__(*args, directory=str(graphics), **kwargs)
 
     def translate_path(self, path: str) -> str:
-        if path.split("?", 1)[0] == "/__lc_frame.html":
+        if path.split("?", 1)[0] == "/__lungecuta_frame.html":
             return str(WEB_DIR / "frame.html")
         return super().translate_path(path)
 
@@ -288,7 +288,7 @@ def _gain_keys(edit: ops.Edit, sound, tick: int) -> list[dict[str, Any]]:
 
 def _key_frames(edit: ops.Edit, cut, tick: int) -> list[dict[str, Any]]:
     """Every key of a footage layer: the comp frame (fractional) it sits on, and its comp
-    position as `lc op key` and `unkey` take it."""
+    position as `lungecuta op key` and `unkey` take it."""
     layer = edit.layer(cut.layer.id)
     keys = []
     transform = layer.get("transform") or {}
@@ -368,14 +368,14 @@ def create_app(directory: Path) -> FastAPI:
 
     @app.get("/api/comp/{name}/scope")
     def scope(name: str, frame: int) -> dict[str, Any]:
-        """The scope numbers of a preview frame, as `lc scope` prints them (on the proxy)."""
+        """The scope numbers of a preview frame, as `lungecuta scope` prints them (on the proxy)."""
         from .scope import scope_numbers
 
         return {"frame": frame, "on": "proxy", **scope_numbers(editor.preview(name).display(frame))}
 
     @app.get("/api/comp/{name}/scope.png")
     def scope_png(name: str, frame: int) -> Response:
-        """The waveform, vectorscope and parade `lc scope` draws, of a preview frame."""
+        """The waveform, vectorscope and parade `lungecuta scope` draws, of a preview frame."""
         from .images import png8
         from .scope import scope_image
 

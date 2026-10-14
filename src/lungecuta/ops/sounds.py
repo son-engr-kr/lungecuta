@@ -55,7 +55,7 @@ def sfx(project: Project, name: str, sounds: list[str], on: str, start: str | No
     last = comp_end if end is None else resolve_position(parse_literal(end, Field.POSITION), rate=edit.rate, grid=edit.grid)
     records = {key: load_record(project, key) for key in sounds}
     for key, record in records.items():
-        assert record.wav is not None and record.beats is None, f"{key} is not a sound (lc import --sound)"
+        assert record.wav is not None and record.beats is None, f"{key} is not a sound (lungecuta import --sound)"
     events = _events(edit, on, first, last)
     assert events, f"no {on} between {start or 'the start'} and {end or 'the end'} of {name}"
     taken = {layer["id"] for layer in edit.data["layers"]}

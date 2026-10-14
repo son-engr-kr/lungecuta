@@ -25,7 +25,7 @@ from .parallel import in_order
 from .ticks import TICKS_PER_SECOND, format_rate, ticks_per_frame
 from .tools import run, tool
 
-RENDER_DIR = Path("cache") / "lc" / "render"
+RENDER_DIR = Path("cache") / "lungecuta" / "render"
 
 
 def read(project: Project, name: str) -> tuple[Resolved, dict[str, Any]]:
@@ -80,7 +80,7 @@ def manifest(project: Project, resolved: Resolved, hashes: dict[str, Any], prese
 def render(project: Project, name: str, preset_name: str, out: Path | None = None,
            threads: int | None = None, workers: int | None = None) -> dict[str, Any]:
     """Render comp `name` with a delivery preset, `workers` frames at a time (by default
-    the machine's core count); returns what `lc render` prints."""
+    the machine's core count); returns what `lungecuta render` prints."""
     workers = workers or os.cpu_count() or 1
     assert preset_name in PRESETS, f"unknown preset {preset_name!r} (presets: {', '.join(PRESETS)})"
     preset = PRESETS[preset_name]

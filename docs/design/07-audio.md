@@ -100,14 +100,14 @@ effects and pan.
   layer emits (a typed character, a flash). This replaces the old `cue()` file that the
   renderer wrote and the audio builder read back.
 
-Written so far: `lc import FILES --root R --sound` imports sound alone as a sound, its WAV
+Written so far: `lungecuta import FILES --root R --sound` imports sound alone as a sound, its WAV
 decoded as music's is and no beat map found, so it never feeds the beat grid. An audio
 layer's `anchor` (`start`, the default, `peak` or `rise`) is the point of the sound that
 lands on its `start`, the sound beginning that much earlier and its pre-roll before the
 comp's start cut. `peak` is its loudest sample on either channel; `rise` is the steepest
 rise of its 2 ms envelope, the moving mean over 96 samples of the channels' mean
 magnitude, searched over the first 0.6 s, the definition a past project's audio builder
-used (`src/lungecuta/comp/resolve.py`). Music is placed by its start. `lc op sfx COMP SOUND...
+used (`src/lungecuta/comp/resolve.py`). Music is placed by its start. `lungecuta op sfx COMP SOUND...
 --on cuts|beats|downbeats|markers [--from P --to P]` places a layer on every such event
 in the span, anchored there (`rise` by default), sound `(k * 7) mod n` of the n given on
 event k, each as long as its sound and cut at the comp's end; seven or fourteen sounds
@@ -138,7 +138,7 @@ graphics events as events are not written yet.
 
 - Beat map, onsets, spectrogram, RMS per half beat, loudness per section (BS.1770 via
   pyloudnorm in the engine, ffmpeg `ebur128` for the post-render check).
-- `lc audio-check` reports, for every cut in a range, the offset in milliseconds to the
+- `lungecuta audio-check` reports, for every cut in a range, the offset in milliseconds to the
   nearest onset, and whether the build actually climbs (RMS per half beat), the two
   things past edits found they had to measure rather than assume.
 - Targets come from the deliver preset: -14 LUFS integrated for music promos, -16 for
@@ -163,4 +163,4 @@ graphics events as events are not written yet.
 The engine renders the mixdown for the visible span and the browser plays it; the
 picture follows its clock ([01-architecture.md](01-architecture.md#playback)). A change
 re-renders only the spans whose inputs changed. The agent cannot hear, so every audio
-change it makes ends with `lc audio-check`; the final listening call is the person's.
+change it makes ends with `lungecuta audio-check`; the final listening call is the person's.

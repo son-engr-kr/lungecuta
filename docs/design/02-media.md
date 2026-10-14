@@ -38,7 +38,7 @@ Detection walks a fixed chain and stops at the first source that answers:
 3. **Stream tags**, when they are specific (HLG and PQ are tagged; log usually is not).
 4. **Nothing found, or evidence with no mapping row: undecided.** The import still
    succeeds, the media record says `undecided` with every piece of evidence it found and
-   the reason ([03-project-format.md](03-project-format.md#media)), `lc detect` exits
+   the reason ([03-project-format.md](03-project-format.md#media)), `lungecuta detect` exits
    non-zero, and the clip cannot be placed on a timeline until someone decides it.
    Rec.709 is never assumed.
 
@@ -151,7 +151,7 @@ file whose original cannot be found is undecided, like any other.
 - **Final render reads sequentially.** Source frames are decoded in order into float32;
   4K arrives at 52 fps (`bench/pipe_read.py`). A speed ramp reads source frames in
   increasing order almost everywhere, so long-GOP originals cost nothing extra.
-- **Random access goes to the proxy for preview.** Final-quality stills (`lc still`) read
+- **Random access goes to the proxy for preview.** Final-quality stills (`lungecuta still`) read
   originals at arbitrary frames: in Phase 0 through the ffmpeg CLI with accurate seeking,
   checked against the same frame index from a sequential decode; PyAV only after its
   bundled FFmpeg has passed the same framemd5 check against the CLI, which it has on the
@@ -161,7 +161,7 @@ file whose original cannot be found is undecided, like any other.
   after lands on N + 1. Checked on frames 0, 1, 13, 352 and 704 of the S-Log3 sample (a
   `media` test). One 4K still costs about 1.6 s as a process, 0.6 s of it the
   seek and decode, and a 540-line one 0.8 s (`bench/still_cost.py`). A contact sheet reads its frames in one
-  decode from the start instead (`lc sheet`): at every 30th frame of the S-Log3 sample
+  decode from the start instead (`lungecuta sheet`): at every 30th frame of the S-Log3 sample
   that is about four times faster than a seek per frame, with identical frames
   (`bench/sheet_scope_cost.py`).
 - **Every decode is in the coded orientation** (`-noautorotate`). ffmpeg otherwise applies
@@ -176,11 +176,11 @@ file whose original cannot be found is undecided, like any other.
   `bench/RESULTS.md`, "Proxy parity"). No ProRes profile passed: at 540 lines the codec's
   loss on noisy S-Log3 alone is p99 8 codes even for 4444, and 4:2:2 chroma adds more. The
   one candidate that passed on both samples is **lossless FFV1 4:4:4, `yuv444p10le`,
-  all-intra (`-g 1`), in a Matroska file**, and `lc import` uses it, *provisionally*: it is
+  all-intra (`-g 1`), in a Matroska file**, and `lungecuta import` uses it, *provisionally*: it is
   19 times the size of ProRes Proxy (534 MB against 28 MB for the 23.5 s S-Log3 sample),
   and one seek costs about 135 ms per ffmpeg process against 23 ms. Which way to go is the
   user's decision (AGENTS.md, open decisions). Size comes from the project's
-  `proxy_height` (540 by default, set at `lc init`), and should follow the framing in use:
+  `proxy_height` (540 by default, set at `lungecuta init`), and should follow the framing in use:
   540 lines for 16:9 comps, 1080 when a 9:16 comp is cut from 16:9 sources (a 540-line
   proxy leaves only a 304x540 crop for a 1080x1920 viewer). The proxy keeps the coded
   frame's shape, and a width that is not a whole even number is an error rather than a

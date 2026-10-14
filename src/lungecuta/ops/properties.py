@@ -49,7 +49,7 @@ def _keys(edit: Edit, layer: dict, prop: str) -> list[dict]:
     """The property's keys as the file holds them, a constant turned into none."""
     if prop == "remap":
         time = layer.get("time") or {}
-        assert "remap" in time, f"{layer['id']} is not remapped; enable time remapping first (lc op remap)"
+        assert "remap" in time, f"{layer['id']} is not remapped; enable time remapping first (lungecuta op remap)"
         return time["remap"]
     holder, field = _holder(layer, prop)
     current = holder.get(field)

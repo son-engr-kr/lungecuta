@@ -2,7 +2,7 @@
 
 Usage: uv run python bench/master_chain.py WAV [TARGET_LUFS...]
   (inside the project, so that the lungecuta package is importable; WAV is a 48 kHz music
-  WAV such as the cache WAV `lc import` writes)
+  WAV such as the cache WAV `lungecuta import` writes)
 
 For each target (by default -14 and -9 LUFS), the WAV goes through `audio.master` at a
 ceiling of -1 dBTP, then:

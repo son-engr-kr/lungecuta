@@ -45,5 +45,5 @@ def write_new(path: Path, text: str) -> None:
 def replace_if_unchanged(path: Path, read_hash: str, text: str) -> None:
     """Write `path` only if it still has the content hash it had when it was read, the
     rule the UI's writes follow too (docs/design/01-architecture.md#files-edits-and-concurrency)."""
-    assert content_hash(path) == read_hash, f"{path} changed while lc was working on it; nothing written"
+    assert content_hash(path) == read_hash, f"{path} changed while lungecuta was working on it; nothing written"
     write_atomic(path, text)

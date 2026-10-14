@@ -263,7 +263,7 @@
     },
     "FileStat": {
       "additionalProperties": false,
-      "description": "What `lc` compares on open to decide whether a file must be hashed again.",
+      "description": "What `lungecuta` compares on open to decide whether a file must be hashed again.",
       "properties": {
         "size": {
           "title": "Size",

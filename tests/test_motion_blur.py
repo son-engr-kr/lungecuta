@@ -88,7 +88,7 @@ def test_fcpxml_refuses_motion_blur_rather_than_dropping_it(cut_project):
     assert "motion blur, which is not written to FCPXML yet" in str(refused.exception)
 
 
-def test_lc_op_sets_and_keys_the_shutter(cut_project):
+def test_op_sets_and_keys_the_shutter(cut_project):
     def shot1():
         return next(layer for layer in json.loads((cut_project / "comps" / "main.json").read_text())["layers"]
                     if layer["id"] == "shot1")

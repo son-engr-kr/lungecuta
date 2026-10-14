@@ -90,7 +90,7 @@ def test_a_scale_track_multiplies_the_layer_scale_and_is_neutral_outside(cut_pro
     assert cut.placement.at(anchor + BEAT // 2 + tick)[1] == (1.0, 1.0)
 
 
-def test_lc_op_style_places_replaces_and_takes_off(cut_project):
+def test_op_style_places_replaces_and_takes_off(cut_project):
     write_style(cut_project)
     runner = CliRunner()
     args = ["--project", str(cut_project)]

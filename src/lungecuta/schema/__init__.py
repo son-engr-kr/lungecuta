@@ -1,6 +1,6 @@
 """The project files' schemas: pydantic models, and the JSON Schema committed under `schema/`.
 
-`lc schema --write` regenerates the committed files, and a test fails when they differ
+`lungecuta schema --write` regenerates the committed files, and a test fails when they differ
 from the models (docs/design/09-agent-interface.md#conventions-for-every-command).
 """
 from __future__ import annotations

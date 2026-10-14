@@ -10,7 +10,7 @@ viewer), the bytes come back over a WebSocket and are drawn with putImageData; t
 runs to the next animation frame after the draw. Changes go one after another. Modes:
   parked     a grade change on a frame already decoded and through its input transform
   scrub      a new frame each time: both layers decoded (PyAV, decoder kept open) first
-  scrub-cli  the same with one ffmpeg process per decoded frame, as lc still reads
+  scrub-cli  the same with one ffmpeg process per decoded frame, as lungecuta still reads
 Checked: every reply is a whole 960x540 RGBA frame; the frame drawn is read back from the
 canvas for the last change of each mode and must equal the bytes received.
 Criterion (docs/design/10-roadmap.md, Phase 1): p95 at most 150 ms at 540p (*proposed*).

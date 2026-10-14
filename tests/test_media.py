@@ -11,10 +11,10 @@ from lungecuta.schema.media import MediaPath
 
 @pytest.fixture
 def project(tmp_path):
-    return init_project(tmp_path / "edit.lc")
+    return init_project(tmp_path / "edit.lungecuta")
 
 
-def test_lc_root_lists_the_root_and_places_it_locally(project, tmp_path):
+def test_root_lists_the_root_and_places_it_locally(project, tmp_path):
     footage = tmp_path / "shoots"
     footage.mkdir()
     set_root(project, "footage", footage)
@@ -65,12 +65,12 @@ def test_writes_refuse_to_overwrite_or_to_lose_a_change(tmp_path):
         write_new(target, "{}\n")
     read_hash = content_hash(target)
     target.write_text('{"edited": "by the UI"}\n')
-    with pytest.raises(AssertionError, match="changed while lc was working"):
+    with pytest.raises(AssertionError, match="changed while lungecuta was working"):
         replace_if_unchanged(target, read_hash, "{}\n")
     assert json.loads(target.read_text()) == {"edited": "by the UI"}
 
 
-def test_lc_relink_finds_moved_files_by_size_and_hash(project, tmp_path):
+def test_relink_finds_moved_files_by_size_and_hash(project, tmp_path):
     import os
 
     from lungecuta.media import relink
@@ -93,7 +93,7 @@ def test_lc_relink_finds_moved_files_by_size_and_hash(project, tmp_path):
     assert json.loads((project / "media" / "a.json").read_text())["path"] == {"root": "music", "rel": "renamed/take.wav"}
 
 
-def test_lc_relink_changes_nothing_unless_every_file_is_found(project, tmp_path):
+def test_relink_changes_nothing_unless_every_file_is_found(project, tmp_path):
     import numpy as np
 
     from lungecuta.media import relink

@@ -72,8 +72,8 @@ def test_a_beat_map_holds_together():
     assert tempo(BeatMap(**good)) == 120
 
 
-def test_lc_import_finds_the_beats_of_a_drum_track(tmp_path):
-    project = init_project(tmp_path / "edit.lc")
+def test_import_finds_the_beats_of_a_drum_track(tmp_path):
+    project = init_project(tmp_path / "edit.lungecuta")
     music_dir = tmp_path / "music"
     music_dir.mkdir()
     signal, truth, downbeats = drum_track(rate=44100)
@@ -123,8 +123,8 @@ def test_moved_downbeats_shift_bar_literals_and_are_not_kept():
     assert not match(current, beat_map([0.5, 1.0, 1.5, 2.0], downbeats=(1,))).keeps_every_index
 
 
-def test_lc_beats_applies_an_analysis_that_keeps_every_index(tmp_path):
-    project = init_project(tmp_path / "edit.lc")
+def test_beats_applies_an_analysis_that_keeps_every_index(tmp_path):
+    project = init_project(tmp_path / "edit.lungecuta")
     music_dir = tmp_path / "music"
     music_dir.mkdir()
     signal, _, _ = drum_track(rate=48000, bars=4)

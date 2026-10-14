@@ -1,4 +1,4 @@
-"""`lc still --media`: one frame of an imported clip at final quality, through its input
+"""`lungecuta still --media`: one frame of an imported clip at final quality, through its input
 transform and the project's output view (docs/design/09-agent-interface.md)."""
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from .media import Project, load_record, original
 from .schema.media import ColorDecided, MediaRecord, VideoProbe
 from .ticks import parse_rate, ticks_per_frame
 
-STILL_DIR = Path("cache") / "lc" / "still"
+STILL_DIR = Path("cache") / "lungecuta" / "still"
 OUTPUT_CODES = 1023  # printed numbers are 10-bit output codes (09-agent-interface.md)
 PERCENTILES = (1, 50, 99)
 
@@ -116,7 +116,7 @@ def still(
     project: Project, key: str, at: str, *, height: int | None = None, threads: int | None = None,
     out: Path | None = None,
 ) -> dict[str, Any]:
-    """Write the PNG of one frame of media `key` and return the numbers `lc still` prints."""
+    """Write the PNG of one frame of media `key` and return the numbers `lungecuta still` prints."""
     record = load_record(project, key)
     video = record.probe.video
     assert video is not None, f"{key} has no video stream"

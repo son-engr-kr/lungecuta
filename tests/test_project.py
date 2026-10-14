@@ -18,13 +18,13 @@ def run(*args: str):
     return json.loads(result.output)
 
 
-def test_lc_init_creates_the_project_layout(tmp_path):
-    directory = tmp_path / "myedit.lc"
+def test_init_creates_the_project_layout(tmp_path):
+    directory = tmp_path / "myedit.lungecuta"
     printed = run("init", str(directory))
     assert printed["project"] == str(directory.resolve())
     from lungecuta.cli.project_commands import on_path
-    # .mcp.json starts `lc mcp`, so init says when lc is not on the PATH outside this venv
-    assert ("mcp" in printed) == (not on_path("lc"))
+    # .mcp.json starts `lungecuta mcp`, so init says when lungecuta is not on the PATH outside this venv
+    assert ("mcp" in printed) == (not on_path("lungecuta"))
 
     for name in PROJECT_DIRS:
         assert (directory / name).is_dir()
@@ -39,19 +39,19 @@ def test_lc_init_creates_the_project_layout(tmp_path):
     assert project.media_roots == [] and project.comps == [] and project.deliver == []
 
 
-def test_lc_init_accepts_an_existing_empty_directory(tmp_path):
+def test_init_accepts_an_existing_empty_directory(tmp_path):
     init_project(tmp_path)
     assert (tmp_path / "project.json").is_file()
 
 
-def test_lc_init_refuses_a_non_empty_directory(tmp_path):
+def test_init_refuses_a_non_empty_directory(tmp_path):
     (tmp_path / "footage.mp4").write_bytes(b"")
     with pytest.raises(AssertionError, match="not empty"):
         init_project(tmp_path)
     assert not (tmp_path / "project.json").exists()
 
 
-def test_lc_init_refuses_a_file(tmp_path):
+def test_init_refuses_a_file(tmp_path):
     target = tmp_path / "file"
     target.write_text("")
     with pytest.raises(AssertionError, match="not a directory"):
@@ -59,7 +59,7 @@ def test_lc_init_refuses_a_file(tmp_path):
 
 
 def test_the_project_is_found_from_any_directory_inside_it(tmp_path):
-    root = init_project(tmp_path / "edit.lc")
+    root = init_project(tmp_path / "edit.lungecuta")
     assert find_project(root / "comps") == root
     assert find_project(root) == root
     with pytest.raises(AssertionError, match="no project.json"):
@@ -90,10 +90,10 @@ def test_roots_file_places_roots_at_absolute_paths():
 @pytest.mark.parametrize("name", sorted(SCHEMAS))
 def test_committed_schema_matches_the_models(name):
     committed = (REPOSITORY / "schema" / name).read_text()
-    assert committed == schema_text(SCHEMAS[name]), "run `uv run lc schema --write`"
+    assert committed == schema_text(SCHEMAS[name]), "run `uv run lungecuta schema --write`"
 
 
-def test_lc_schema_writes_every_schema(tmp_path):
+def test_schema_writes_every_schema(tmp_path):
     printed = run("schema", "--write", "--dir", str(tmp_path))
     assert sorted(Path(path).name for path in printed["written"]) == sorted(SCHEMAS)
     assert set(run("schema")) == set(SCHEMAS)

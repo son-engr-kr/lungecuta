@@ -1,4 +1,5 @@
-"""What every lc command shares: JSON output, finding the project, the common options, and the `lc` group itself."""
+"""What every lungecuta command shares: JSON output, finding the project, the common
+options, and the `lungecuta` group itself."""
 from __future__ import annotations
 
 import json

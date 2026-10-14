@@ -23,65 +23,65 @@ design are in [bench/RESULTS.md](bench/RESULTS.md).
 
 ## Working with Claude Code or Codex
 
-Put the `lc` command on the PATH, from this repository, with the versions `uv.lock`
+Put the `lungecuta` command on the PATH, from this repository, with the versions `uv.lock`
 pins (editable, so a `git pull` updates it):
 
 ```sh
 uv tool install --editable . --constraints <(uv export --frozen --no-dev --no-emit-project --no-hashes)
 ```
 
-Then make a project with `lc init DIR` and open Claude Code or Codex in it. The project
+Then make a project with `lungecuta init DIR` and open Claude Code or Codex in it. The project
 gets the guide the agent reads (`AGENTS.md`, imported by `CLAUDE.md`), a `.mcp.json` that
-starts `lc mcp` for Claude Code and a `.codex/config.toml` that starts it for Codex, so the
+starts `lungecuta mcp` for Claude Code and a `.codex/config.toml` that starts it for Codex, so the
 agent offers every command as an MCP tool, with frames and sheets returned as images.
 Claude Code asks once before it starts a project's server; Codex reads the project's
 config once you trust the project when it asks.
 
-Without MCP the agent runs `lc` in a shell: every command prints one JSON object, and
-`lc commands` describes them all.
+Without MCP the agent runs `lungecuta` in a shell: every command prints one JSON object, and
+`lungecuta commands` describes them all.
 
 ## Phase 0 tools
 
 ```
-lc init DIR                         a new project, with AGENTS.md and CLAUDE.md for a coding agent
-lc guide [--write]                  that guide, printed or brought up to date in a project
-lc status                           what is in a project: media, comps, unseen edits, stale renders
-lc commands                         every command, its arguments and options, as JSON
-lc mcp                              every command as an MCP tool on stdio, pictures as images
-lc root NAME DIR                    where a media root is on this machine
-lc relink --root NAME DIR           find a root's moved files by size and hash
-lc import FILES --root NAME         media records: colour and time decisions with evidence,
-                                    decoder check, proxy with its parity test; music gets a
-                                    48 kHz WAV and a beat map (Beat This!)
-lc detect FILE                      the colour-space decision without importing
-lc new-comp NAME --music KEY ...    a new comp (size, rate, end), its music at 0s giving the beat grid
-lc still COMP --at b:16             a comp's frame as the render delivers it, PNG and numbers
-lc sheet COMP --every b:1           a contact sheet of a comp, each tile labelled with its beat and layers
-lc scope COMP --at b:16             waveform, parade, vectorscope and their numbers
-lc still --media KEY --at f:N       the same three for one imported clip
-lc framing COMP LAYER               the comp's window in a layer's source frame, and where its edge shows
-lc beats KEY                        the beat analysis again, applied only if no beat literal moves
-lc validate                         every project file, original and comp checked
-lc fcpxml COMP                      the comp as FCPXML 1.10 for Resolve's File > Import > Timeline
-lc render COMP --preset P           the comp rendered to a deliverable, with a version manifest
-lc verify FILE --comp COMP ...      the deliverable checked against its comp and preset
-lc flash FILE                       WCAG 2.2's general flash threshold on a render
-lc graphic PAGE ...                 a web page rendered to ProRes 4444 with alpha
-lc patch-card DIR ... / lc patches  a card of known colours, and reading an export back at it
-lc op OP COMP ...                   an edit operation: place, graphic, sfx, move, trim, slip, slide,
-                                    roll, ripple-delete, split, snap, key, unkey, move-key, set,
-                                    remap, style, unstyle, look, unlook, grade, masks, transition,
-                                    untransition
-lc changes                          what the editor wrote since the agent last asked
-lc audio-check COMP                 cut offsets to beats and loudness per half beat
-lc lint COMP                        the review rules a machine can check, as warnings
-lc diff COMP [BEFORE] [AFTER]       what changed between two revisions, in editing terms
-lc licence KEY --name ... --source  under what terms a music file may be used
-lc serve                            the editor in the browser
-lc schema --write                   the JSON Schema of the project files
+lungecuta init DIR                         a new project, with AGENTS.md and CLAUDE.md for a coding agent
+lungecuta guide [--write]                  that guide, printed or brought up to date in a project
+lungecuta status                           what is in a project: media, comps, unseen edits, stale renders
+lungecuta commands                         every command, its arguments and options, as JSON
+lungecuta mcp                              every command as an MCP tool on stdio, pictures as images
+lungecuta root NAME DIR                    where a media root is on this machine
+lungecuta relink --root NAME DIR           find a root's moved files by size and hash
+lungecuta import FILES --root NAME         media records: colour and time decisions with evidence,
+                                           decoder check, proxy with its parity test; music gets a
+                                           48 kHz WAV and a beat map (Beat This!)
+lungecuta detect FILE                      the colour-space decision without importing
+lungecuta new-comp NAME --music KEY ...    a new comp (size, rate, end), its music at 0s giving the beat grid
+lungecuta still COMP --at b:16             a comp's frame as the render delivers it, PNG and numbers
+lungecuta sheet COMP --every b:1           a contact sheet of a comp, each tile labelled with its beat and layers
+lungecuta scope COMP --at b:16             waveform, parade, vectorscope and their numbers
+lungecuta still --media KEY --at f:N       the same three for one imported clip
+lungecuta framing COMP LAYER               the comp's window in a layer's source frame, and where its edge shows
+lungecuta beats KEY                        the beat analysis again, applied only if no beat literal moves
+lungecuta validate                         every project file, original and comp checked
+lungecuta fcpxml COMP                      the comp as FCPXML 1.10 for Resolve's File > Import > Timeline
+lungecuta render COMP --preset P           the comp rendered to a deliverable, with a version manifest
+lungecuta verify FILE --comp COMP ...      the deliverable checked against its comp and preset
+lungecuta flash FILE                       WCAG 2.2's general flash threshold on a render
+lungecuta graphic PAGE ...                 a web page rendered to ProRes 4444 with alpha
+lungecuta patch-card DIR ... / lungecuta patches  a card of known colours, and reading an export back at it
+lungecuta op OP COMP ...                   an edit operation: place, graphic, sfx, move, trim, slip, slide,
+                                           roll, ripple-delete, split, snap, key, unkey, move-key, set,
+                                           remap, style, unstyle, look, unlook, grade, masks, transition,
+                                           untransition
+lungecuta changes                          what the editor wrote since the agent last asked
+lungecuta audio-check COMP                 cut offsets to beats and loudness per half beat
+lungecuta lint COMP                        the review rules a machine can check, as warnings
+lungecuta diff COMP [BEFORE] [AFTER]       what changed between two revisions, in editing terms
+lungecuta licence KEY --name ... --source  under what terms a music file may be used
+lungecuta serve                            the editor in the browser
+lungecuta schema --write                   the JSON Schema of the project files
 ```
 
-Every command prints one JSON object; `lc COMMAND --help` says what it does. It needs
+Every command prints one JSON object; `lungecuta COMMAND --help` says what it does. It needs
 ffmpeg and ffprobe on the PATH and Playwright's Chromium
 (`uv run playwright install chromium`).
 
@@ -91,8 +91,8 @@ ffmpeg and ffprobe on the PATH and Playwright's Chromium
 docs/design/     the design, one file per subject, plus decisions.md
 docs/research/   primary-source records the design cites
 bench/           scripts behind the measurements the design relies on
-src/lungecuta/   the package and the lc command
-schema/          JSON Schema of the project files, generated by lc schema --write
+src/lungecuta/   the package and the lungecuta command
+schema/          JSON Schema of the project files, generated by lungecuta schema --write
 tests/           uv run pytest tests/ (uv run pytest -m media for sample media)
 ```
 

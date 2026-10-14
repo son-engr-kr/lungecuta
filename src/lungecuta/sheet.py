@@ -1,5 +1,5 @@
-"""`lc sheet --media`: a contact sheet of one clip, frames at an interval through the same
-chain as `lc still`, each labelled with its frame number and seconds
+"""`lungecuta sheet --media`: a contact sheet of one clip, frames at an interval through the same
+chain as `lungecuta still`, each labelled with its frame number and seconds
 (docs/design/09-agent-interface.md)."""
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from .media import Project, load_record
 from .still import code_numbers, open_clip
 from .ticks import format_rate, ticks_per_frame
 
-SHEET_DIR = Path("cache") / "lc" / "sheet"
+SHEET_DIR = Path("cache") / "lungecuta" / "sheet"
 # Layout defaults, not measurements: six columns as in a past project's review sheet, six
 # rows a page, and tiles 320 pixels on their long side (320x180 for 16:9).
 COLUMNS = 6
@@ -106,7 +106,7 @@ def sheet(
     project: Project, key: str, every: str, *, columns: int = COLUMNS, rows: int = ROWS, height: int | None = None,
     threads: int | None = None, out: Path | None = None,
 ) -> dict[str, Any]:
-    """Write the pages of the contact sheet of media `key` and return what `lc sheet` prints."""
+    """Write the pages of the contact sheet of media `key` and return what `lungecuta sheet` prints."""
     assert columns >= 1 and rows >= 1, "a page needs at least one column and one row"
     clip = open_clip(project, load_record(project, key))
     step = source_step(every, rate=clip.rate)

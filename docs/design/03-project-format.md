@@ -5,7 +5,7 @@ can write, validated against a schema generated from the engine's pydantic model
 committed as `schema/*.json`.
 
 ```
-myedit.lc/
+myedit.lungecuta/
   project.json          settings, colour management, media roots, comp index
   media/
     C0001.json          one media record per file, named by its key
@@ -22,16 +22,16 @@ myedit.lc/
   luts/                 LUTs the project refers to, copied in by content hash
   roots.local.json      where this machine keeps each media root; never committed
   cache/                proxies, rendered frames, analysis, the UI journal; never committed
-  .gitignore            written by lc init: cache/ and roots.local.json
-  AGENTS.md             the guide a coding agent reads (Codex), written by lc init and lc guide
+  .gitignore            written by lungecuta init: cache/ and roots.local.json
+  AGENTS.md             the guide a coding agent reads (Codex), written by lungecuta init and lungecuta guide
   CLAUDE.md             imports AGENTS.md, for Claude Code
-  .mcp.json             starts lc mcp for Claude Code
-  .codex/config.toml    starts lc mcp for Codex
+  .mcp.json             starts lungecuta mcp for Claude Code
+  .codex/config.toml    starts lungecuta mcp for Codex
 ```
 
 Splitting comps and styles into their own files keeps an agent's edit small and its diff
 readable, and lets two edits to different comps never conflict. Media records get one
-file each for the same reason, and because `lc import` writes them while the person and
+file each for the same reason, and because `lungecuta import` writes them while the person and
 the agent are editing comps: an import never rewrites a file someone else is editing
 ([01-architecture.md](01-architecture.md#files-edits-and-concurrency)).
 
@@ -79,7 +79,7 @@ map is nudged.
 ### Literal grammar
 
 - **Frames and beats count from 0.** `f:0` is the comp's first frame (for a clip-level
-  command such as `lc still --media`, the clip's first frame at the clip's own rate);
+  command such as `lungecuta still --media`, the clip's first frame at the clip's own rate);
   `b:0` is the first beat of the comp's beat map ([beat maps](#beat-maps)), which need not
   be at `0s` (music can start with a pickup). `bar:0` is the first downbeat.
 - **Seconds** are decimal with at most five fractional digits, because 705,600,000 is
@@ -147,14 +147,14 @@ where a time has to land on a grid, by one stated rule for each grid:
 - **A source time between two frames shows the frame whose interval holds it**, the
   frame on screen at that moment. In source time `f:N` is frame N; a footage layer's comp
   frame shows the source frame that holds `source_start + speed * (frame time - start)`,
-  and `lc still --media --at 12.5s` the frame that holds 12.5 s. FCPXML's time maps sample
+  and `lungecuta still --media --at 12.5s` the frame that holds 12.5 s. FCPXML's time maps sample
   the same way by default (`frameSampling="floor"`, its 1.10 DTD). *(proposed)*
 - **Markers land on the first frame at or after their time**, like cuts, since FCPXML and
   Resolve put a marker on a frame. *(proposed)*
 
 ### Phase 0's part of the comp format
 
-`lc fcpxml`, `lc render` and `lc validate` read comps with `footage` and `audio` layers
+`lungecuta fcpxml`, `lungecuta render` and `lungecuta validate` read comps with `footage` and `audio` layers
 (`start`, `in`, `out`, `source_start`, `markers`, and for footage `time: { "speed": ... }`),
 `graphics` layers (`page`, a page in `graphics/` keeping the past pages' contract, with
 `space: "display"`, `params`, `start`, `in`, `out`, `markers`), comp `markers`,
@@ -192,7 +192,7 @@ of the layer's height, centred on the edge, at least a pixel), optionally `inver
 combined with the masks before it by `mode`: `add` (a + b - ab), `subtract` (a (1 - b)) or
 `intersect` (a b), starting from nothing (D15: the ramp and the formulas follow the
 names, not a measurement of After Effects). The mask is the layer's own alpha, resampled
-with its colour through scale and rotation (`src/lungecuta/geometry.py`); `lc op masks`
+with its colour through scale and rotation (`src/lungecuta/geometry.py`); `lungecuta op masks`
 replaces the list, and FCPXML refuses masks. A `comp` layer places another comp (`comp`: its id, listed in `project.json`) with
 `start`, `in`, `out`, `transform`, `masks` and `markers`: comp frame f shows the precomp's
 frame whose interval holds layer time `f - start` (the source-time rule, D12, *proposed*), the
@@ -246,15 +246,15 @@ is listed in `project.json` and lives at `comps/ID.json`.
 }
 ```
 
-An optional `lint` holds `lc lint`'s thresholds (`graphics_min_seconds`, 0.6 by default;
+An optional `lint` holds `lungecuta lint`'s thresholds (`graphics_min_seconds`, 0.6 by default;
 `repeated_source` and `music_licence`, on by default), from the past projects' review
 rules ([09-agent-interface.md](09-agent-interface.md#lint-rules-learned-the-hard-way)).
 
 ### media
 
 One file per media key, `media/KEY.json`, with an optional `licence` (`name`, `source`,
-`checked`, `note`) that a person records with `lc licence` after checking the source's
-own page. A decided record, as `lc import` writes it for
+`checked`, `note`) that a person records with `lungecuta licence` after checking the source's
+own page. A decided record, as `lungecuta import` writes it for
 the S-Log3 sample clip into `media/C0001.json`. The values were measured on that file,
 except its name (here `C0001`) and `creation_time`, which are placeholders, and `hash`
 and `stat`, which are left out:
@@ -329,11 +329,11 @@ reason, and has no `space`:
 - Media keys default to the file stem (`C0001`); a second file with the same
   stem is an error until one of them is given an explicit key.
 - **Paths are relative to a named media root.** `project.json` lists the root names the
-  project uses; `roots.local.json`, gitignored and written empty by `lc init`, says where
+  project uses; `roots.local.json`, gitignored and written empty by `lungecuta init`, says where
   each root is on this machine (`{ "footage": "/path/to/shoots" }`). The root `project` is
   the project directory itself. A committed project therefore holds no absolute path and
   opens on another machine once its roots are set. A file not found under its root is
-  missing, and `lc relink --root NAME DIR` looks for it under a new directory by size and
+  missing, and `lungecuta relink --root NAME DIR` looks for it under a new directory by size and
   then hash; nothing is matched by name alone.
 - **The hash is computed at import.** On open, a file whose size and modification time
   match `stat` is taken as unchanged; otherwise it is hashed again, and a different hash
@@ -353,7 +353,7 @@ reason, and has no `space`:
   orientation, and `proxy_height` refers to the coded frame. Whether a rotation tag is
   right is judged by looking at a still; a wrong tag is overridden in the record with a
   note, since some Sony files carry wrong tags ([06-editing.md](06-editing.md#framing)).
-  The tag is FFmpeg's display-matrix angle, counterclockwise: `lc still` turns a frame
+  The tag is FFmpeg's display-matrix angle, counterclockwise: `lungecuta still` turns a frame
   tagged 90 a quarter turn counterclockwise, checked against ffmpeg's autorotate at 90,
   180 and -90 on synthetic clips and at 90 on the HLG sample. A display matrix that
   mirrors the picture is refused at import, since only rotations are recorded.
@@ -391,7 +391,7 @@ footage has `time`, `color`, `decode` and `proxy`, which are `null`:
   project that would then name a different beat, and the person decides. `manual` beats
   are carried over by the same matching. *(proposed)* A new map whose downbeats fall on
   other indices is not applied either, since every `bar:` literal would move (*proposed*,
-  added with `lc beats`). `lc beats KEY` runs the analysis again; `--replace` applies a
+  added with `lungecuta beats`). `lungecuta beats KEY` runs the analysis again; `--replace` applies a
   map that shifts indices once the person has decided to.
 - **A comp's grid comes from its music layers**: `beats: { "from_layers": ["music"] }`.
   Each named audio layer contributes the beats of its media's map that fall inside its
@@ -623,8 +623,8 @@ that it fits wherever it is placed.
 0, 1 outside the track) and `scale` (a multiplier on the layer's scale, 1 outside the
 track, so a track that starts away from 1 jumps there, the punch-in of the example). A
 footage layer places one with `time: { "style", "at", "overrides" }`, `at` a beat span
-from the layer's start; `lc op style COMP LAYER STYLE --at <comp beat>` writes it,
-replacing the layer's earlier instance, and `lc op unstyle` takes it off. Every value is
+from the layer's start; `lungecuta op style COMP LAYER STYLE --at <comp beat>` writes it,
+replacing the layer's earlier instance, and `lungecuta op unstyle` takes it off. Every value is
 moved from 1 towards the style's by the intensity, `1 + intensity (v - 1)`, and a speed
 that would go below 0 or a scale to 0 or below is an error naming the intensity. Keys may
 fall before the layer's start, and a key before the beat grid's first beat is an error.
@@ -637,7 +637,7 @@ outside it), each value moved from its neutral by the intensity, `neutral + inte
 
 ## Validation
 
-`lc validate` checks a project against the schema and then against meaning: every
+`lungecuta validate` checks a project against the schema and then against meaning: every
 reference resolves, every clip has a decided colour space, every placement has enough
 source, every beat literal falls inside the beat grid, no source-time field and no field
 the grid depends on is a beat literal, every layer has `in` at most `out`, a layer with

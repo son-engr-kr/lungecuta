@@ -1,10 +1,10 @@
-"""What one `lc still` costs, by stage and end to end.
+"""What one `lungecuta still` costs, by stage and end to end.
 
 Usage: uv run python bench/still_cost.py WORKDIR CLIP [FRAME]
   (inside the project, so that the lungecuta package is importable)
 
 Imports CLIP into a project under WORKDIR (once; later runs reuse it), then times the
-stages of `lc still --media KEY --at f:FRAME` in-process (seek and decode of the original,
+stages of `lungecuta still --media KEY --at f:FRAME` in-process (seek and decode of the original,
 input transform, the downscale for --height 540, output view, numbers, PNG encode) and
 the whole command as a new process, at the clip's own size and at 540 lines. Each is run
 three times and the median printed. Checked: every run gives the same frame, of the size
@@ -34,7 +34,7 @@ RUNS = 3
 
 
 def project_with(workdir: Path, clip: Path) -> tuple[Path, str]:
-    directory = workdir / "still.lc"
+    directory = workdir / "still.lungecuta"
     if not directory.exists():
         init_project(directory)
         set_root(directory, "footage", clip.parent)
@@ -90,16 +90,16 @@ def main() -> None:
         back = run(["ffmpeg", "-v", "error", "-i", str(out), "-f", "rawvideo", "-pix_fmt", "rgb24", "-"]).stdout
         eight = np.floor(np.clip(frames[0], 0, 1) * 255 + 0.5).astype(np.uint8)
         assert np.array_equal(np.frombuffer(back, np.uint8).reshape(h, w, 3), eight), "the PNG is not the frame"
-        command = ["lc", "still", "--media", key, "--at", f"f:{index}", "--project", str(directory)]
+        command = ["lungecuta", "still", "--media", key, "--at", f"f:{index}", "--project", str(directory)]
         command += [] if height is None else ["--height", str(height)]
         walls = []
         for _ in range(RUNS):
             start = time.perf_counter()
             printed = json.loads(subprocess.run(command, capture_output=True, check=True).stdout)
             walls.append((time.perf_counter() - start) * 1000)
-            assert printed["codes"] == code_numbers(frames[0]), "lc still printed other numbers"
+            assert printed["codes"] == code_numbers(frames[0]), "lungecuta still printed other numbers"
         line = ", ".join(f"{name} {statistics.median(r[name] for r in runs):.0f}" for name in runs[0])
-        print(f"  {w}x{h}: {line} ms; lc still as a process {statistics.median(walls):.0f} ms "
+        print(f"  {w}x{h}: {line} ms; lungecuta still as a process {statistics.median(walls):.0f} ms "
               f"(PNG {len(encoded) / 1e6:.1f} MB)")
 
 

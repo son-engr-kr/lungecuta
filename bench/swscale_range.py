@@ -5,10 +5,10 @@ Usage: uv run python bench/swscale_range.py
 
 For flat frames of known codes (black, mid grey, nominal white and the six colour bars at
 100 %, in 8 and 10 bits, limited and full range, BT.709), converts with the scale filter
-and the flags lc used before (`accurate_rnd+full_chroma_int+full_chroma_inp`, explicit
-`in_color_matrix` and `in_range`) and with lc's `frame_rgb`, which follows H.273 V4
+and the flags lungecuta used before (`accurate_rnd+full_chroma_int+full_chroma_inp`, explicit
+`in_color_matrix` and `in_range`) and with lungecuta's `frame_rgb`, which follows H.273 V4
 equations 30 to 38 and 45 to 47, and prints the difference in 10-bit R'G'B' codes
-(value x 1023). The check: lc's conversion gives exactly 0 and 1 at black and white.
+(value x 1023). The check: lungecuta's conversion gives exactly 0 and 1 at black and white.
 """
 import subprocess
 
@@ -57,16 +57,16 @@ def main() -> None:
                "green": (0, 1, 0), "blue": (0, 0, 1), "yellow": (1, 1, 0), "cyan": (0, 1, 1), "magenta": (1, 0, 1)}
     for bits in (8, 10):
         for range_ in ("limited", "full"):
-            print(f"{bits}-bit {range_}: R'G'B' x 1023, swscale and lc (H.273), for codes made from the patch")
+            print(f"{bits}-bit {range_}: R'G'B' x 1023, swscale and lungecuta (H.273), for codes made from the patch")
             for name, rgb in patches.items():
                 codes = codes_for(rgb, bits, range_)
                 a, b = swscale(codes, bits, range_) * 1023, ours(codes, bits, range_) * 1023
-                print(f"  {name:9s} codes {codes}  swscale {np.round(a, 2)}  lc {np.round(b, 2)}  "
-                      f"swscale - lc {np.round(a - b, 2)}")
+                print(f"  {name:9s} codes {codes}  swscale {np.round(a, 2)}  lungecuta {np.round(b, 2)}  "
+                      f"swscale - lungecuta {np.round(a - b, 2)}")
                 if name == "black":
-                    assert np.allclose(b, 0, atol=1e-3), "lc's black is not 0"
+                    assert np.allclose(b, 0, atol=1e-3), "lungecuta's black is not 0"
                 if name == "white":
-                    assert np.allclose(b, 1023, atol=1e-2), "lc's white is not 1023"
+                    assert np.allclose(b, 1023, atol=1e-2), "lungecuta's white is not 1023"
 
 
 if __name__ == "__main__":

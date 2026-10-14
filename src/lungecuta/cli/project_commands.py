@@ -1,4 +1,4 @@
-"""lc commands that set up and describe a project: init, guide, status, import and the media around it, beats, licence, validate, schema, changes, new-comp."""
+"""lungecuta commands that set up and describe a project: init, guide, status, import and the media around it, beats, licence, validate, schema, changes, new-comp."""
 from __future__ import annotations
 
 import inspect
@@ -29,9 +29,9 @@ def init(directory: Path) -> None:
     Writes project.json with the colour defaults, roots.local.json (empty) and a
     .gitignore for it and cache/, the empty media/, comps/, grades/, styles/,
     graphics/, luts/ and cache/ directories, and the guide a coding agent reads
-    (AGENTS.md for Codex, CLAUDE.md importing it for Claude Code; see lc guide) with
-    the .mcp.json and .codex/config.toml that start lc mcp. The .lc suffix is a
-    convention only. When `lc` is not on the PATH, which both need, the output says so
+    (AGENTS.md for Codex, CLAUDE.md importing it for Claude Code; see lungecuta guide) with
+    the .mcp.json and .codex/config.toml that start lungecuta mcp. The .lungecuta suffix is a
+    convention only. When `lungecuta` is not on the PATH, which both need, the output says so
     and how to put it there.
     """
     printed = {"project": str(init_project(directory))}
@@ -44,7 +44,7 @@ def init(directory: Path) -> None:
 
 def on_path(command: str) -> bool:
     """Whether `command` is on the PATH as a program started outside this process would
-    see it: the bin directory of the virtual environment running lc (`uv run` puts it
+    see it: the bin directory of the virtual environment running lungecuta (`uv run` puts it
     first) does not count."""
     import os
     import shutil
@@ -64,7 +64,7 @@ def guide(write: bool, project_dir: Path | None) -> None:
     """The guide a coding agent reads in a project: its files, time literals, the steps of
     every edit and the commands that check them. --write puts it into the project's
     AGENTS.md (read by Codex) between its markers, keeping the rest of the file, and makes
-    CLAUDE.md import AGENTS.md (read by Claude Code); lc init already does this."""
+    CLAUDE.md import AGENTS.md (read by Claude Code); lungecuta init already does this."""
     from ..guide import guide_text, write_guide
 
     if write:
@@ -208,7 +208,7 @@ def status(project_dir: Path | None) -> None:
     """What is in the project, for an agent arriving: media (footage with its colour space
     and whether it is usable, music with its tempo and whether its licence is recorded),
     comps (size, rate, length, layers by type, markers, transitions), how many editor
-    changes lc changes has not shown yet, and each render in cache/lc/render/ with whether
+    changes lungecuta changes has not shown yet, and each render in cache/lungecuta/render/ with whether
     its comp and media are still the ones it was made from. Changes nothing."""
     from ..status import status as project_status
 
@@ -276,21 +276,22 @@ def _described(command: click.Command, path: str) -> dict[str, Any]:
 
 @main.command()
 def commands() -> None:
-    """Every lc command as data, for an agent to read instead of the help text: each with
+    """Every lungecuta command as data, for an agent to read instead of the help text: each with
     its summary, its arguments and its options (flags, types, defaults, choices, whether
     required), the op group's operations among them."""
-    print_json({"commands": [_described(command, f"lc {name}") for name, command in sorted(main.commands.items())]})
+    print_json({"commands": [_described(command, f"lungecuta {name}")
+                             for name, command in sorted(main.commands.items())]})
 
 
 @main.command()
 @project_option
 def mcp(project_dir: Path | None) -> None:
-    """Serve every lc command as a tool over the Model Context Protocol on stdio, for Claude
+    """Serve every lungecuta command as a tool over the Model Context Protocol on stdio, for Claude
     Code, Codex or any MCP client: each tool's input schema is its command's arguments and
     options, a call returns what the command prints, and the pictures it writes come back
     as images. Tools default to this project (--project, or the nearest project.json above
     the current directory, if there is one); the project guide is the server's
-    instructions. A project's .mcp.json and .codex/config.toml (lc init writes them)
+    instructions. A project's .mcp.json and .codex/config.toml (lungecuta init writes them)
     start it for Claude Code and Codex."""
     from ..mcp_server import run
     from ..project import nearest_project

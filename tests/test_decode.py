@@ -1,4 +1,4 @@
-"""Y'CbCr to R'G'B' as lc does it: the decoder's own planes, chroma brought to every pixel
+"""Y'CbCr to R'G'B' as lungecuta does it: the decoder's own planes, chroma brought to every pixel
 by linear interpolation where the stream says it sits, then ITU-T H.273 V4."""
 import hashlib
 import subprocess

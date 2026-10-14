@@ -1,4 +1,4 @@
-"""`lc beats`: the beat analysis of a music record run again, applied only if it keeps
+"""`lungecuta beats`: the beat analysis of a music record run again, applied only if it keeps
 every beat and bar literal of the project on its musical beat
 (docs/design/03-project-format.md#beat-maps)."""
 from __future__ import annotations

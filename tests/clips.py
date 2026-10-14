@@ -41,7 +41,7 @@ def make_clip(path: Path, rotation: int | None = None, *, hflip: bool = False, f
 def write_record(project: Path, clip: Path, *, decided: bool = True, start_tc: str | None = None,
                  proxy: bool = False) -> str:
     """A media record for a clip under the project root, decided by hand (no sidecar exists);
-    with `proxy`, an FFV1 proxy built as `lc import` builds it, at the project's proxy_height."""
+    with `proxy`, an FFV1 proxy built as `lungecuta import` builds it, at the project's proxy_height."""
     probed = probe(clip)
     stat = clip.stat()
     color = (ColorDecided(status="decided", space=SPACE, matrix="bt709", range="limited", evidence={"source": "test"})
@@ -197,7 +197,7 @@ def cut_project(tmp_path: Path) -> Path:
     """A project with the hand-written music, a 70-frame clip at timecode 00:00:21:15, and comp `main`."""
     from lungecuta.project import init_project
 
-    directory = init_project(tmp_path / "edit.lc")
+    directory = init_project(tmp_path / "edit.lungecuta")
     (directory / "footage").mkdir()
     settings = json.loads((directory / "project.json").read_text())
     settings["proxy_height"] = 36  # the 128x72 clips get 64x36 proxies, and the editor previews at 64x36

@@ -1,4 +1,4 @@
-"""lc commands that look at frames: still, sheet and scope, of a comp or of one imported clip."""
+"""lungecuta commands that look at frames: still, sheet and scope, of a comp or of one imported clip."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -30,14 +30,14 @@ from .common import main, one_of, print_json, project_of, project_option, thread
 @click.option(
     "--out",
     type=click.Path(dir_okay=False, path_type=Path),
-    help="Where the PNG goes; by default cache/lc/still/ in the project.",
+    help="Where the PNG goes; by default cache/lungecuta/still/ in the project.",
 )
 @project_option
 def still(
     comp: str | None, key: str | None, at: str, height: int | None, threads: int | None, out: Path | None,
     project_dir: Path | None,
 ) -> None:
-    """One frame at final quality: of COMP as lc render delivers it, or of an imported clip
+    """One frame at final quality: of COMP as lungecuta render delivers it, or of an imported clip
     read from its original.
 
     A comp's frame is composed as the render composes it, graphics included, at the
@@ -87,22 +87,22 @@ def still(
     "--out",
     type=click.Path(dir_okay=False, path_type=Path),
     help="Where the first page goes, the others with _p1, _p2 before the suffix; "
-    "by default cache/lc/sheet/ in the project.",
+    "by default cache/lungecuta/sheet/ in the project.",
 )
 @project_option
 def sheet(
     comp: str | None, key: str | None, every: str, start: str | None, end: str | None, columns: int, rows: int,
     height: int | None, threads: int | None, out: Path | None, project_dir: Path | None,
 ) -> None:
-    """A contact sheet: of COMP, a frame at every interval as lc still COMP shows it, each
+    """A contact sheet: of COMP, a frame at every interval as lungecuta still COMP shows it, each
     labelled with its frame, seconds, beat and the layers on screen; or of an imported clip,
     a frame at every interval from frame 0, each labelled with its frame number and its
     seconds from the first frame (to the millisecond).
 
     A clip's frames come from one decode of the original and go through the same chain as
-    lc still, each area-downscaled to the tile size in the working space. Pages are
+    lungecuta still, each area-downscaled to the tile size in the working space. Pages are
     8-bit PNGs, untagged, holding display-encoded code values for the project's
-    display and view. The JSON lists every tile with the numbers lc still prints,
+    display and view. The JSON lists every tile with the numbers lungecuta still prints,
     computed on the float tile.
     """
     one_of(comp, key)
@@ -121,7 +121,7 @@ def sheet(
 @main.command()
 @click.argument("comp", required=False)
 @click.option("--media", "key", help="The media key of an imported clip, instead of a comp.")
-@click.option("--at", required=True, help="A comp position, or with --media a source time, as for lc still.")
+@click.option("--at", required=True, help="A comp position, or with --media a source time, as for lungecuta still.")
 @click.option(
     "--height",
     type=click.IntRange(min=1),
@@ -132,15 +132,15 @@ def sheet(
 @click.option(
     "--out",
     type=click.Path(dir_okay=False, path_type=Path),
-    help="Where the PNG goes; by default cache/lc/scope/ in the project.",
+    help="Where the PNG goes; by default cache/lungecuta/scope/ in the project.",
 )
 @project_option
 def scope(
     comp: str | None, key: str | None, at: str, height: int | None, threads: int | None, out: Path | None,
     project_dir: Path | None,
 ) -> None:
-    """Waveform, RGB parade and vectorscope of one frame: of COMP as lc still COMP gives it,
-    or of an imported clip read from the original through the same chain as lc still.
+    """Waveform, RGB parade and vectorscope of one frame: of COMP as lungecuta still COMP gives it,
+    or of an imported clip read from the original through the same chain as lungecuta still.
 
     Computed on the display-encoded output of the project's display and view. Luma is
     Y' = 0.2126 R' + 0.7152 G' + 0.0722 B' on the encoded values, and Cb, Cr come from
@@ -172,7 +172,7 @@ def scope(
               help="Lines of the picture (never more than the source's own).")
 @threads_option
 @click.option("--out", type=click.Path(dir_okay=False, path_type=Path),
-              help="Where the PNG goes; by default cache/lc/framing/ in the project.")
+              help="Where the PNG goes; by default cache/lungecuta/framing/ in the project.")
 @project_option
 def framing(comp: str, layer: str, at: tuple[str, ...], height: int, threads: int | None, out: Path | None,
             project_dir: Path | None) -> None:

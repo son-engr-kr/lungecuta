@@ -64,7 +64,7 @@ PRESETS = {
         "p010le", "left", False, ("-c:a", "aac_at", "-b:a", "256k"), "hevc", "Main 10", decodes_as="yuv420p10le",
     ),
     # For graphics handed to another tool (08-deliver.md): 4:4:4, so no chroma is decimated
-    # and the siting is moot; straight alpha, as `lc graphic` writes ProRes 4444 (whether
+    # and the siting is moot; straight alpha, as `lungecuta graphic` writes ProRes 4444 (whether
     # Resolve reads it as straight is one of the Phase 0 checks); no audio.
     "prores-4444-alpha": Preset(
         "prores-4444-alpha", ".mov", ("-c:v", "prores_ks", "-profile:v", "4"), "yuva444p10le", "left", False,

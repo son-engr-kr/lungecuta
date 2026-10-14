@@ -2,7 +2,7 @@
 (docs/design/10-roadmap.md, Phase 1). Not part of the lungecuta package.
 
 A frame of a clip's 540-line proxy, read by PyAV with the container kept open (identical
-to the ffmpeg CLI on the samples, bench/pyav_check.py), converted by H.273 as lc does,
+to the ffmpeg CLI on the samples, bench/pyav_check.py), converted by H.273 as lungecuta does,
 through the clip's input transform, an OCIO GradingPrimaryTransform (LOG style, dynamic, on
 DaVinci Intermediate), a 50 % blend of a second layer, the project's output view, and
 from the Rec.1886 display encoding to sRGB encoding, the encoding the viewer sends to
@@ -92,7 +92,7 @@ class Engine:
 
     def working(self, index: int, timings: Timings, decoder: str = "pyav") -> np.ndarray:
         """Frame `index` through the input transform, cached for a parked frame. `decoder`
-        "cli" reads it the way lc still does, one ffmpeg process per frame."""
+        "cli" reads it the way lungecuta still does, one ffmpeg process per frame."""
         if index not in self.working_cache:
             if decoder == "cli":
                 frame = timings.run("decode", lambda: read_rgb(

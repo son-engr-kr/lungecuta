@@ -1,4 +1,4 @@
-"""`lc flash FILE` (docs/design/09-agent-interface.md, Lint): WCAG 2.2's general flash
+"""`lungecuta flash FILE` (docs/design/09-agent-interface.md, Lint): WCAG 2.2's general flash
 threshold checked on a rendered file, the frames a viewer is shown.
 
 WCAG 2.2 (https://www.w3.org/TR/WCAG22/, "general flash and red flash thresholds", read
@@ -163,8 +163,8 @@ def probe(file: Path) -> dict[str, Any]:
 def flash(file: Path, *, config_name: str, display: str, view: str, threads: int | None = None) -> dict[str, Any]:
     video = probe(file)
     width, height = int(video["width"]), int(video["height"])
-    assert video.get("color_space") in TAG_MATRIX, f"{file.name}: matrix tag {video.get('color_space')!r} is not one lc reads"
-    assert video.get("color_range") in TAG_RANGE, f"{file.name}: range tag {video.get('color_range')!r} is not one lc reads"
+    assert video.get("color_space") in TAG_MATRIX, f"{file.name}: matrix tag {video.get('color_space')!r} is not one lungecuta reads"
+    assert video.get("color_range") in TAG_RANGE, f"{file.name}: range tag {video.get('color_range')!r} is not one lungecuta reads"
     assert str(video.get("nb_frames", "")).isdigit(), f"{file.name}: the container gives no frame count"
     count = int(video["nb_frames"])
     num, den = (int(x) for x in video["r_frame_rate"].split("/"))

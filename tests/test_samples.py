@@ -61,7 +61,7 @@ def test_detect_leaves_the_hlg_sample_undecided(samples):
 
 
 def sequential(path, index, *, matrix, range_, size, autorotate=False):
-    """Frame `index` from a decode from the start, independent of lc's seeking."""
+    """Frame `index` from a decode from the start, independent of lungecuta's seeking."""
     raw = run(["ffmpeg", "-v", "error", *([] if autorotate else ["-noautorotate"]), "-i", str(path),
                "-map", "0:v:0", "-vf", f"select=eq(n\\,{index})", "-frames:v", "1", "-f", "rawvideo",
                "-pix_fmt", "yuv422p10le", "-"]).stdout
@@ -78,7 +78,7 @@ def test_a_seeked_frame_is_the_frame_a_sequential_decode_gives(samples, index):
 
 @pytest.fixture(scope="module")
 def imported(samples, tmp_path_factory):
-    project = init_project(tmp_path_factory.mktemp("samples") / "edit.lc")
+    project = init_project(tmp_path_factory.mktemp("samples") / "edit.lungecuta")
     records = {}
     for role in ("slog3", "hlg"):
         path = samples[role]["path"]
@@ -129,7 +129,7 @@ def test_import_keeps_the_hlg_sample_undecided_in_its_coded_orientation(imported
     assert record.proxy.parity.codes is None and "undecided" in record.proxy.parity.reason
 
 
-def test_lc_still_on_the_slog3_sample_is_the_frame_through_its_input_transform_and_the_view(samples, imported):
+def test_still_on_the_slog3_sample_is_the_frame_through_its_input_transform_and_the_view(samples, imported):
     project, records = imported
     key = records["slog3"].key
     result = CliRunner().invoke(main, ["still", "--media", key, "--at", "f:352", "--project", str(project)])
@@ -151,7 +151,7 @@ def test_lc_still_on_the_slog3_sample_is_the_frame_through_its_input_transform_a
     assert np.array_equal(np.frombuffer(raw, np.uint8).reshape(2160, 3840, 3), eight)
 
 
-def test_lc_still_refuses_the_undecided_hlg_sample(imported):
+def test_still_refuses_the_undecided_hlg_sample(imported):
     project, records = imported
     result = CliRunner().invoke(main, ["still", "--media", records["hlg"].key, "--at", "f:0", "--project", str(project)])
     assert result.exit_code != 0
@@ -170,7 +170,7 @@ def test_the_hlg_samples_rotation_tag_turns_it_the_way_ffmpeg_does(samples):
     assert np.array_equal(oriented(coded, rotation), np.rot90(coded, 1))
 
 
-def test_lc_sheet_on_the_slog3_sample_tiles_the_stills(imported):
+def test_sheet_on_the_slog3_sample_tiles_the_stills(imported):
     project, records = imported
     record = records["slog3"]
     result = CliRunner().invoke(main, ["sheet", "--media", record.key, "--every", "f:30", "--project", str(project)])
@@ -184,7 +184,7 @@ def test_lc_sheet_on_the_slog3_sample_tiles_the_stills(imported):
         assert tile["codes"] == code_numbers(still)
 
 
-def test_lc_scope_on_the_slog3_sample_prints_the_numbers_of_the_still(imported):
+def test_scope_on_the_slog3_sample_prints_the_numbers_of_the_still(imported):
     project, records = imported
     record = records["slog3"]
     result = CliRunner().invoke(main, ["scope", "--media", record.key, "--at", "f:352", "--project", str(project)])
@@ -197,7 +197,7 @@ def test_lc_scope_on_the_slog3_sample_prints_the_numbers_of_the_still(imported):
 
 @pytest.fixture(scope="module")
 def imported_music(samples, tmp_path_factory):
-    project = init_project(tmp_path_factory.mktemp("music") / "edit.lc")
+    project = init_project(tmp_path_factory.mktemp("music") / "edit.lungecuta")
     path = samples["music"]["path"]
     set_root(project, "music", path.parent)
     return project, import_file(Project.load(project), path, root="music")

@@ -411,7 +411,7 @@ def _closing(generator: Iterator):
         generator.close()
 
 
-# Comp frames sampled at once by `frames_at` and `lc verify`: each mostly waits on ffmpeg
+# Comp frames sampled at once by `frames_at` and `lungecuta verify`: each mostly waits on ffmpeg
 # seeking into the originals (bench/verify_cost.py, bench/RESULTS.md).
 FRAMES_AT_ONCE = 4
 

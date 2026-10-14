@@ -4,7 +4,7 @@ Usage: uv run python bench/beats_check.py [MUSIC]
   (inside the project, so that the lungecuta package is importable)
 
 1. The synthetic 4/4 drum track of tests/clips.py (120 BPM, first beat at 0.25 s, 12 bars)
-   at 48 kHz and at 44.1 kHz, through `lc import`'s own decode, resampling and analysis:
+   at 48 kHz and at 44.1 kHz, through `lungecuta import`'s own decode, resampling and analysis:
    each true beat matched to the nearest beat found, the signed error, and whether every
    true downbeat is a downbeat found. Matching is one to one or the run fails.
 2. With MUSIC, the cost of each stage of importing it: ffmpeg decode, resampling to 48 kHz

@@ -1,4 +1,4 @@
-"""What `lc sheet` and `lc scope` cost, and one decode against a seek per frame.
+"""What `lungecuta sheet` and `lungecuta scope` cost, and one decode against a seek per frame.
 
 Usage: uv run python bench/sheet_scope_cost.py WORKDIR CLIP
   (inside the project, so that the lungecuta package is importable)
@@ -6,7 +6,7 @@ Usage: uv run python bench/sheet_scope_cost.py WORKDIR CLIP
 Imports CLIP into a project under WORKDIR (once; later runs reuse it). Then:
 - the frames of a sheet at every 30th frame read two ways, one sequential decode
   (`read_every`) and one seek per frame (`read_rgb`); the two must give identical frames;
-- `lc sheet --every f:30` and `f:5`, and `lc scope --at f:352` at the clip's size and at
+- `lungecuta sheet --every f:30` and `f:5`, and `lungecuta scope --at f:352` at the clip's size and at
   540 lines, each as a new process, median of three runs, with the scope's clipped
   fractions and how many pixels the view puts at exactly 0. Checked: the sheet has one
   tile per interval, and the scope prints the numbers of the same frame rendered in-process.
@@ -30,7 +30,7 @@ RUNS = 3
 
 
 def project_with(workdir: Path, clip: Path) -> tuple[Path, str]:
-    directory = workdir / "still.lc"
+    directory = workdir / "still.lungecuta"
     if not directory.exists():
         init_project(directory)
         set_root(directory, "footage", clip.parent)
@@ -73,20 +73,21 @@ def main() -> None:
     print(f"  {len(indices)} frames at every 30th: one decode {one:.0f} ms, a seek per frame {each:.0f} ms (identical)")
 
     for step in (30, 5):
-        wall, printed = process(["lc", "sheet", "--media", key, "--every", f"f:{step}", "--project", str(directory)])
+        wall, printed = process(["lungecuta", "sheet", "--media", key, "--every", f"f:{step}",
+                                 "--project", str(directory)])
         assert [tile["frame"] for tile in printed["tiles"]] == list(range(0, video.frames, step)), "tiles missing"
-        print(f"  lc sheet --every f:{step}: {len(printed['tiles'])} tiles on {len(printed['pages'])} pages, "
+        print(f"  lungecuta sheet --every f:{step}: {len(printed['tiles'])} tiles on {len(printed['pages'])} pages, "
               f"{wall:.0f} ms")
 
     for height in (None, 540):
-        command = ["lc", "scope", "--media", key, "--at", "f:352", "--project", str(directory)]
+        command = ["lungecuta", "scope", "--media", key, "--at", "f:352", "--project", str(directory)]
         command += [] if height is None else ["--height", str(height)]
         wall, printed = process(command)
         frame = render(project, record, 352, height=height)
         expected = scope_numbers(frame)
-        assert {name: printed[name] for name in expected} == expected, "lc scope printed other numbers"
-        print(f"  lc scope at {printed['size'][0]}x{printed['size'][1]}: {wall:.0f} ms; clipped {printed['clipped']}, "
-              f"min {frame.min():.6f}, a channel exactly 0 in {(frame == 0).any(axis=-1).mean():.4f} of pixels")
+        assert {name: printed[name] for name in expected} == expected, "lungecuta scope printed other numbers"
+        print(f"  lungecuta scope at {printed['size'][0]}x{printed['size'][1]}: {wall:.0f} ms; "
+              f"clipped {printed['clipped']}, min {frame.min():.6f}, a channel exactly 0 in {(frame == 0).any(axis=-1).mean():.4f} of pixels")
 
 
 if __name__ == "__main__":

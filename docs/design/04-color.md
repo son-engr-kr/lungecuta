@@ -83,10 +83,10 @@ operations, `{ "look": "warm-film", "mix": 0.7 }`: a style in `styles/` with a `
 (operations, or serial nodes of them, none naming another look), whose whole grade is the
 node's, keyed and mixed like any node's. It is linked, read from the style on every frame,
 so editing the look changes every clip that uses it, Resolve's shared nodes; the mix is
-its intensity. `lc op look COMP LAYER LOOK --mix M` puts one after the layer's own grade
-(the same look again takes the new mix rather than a second node), `lc op unlook` takes it
+its intensity. `lungecuta op look COMP LAYER LOOK --mix M` puts one after the layer's own grade
+(the same look again takes the new mix rather than a second node), `lungecuta op unlook` takes it
 off, and the inspector does both. A render's manifest lists the looks it read, so
-`lc status` and the editor's preview go stale when one changes. Windows that follow a
+`lungecuta status` and the editor's preview go stale when one changes. Windows that follow a
 track, parallel and layer-mixer nodes and key softening (denoise, shrink and grow) are
 not written yet.
 
@@ -209,7 +209,7 @@ Graphics layers declare a `space`:
   colours (`bench/ocio_lut_error.py`).
 - Against Resolve, on a chart that includes saturated patches: median within 1 code, p99
   within 2.
-- Every render is decoded again by `lc verify`, which measures the mean signed error per
+- Every render is decoded again by `lungecuta verify`, which measures the mean signed error per
   channel on patches against the engine's reference: a matrix or range error is a bias
   and shows up there, where PSNR would blur it with codec loss.
 

@@ -43,7 +43,7 @@ def test_a_rising_mix_has_a_positive_slope(cut_project):
     assert [c["layer"] for c in report["cuts"]] == ["shot2"]  # shot1's cut is before b:2
 
 
-def test_lc_audio_check_prints_json(cut_project):
+def test_audio_check_prints_json(cut_project):
     result = CliRunner().invoke(main, ["audio-check", "main", "--project", str(cut_project)])
     assert result.exit_code == 0, result.output
     assert set(json.loads(result.output)) >= {"cuts", "rms_half_beats", "rms_slope_db_per_beat", "onsets"}

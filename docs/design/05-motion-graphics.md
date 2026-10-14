@@ -135,17 +135,17 @@ rasteriser stays behind a thin interface.
 
 ## Phase 0: graphics for Resolve
 
-`lc graphic` renders a page to ProRes 4444 with alpha for Resolve, the past projects'
+`lungecuta graphic` renders a page to ProRes 4444 with alpha for Resolve, the past projects'
 approach (seek `window.renderAt(t)`, capture, encode) in the pinned Chromium through
 Playwright: the capture keeps a transparent background, which the screenshot returns with
 straight alpha (`bench/graphics/`); the 8-bit sRGB codes become BT.709 Y'CbCr in limited
 range, 10-bit 4:4:4 with alpha, tagged 1-1-1 on the frames themselves (ffmpeg's encoder
 tags alone left primaries and transfer unset); the page is served only its own directory
-and any other request fails the render, as does a page error. Read back by lc's H.273
+and any other request fails the render, as does a page error. Read back by lungecuta's H.273
 decode, every patch of the patch card returns its 8-bit code within 0.35
-(`tests/test_graphics.py`). A comp's `graphics` layers use the same capture: `lc render`
+(`tests/test_graphics.py`). A comp's `graphics` layers use the same capture: `lungecuta render`
 draws each over the frame after the output view, on display-encoded values with straight
-alpha, as the spike measured within a code of the live page; `lc fcpxml` renders each to
+alpha, as the spike measured within a code of the live page; `lungecuta fcpxml` renders each to
 ProRes 4444 over its visible frames and places it on a lane above the cuts. The card
 answers a Phase 0 question: does Resolve send a
 Rec.709 graphic in a DWG/DI timeline through the output tone mapping

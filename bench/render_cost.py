@@ -1,4 +1,4 @@
-"""What `lc render` costs with more frames in flight, and that the result does not change.
+"""What `lungecuta render` costs with more frames in flight, and that the result does not change.
 
 Usage: uv run python bench/render_cost.py PROJECT COMP PRESET
   (inside the project)
@@ -26,7 +26,7 @@ def main() -> None:
     project, comp, preset = Project.load(Path(sys.argv[1])), sys.argv[2], sys.argv[3]
     reference = None
     for workers in (1, 4, 8, 15):
-        out = project.directory / "cache" / "lc" / "render" / f"{comp}.bench{workers}.{preset}.mov"
+        out = project.directory / "cache" / "lungecuta" / "render" / f"{comp}.bench{workers}.{preset}.mov"
         out = out.with_suffix(".mp4") if preset == "web-h264" else out
         start = time.perf_counter()
         result = render(project, comp, preset, out, workers=workers)

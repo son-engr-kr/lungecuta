@@ -1,4 +1,4 @@
-"""`lc framing COMP LAYER` (docs/design/09-agent-interface.md): where the comp's frame sits in
+"""`lungecuta framing COMP LAYER` (docs/design/09-agent-interface.md): where the comp's frame sits in
 a footage layer's own frame, the check a reframe needs (a 9:16 cut from 16:9 footage, a
 push-in that must not show the source's edge).
 
@@ -32,7 +32,7 @@ from .images import png8, quantize
 from .look import comp_frame
 from .media import Project
 
-FRAMING_DIR = Path("cache") / "lc" / "framing"
+FRAMING_DIR = Path("cache") / "lungecuta" / "framing"
 GRID = 0.1  # the grid's spacing, in fractions of the frame (the design's "0.1 grid")
 TOLERANCE = 1e-6  # pixels: a corner on the edge is inside
 COLOURS = {"first": (80, 220, 120), "last": (240, 80, 80), "at": (250, 220, 60)}

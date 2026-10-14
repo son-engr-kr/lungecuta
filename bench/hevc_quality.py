@@ -3,10 +3,10 @@
 
 Usage: uv run python bench/hevc_quality.py REFERENCE.mov OUT_DIR [vt:Q ...] [x265:CRF ...] [x264:CRF ...]
                                             [file:PATH ...]
-  REFERENCE is a ProRes 4444 render of a comp (`lc render COMP --preset prores-4444-alpha`;
+  REFERENCE is a ProRes 4444 render of a comp (`lungecuta render COMP --preset prores-4444-alpha`;
   its alpha is ignored). By default: vt:50 vt:60 vt:70 vt:80 x265:18 x265:22. `x264:CRF` is
   web-h264's video settings at that CRF, 8-bit, from the same 4:2:0 conversion; `file:PATH`
-  measures an encode of the same frames made elsewhere (`lc render COMP --preset web-h264`),
+  measures an encode of the same frames made elsewhere (`lungecuta render COMP --preset web-h264`),
   whose chroma went through the engine's own decimation, so only its Y is comparable.
 
 Each setting encodes the reference to 4:2:0 10-bit (`p010le` for VideoToolbox, as it

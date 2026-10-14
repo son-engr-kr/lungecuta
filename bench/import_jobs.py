@@ -1,4 +1,4 @@
-"""How many files `lc import` should import at once, and that the records do not change.
+"""How many files `lungecuta import` should import at once, and that the records do not change.
 
 Usage: uv run python bench/import_jobs.py WORKDIR FILE...
   (FILE... under one directory, with their sidecars; WORKDIR is emptied)
@@ -29,7 +29,8 @@ def main() -> None:
     shutil.rmtree(work, ignore_errors=True)
     reference = None
     for jobs in (1, 2, 3, 4, 1, 2, 3):
-        directory = init_project(work / f"run{len(list(work.glob('*.lc'))) if work.exists() else 0}-jobs{jobs}.lc")
+        runs = len(list(work.glob("*.lungecuta"))) if work.exists() else 0
+        directory = init_project(work / f"run{runs}-jobs{jobs}.lungecuta")
         media.set_root(directory, "samples", files[0].parent)
         media.IMPORT_JOBS = jobs
         t = time.perf_counter()

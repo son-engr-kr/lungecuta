@@ -1,4 +1,4 @@
-"""`lc import`: media records, one file each under `media/` (docs/design/02-media.md#ingest)."""
+"""`lungecuta import`: media records, one file each under `media/` (docs/design/02-media.md#ingest)."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -49,7 +49,7 @@ class Project:
         if name == PROJECT_ROOT:
             return self.directory
         assert name in self.file.media_roots, f"root {name!r} is not one of the project's media_roots"
-        assert name in self.roots, f"root {name!r} is not placed on this machine; set it with lc root"
+        assert name in self.roots, f"root {name!r} is not placed on this machine; set it with lungecuta root"
         return Path(self.roots[name])
 
 
@@ -198,7 +198,7 @@ def _proxy(
 
 
 def summary(record: MediaRecord) -> dict[str, Any]:
-    """What `lc import` prints for one file; the record itself is in `media/KEY.json`."""
+    """What `lungecuta import` prints for one file; the record itself is in `media/KEY.json`."""
     if record.beats is not None:
         return {
             "key": record.key,

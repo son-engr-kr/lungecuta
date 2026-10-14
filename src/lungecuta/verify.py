@@ -1,4 +1,4 @@
-"""`lc verify`: a rendered file checked against its comp and preset (docs/design/08-deliver.md,
+"""`lungecuta verify`: a rendered file checked against its comp and preset (docs/design/08-deliver.md,
 Verification): what the file is, its picture against the engine's own reference render of
 the same frames, every cut against its neighbours, and its loudness."""
 from __future__ import annotations

@@ -1,8 +1,8 @@
-"""What `lc verify` costs with more runs of sampled frames at once, and that the report does
+"""What `lungecuta verify` costs with more runs of sampled frames at once, and that the report does
 not change.
 
 Usage: uv run python bench/verify_cost.py PROJECT COMP FILE PRESET
-  (FILE rendered from COMP with PRESET by `lc render`)
+  (FILE rendered from COMP with PRESET by `lungecuta render`)
 
 Verifies FILE with 1, 2, 4, 8 and 15 jobs at once and checks that every report is the
 one-job report.

@@ -1,4 +1,4 @@
-"""lc commands that make and check what leaves the project: render, verify, flash, fcpxml, graphic, the patch card, and the editor's server."""
+"""lungecuta commands that make and check what leaves the project: render, verify, flash, fcpxml, graphic, the patch card, and the editor's server."""
 from __future__ import annotations
 
 import json
@@ -21,7 +21,7 @@ from .common import main, parse_size, print_json, project_of, project_option, ra
 @click.option(
     "--out",
     type=click.Path(dir_okay=False, path_type=Path),
-    help="Where the FCPXML goes; by default cache/lc/fcpxml/COMP.fcpxml in the project.",
+    help="Where the FCPXML goes; by default cache/lungecuta/fcpxml/COMP.fcpxml in the project.",
 )
 @project_option
 def fcpxml(comp: str, out: Path | None, project_dir: Path | None) -> None:
@@ -34,7 +34,7 @@ def fcpxml(comp: str, out: Path | None, project_dir: Path | None) -> None:
     The FCPXML names media by absolute path, so it belongs to this machine.
 
     Printed as JSON: every cut with its comp frames, timeline timecode, source frames and
-    source timecode, and the lc still command that shows its first frame, to check against
+    source timecode, and the lungecuta still command that shows its first frame, to check against
     Resolve's viewer after import.
     """
     print_json(export_fcpxml(project_of(project_dir), comp, out))
@@ -66,10 +66,10 @@ def graphic(page: Path, size: str, rate: str, frames: int, out: Path) -> None:
 @click.option("--frames", type=click.IntRange(min=1), default=150, show_default=True, help="Length of the card.")
 def patch_card(directory: Path, size: str, rate: str, frames: int) -> None:
     """A card of known colour patches in DIRECTORY: card.json (each patch's code and
-    rectangle), card.html and card.mov (ProRes 4444 with alpha, by lc graphic).
+    rectangle), card.html and card.mov (ProRes 4444 with alpha, by lungecuta graphic).
 
     Put card.mov over footage in a Resolve timeline at full frame, export, and read the
-    export with lc patches to see what Resolve did to a Rec.709 graphic. The card's own
+    export with lungecuta patches to see what Resolve did to a Rec.709 graphic. The card's own
     file is read back first and must hold every patch's code.
     """
     print_json(write_card(directory, size=parse_size(size), rate=parse_rate(rate), frames=frames))
@@ -78,7 +78,7 @@ def patch_card(directory: Path, size: str, rate: str, frames: int) -> None:
 @main.command()
 @click.argument("file", type=click.Path(exists=True, dir_okay=False, path_type=Path))
 @click.option("--card", "card_file", type=click.Path(exists=True, dir_okay=False, path_type=Path), required=True,
-              help="The card.json lc patch-card wrote.")
+              help="The card.json lungecuta patch-card wrote.")
 @click.option("--at", "frame", type=click.IntRange(min=0), default=0, show_default=True, help="The frame index to read.")
 @click.option("--matrix", type=click.Choice(["bt709"]), help="The file's Y'CbCr matrix, if it is not tagged.")
 @click.option("--range", "range_", type=click.Choice(["full", "limited"]), help="The file's range, if it is not tagged.")
@@ -101,7 +101,7 @@ def patches(file: Path, card_file: Path, frame: int, matrix: str | None, range_:
 @click.argument("comp")
 @click.option("--preset", required=True, type=click.Choice(sorted(PRESETS)), help="The delivery preset.")
 @click.option("--out", type=click.Path(dir_okay=False, path_type=Path),
-              help="The file to write; by default cache/lc/render/COMP.PRESET.EXT in the project.")
+              help="The file to write; by default cache/lungecuta/render/COMP.PRESET.EXT in the project.")
 @threads_option
 @click.option("--workers", type=click.IntRange(min=1),
               help="Frames rendered at once (OCIO single-threaded in each); by default the core count.")
@@ -110,7 +110,7 @@ def render_command(comp: str, preset: str, out: Path | None, threads: int | None
                    project_dir: Path | None) -> None:
     """Render comp COMP to a delivery file, with a manifest of what decided it.
 
-    Every frame goes through the same chain as lc still at the comp's size; music layers
+    Every frame goes through the same chain as lungecuta still at the comp's size; music layers
     are mixed at unity gain at 48 kHz. Display-encoded R'G'B' becomes BT.709 limited-range
     Y'CbCr by ITU-T H.273, chroma decimated co-sited, 8-bit output dithered, all four tags
     set on the frames. The manifest (FILE.manifest.json) records the comp's and media's
@@ -128,7 +128,7 @@ def flash_command(file: Path, threads: int | None, project_dir: Path | None) -> 
     flashes (pairs of opposing changes of 0.1 in relative luminance, the darker under 0.8)
     in any second over more than a quarter of any 10 degree field, the field taken as a
     third of the frame's height. Luminance is the display's: the one FILE's manifest names
-    (lc render's FILE.manifest.json), or the project's. Red flashes are not checked. Exits
+    (lungecuta render's FILE.manifest.json), or the project's. Red flashes are not checked. Exits
     with status 1 when the file fails."""
     from ..flash import flash
 
@@ -173,7 +173,7 @@ def verify_command(file: Path, comp: str, preset: str, threads: int | None, proj
 def serve(host: str, port: int, open_browser: bool, project_dir: Path | None) -> None:
     """Open the project in the editor: a server on HOST:PORT for the browser UI, with the
     viewer, the timeline and its beat grid, playback, and edits that go through the same
-    operations as lc op, journalled for lc changes. Files the agent edits meanwhile show up
+    operations as lungecuta op, journalled for lungecuta changes. Files the agent edits meanwhile show up
     in the editor as they change."""
     from ..server import serve as run_server
 

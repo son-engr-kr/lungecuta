@@ -1,4 +1,4 @@
-"""What one comp frame costs in `lc render`, stage by stage, on one thread (as each of the
+"""What one comp frame costs in `lungecuta render`, stage by stage, on one thread (as each of the
 render's workers runs it) or on all cores.
 
 Usage: uv run python bench/render_stages.py PROJECT COMP FRAME [THREADS]

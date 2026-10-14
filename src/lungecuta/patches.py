@@ -1,7 +1,7 @@
 """A card of known colour patches, and reading a frame's codes back at those patches
 (Phase 0 task 7): does Resolve send a Rec.709 graphic in a DWG/DI timeline through the
 output tone mapping? The card is rendered by the graphics renderer to ProRes 4444 with
-alpha; the person puts it over footage in Resolve and exports, and `lc patches` reads the
+alpha; the person puts it over footage in Resolve and exports, and `lungecuta patches` reads the
 export at the patches.
 
 The patch values are a test pattern, not measurements: greys in steps of 32 codes with

@@ -132,7 +132,7 @@ def build_proxy(
     frames: int,
     rate: Fraction,
 ) -> None:
-    """Write the proxy from lc's own decode, so it decodes to the downscaled original up to
+    """Write the proxy from lungecuta's own decode, so it decodes to the downscaled original up to
     rounding: the decoder's planes, chroma brought to every pixel as `read_rgb` does, each
     plane area-averaged to `size` in code units (an affine Y'CbCr to R'G'B' conversion
     commutes with an average), the range changed by H.273 only if `proxy_range` differs,

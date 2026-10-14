@@ -292,7 +292,7 @@ E′Y = KR·E′R + (1 − KR − KB)·E′G + KB·E′B                        
 E′PB = 0.5·(E′B − E′Y) ÷ (1 − KB)        E′PR = 0.5·(E′R − E′Y) ÷ (1 − KR)            (46, 47)
 Table 4: MatrixCoefficients 1 (BT.709) KR 0.2126, KB 0.0722; 9 (BT.2020 NCL) KR 0.2627, KB 0.0593
 ```
-- **VERIFIED**. `lc` decodes by the inverse of these (`src/lungecuta/decode.py`). ffmpeg 8.1's
+- **VERIFIED**. `lungecuta` decodes by the inverse of these (`src/lungecuta/decode.py`). ffmpeg 8.1's
   scale filter does not: to `rgb48le` it gives nominal white as 1019.07 of 1023 in limited
   range and 1022.02 in full range (`bench/swscale_range.py`).
 - H.273 V4 section 8.7 defines chroma sample location only for 4:2:0 (Table 8:
@@ -301,7 +301,7 @@ Table 4: MatrixCoefficients 1 (BT.709) KR 0.2126, KB 0.0722; 9 (BT.2020 NCL) KR 
   HD SDR practice is type 0 and BT.2020/BT.2100 4:2:0 is type 2. ffprobe names the types
   `left`, `center`, `topleft`, `top`, `bottomleft`, `bottom`. A 4:2:2 stream's tag is read
   for its horizontal offset. **VERIFIED** (the table); that a 4:2:2 `left` tag means
-  horizontally co-sited chroma is the reading `lc` takes.
+  horizontally co-sited chroma is the reading `lungecuta` takes.
 
 ## 8. Output tagging for web delivery
 

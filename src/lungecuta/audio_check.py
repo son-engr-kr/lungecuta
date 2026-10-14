@@ -1,4 +1,4 @@
-"""`lc audio-check` (docs/design/07-audio.md, Analysis and checks): what an agent that cannot
+"""`lungecuta audio-check` (docs/design/07-audio.md, Analysis and checks): what an agent that cannot
 hear measures before it calls an audio change done.
 
 Written so far, over a span of the comp:

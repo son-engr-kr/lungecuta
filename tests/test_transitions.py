@@ -66,7 +66,7 @@ def test_a_dip_and_fades_ramp_through_black(cut_project):
     assert shot2.ramps[-1][1] == shot2.end and shot2.opacity_at(shot2.end - 1) < 0.1
 
 
-def test_lc_op_transition_adds_replaces_and_takes_off(cut_project):
+def test_op_transition_adds_replaces_and_takes_off(cut_project):
     comp = comp_json()
     comp["layers"][2]["source_start"] = "f:10"
     put_comp(cut_project, comp)

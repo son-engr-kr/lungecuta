@@ -1,4 +1,4 @@
-"""lc status: what is in a project, at a glance (src/lungecuta/status.py)."""
+"""lungecuta status: what is in a project, at a glance (src/lungecuta/status.py)."""
 import json
 
 from click.testing import CliRunner

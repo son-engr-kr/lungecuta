@@ -1,4 +1,4 @@
-"""`lc scope --media`: the scope numbers on frames whose answers are known, the scope images'
+"""`lungecuta scope --media`: the scope numbers on frames whose answers are known, the scope images'
 geometry, and the command on a synthetic clip (tests/clips.py)."""
 import json
 
@@ -84,12 +84,12 @@ def test_the_scope_image_is_waveform_and_vectorscope_over_the_parade():
 
 @pytest.fixture
 def project(tmp_path):
-    directory = init_project(tmp_path / "edit.lc")
+    directory = init_project(tmp_path / "edit.lungecuta")
     (directory / "footage").mkdir()
     return directory
 
 
-def test_lc_scope_prints_the_numbers_of_the_still(project):
+def test_scope_prints_the_numbers_of_the_still(project):
     key = write_record(project, make_clip(project / "footage" / "C0001.mov"))
     result = CliRunner().invoke(main, ["scope", "--media", key, "--at", "f:2", "--height", "36",
                                        "--project", str(project)])
@@ -99,4 +99,4 @@ def test_lc_scope_prints_the_numbers_of_the_still(project):
     expected = scope_numbers(still)
     assert {name: printed[name] for name in expected} == expected
     assert (printed["frame"], printed["size"]) == (2, [64, 36])
-    assert printed["png"] == str(project / "cache" / "lc" / "scope" / f"{key}_f2_64x36.png")
+    assert printed["png"] == str(project / "cache" / "lungecuta" / "scope" / f"{key}_f2_64x36.png")

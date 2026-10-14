@@ -36,7 +36,7 @@ computed once, by the engine; audio clock from `getOutputTimestamp()`; content h
 instead of revision numbers in files; normalization before the true-peak limiter; audio
 muxed once over joined chunks; downbeats from a tracker that has them; vector motion blur;
 flow estimated on a display-rendered copy; LUT references that name their spaces;
-`lc verify` checking bias and cut times.
+`lungecuta verify` checking bias and cut times.
 
 ## Recommendations not adopted as stated
 

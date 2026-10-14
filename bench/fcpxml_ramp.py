@@ -1,4 +1,4 @@
-"""A variable speed ramp in an FCPXML that `lc fcpxml` wrote, for the Phase 0 question of
+"""A variable speed ramp in an FCPXML that `lungecuta fcpxml` wrote, for the Phase 0 question of
 whether Resolve imports it as an editable curve or as one speed keyframe per frame.
 
 Usage: uv run python bench/fcpxml_ramp.py IN.fcpxml OUT.fcpxml CLIP

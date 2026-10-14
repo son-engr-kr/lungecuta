@@ -76,11 +76,11 @@ def test_an_edit_does_not_overwrite_a_change_made_meanwhile(cut_project):
     edit = ops.Edit.open(Project.load(cut_project), "main")
     edit.set_start(edit.layer("shot2"), edit.start(edit.layer("shot2")))
     put_comp(cut_project, comp_json(end="b:13"))  # the person, or another agent, wrote the comp
-    with pytest.raises(AssertionError, match="changed while lc was working on it"):
+    with pytest.raises(AssertionError, match="changed while lungecuta was working on it"):
         edit.save()
 
 
-def test_lc_op_from_the_command_line(cut_project):
+def test_op_from_the_command_line(cut_project):
     result = CliRunner().invoke(main, ["op", "move", "main", "shot2", "--by", "b:1", "--project", str(cut_project)])
     assert result.exit_code == 0, result.output
     assert json.loads(result.output)["changes"] == ["shot2 start moved b:4 to b:5"]
@@ -182,7 +182,7 @@ def test_a_grade_is_replaced_whole_and_checked(cut_project):
     assert "grade" not in layers(cut_project)["shot1"]
 
 
-def test_lc_op_key_parses_pairs_and_source_times(cut_project):
+def test_op_key_parses_pairs_and_source_times(cut_project):
     args = ["--project", str(cut_project)]
     runner = CliRunner()
     assert runner.invoke(main, ["op", "key", "main", "shot1", "position", "--at", "b:1", "--value", "0.4,0.6", *args]).exit_code == 0
@@ -260,7 +260,7 @@ def test_a_key_moves_in_time_with_its_value_and_ease(cut_project):
 
 
 def test_a_beat_split_of_a_placed_clip_writes_beats(cut_project):
-    # lc op place writes a clip's length in frames; a cut on a beat cannot be a whole number of
+    # lungecuta op place writes a clip's length in frames; a cut on a beat cannot be a whole number of
     # frames from a beat start, so the new out and in points are written in beats instead
     comp = json.loads((cut_project / "comps" / "main.json").read_text())
     comp["layers"] = comp["layers"][:1]

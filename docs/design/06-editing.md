@@ -5,7 +5,7 @@
 The Edit page works on comp layers, with the operations an editor expects from a
 timeline: place, trim, ripple, roll, slip, slide, split, lift, nest into a precomp.
 Snapping targets are beats, downbeats, cut points, markers and keyframes, in that order
-of priority. Each operation is a function in the engine that both the UI and `lc op` call
+of priority. Each operation is a function in the engine that both the UI and `lungecuta op` call
 ([09-agent-interface.md](09-agent-interface.md#commands)), so an agent's "move every cut in
 the chorus onto the nearest downbeat" is the same code path as a person dragging one, and
 an agent never has to ripple a timeline by editing every later layer's JSON by hand.
@@ -33,7 +33,7 @@ way; a style's anchor there is written in seconds, to 10 microseconds. A footage
 `source_start` may be negative, the media starting after its layer time 0 (a split's
 part slipped back), as long as every frame it shows is in the clip.
 
-Written so far (`src/lungecuta/ops/`, one module an area, and `lc op OP COMP ...`): move, trim, slip, roll, ripple
+Written so far (`src/lungecuta/ops/`, one module an area, and `lungecuta op OP COMP ...`): move, trim, slip, roll, ripple
 delete, split and snap to beats. Amounts are signed spans (`f:-3`, `-0.5s`, `b:1`,
 `b:-0.5`), a beat amount counted on the grid from where it applies. The new time is
 computed in ticks and written back in the unit the field was written in, so a beat
@@ -144,8 +144,8 @@ a polyline whose segments are halved until there are at least as many as pixels 
 long. The samples are averaged in linear light, weighted by coverage, and brought back to
 the working space; renders, checks, stills of a comp and the editor's preview all place
 through the same function, the preview at its own scale. A render's cost grows with the
-travel: a layer moving 40 pixels during the shutter is placed 40 times. `lc op set` and
-`lc op key` take `shutter`, the inspector has a row for it and the graph editor a curve,
+travel: a layer moving 40 pixels during the shutter is placed 40 times. `lungecuta op set` and
+`lungecuta op key` take `shutter`, the inspector has a row for it and the graph editor a curve,
 and FCPXML refuses it. Motion inside the footage (vector blur from flow) waits for M6.
 
 ## Transitions
@@ -186,8 +186,8 @@ layer's opacity ramps across it, so the blend is a composite in the working spac
 after it, extending nothing; `fade_in` and `fade_out` ramp one layer from or to black over
 a span from its in point or back from its out point. Ramps are linear in opacity over
 the span's frames (D15). Only the working space is written; `linear` is refused
-until it is. `lc op transition COMP KIND LAYER... --length` puts one on (replacing the
-same kind on the same layers) and `lc op untransition` takes it off. FCPXML refuses
+until it is. `lungecuta op transition COMP KIND LAYER... --length` puts one on (replacing the
+same kind on the same layers) and `lungecuta op untransition` takes it off. FCPXML refuses
 transitions until it writes them as its own `transition` elements.
 
 ## Framing
@@ -195,7 +195,7 @@ transitions until it writes them as its own `transition` elements.
 - **Crop keys** `(time, centre x, centre y, zoom)` per shot, eased, for 9:16 cuts from 16:9
   sources and for Ken Burns on stills. Past edits used smoothstep easing and a default 6 %
   push; here crop keys are ordinary transform keyframes with that as a style.
-- `lc framing` draws the start and end crop windows on the source frame with a 0.1 grid,
+- `lungecuta framing` draws the start and end crop windows on the source frame with a 0.1 grid,
   the check past edits relied on before building a shot.
 - Stop motion from a list of stills is a footage layer whose source is an image
   sequence with per-still crops.
@@ -216,7 +216,7 @@ rather than a script:
   `bench/RESULTS.md`): same person 0.45 to 0.81, strangers up to 0.33, so unmask at 0.55
   and at least 0.06 above the best non-member score, faces of at least 36 px, voted per
   track. Positional overrides exist and require confirmation.
-- **Audit**: after render, the detector runs on every final frame and `lc face-audit`
+- **Audit**: after render, the detector runs on every final frame and `lungecuta face-audit`
   sheets every face it still finds. The detector misses strong profiles, so the sheet is
   looked at, not just counted.
 - Licence plates: the same structure with a plate detector.

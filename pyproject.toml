@@ -31,7 +31,7 @@ dev = [
 ]
 
 [project.scripts]
-lc = "lungecuta.cli:main"
+lungecuta = "lungecuta.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/son-engr-kr/lungecuta"

@@ -18,35 +18,35 @@ def run(*args):
     return json.loads(result.output)
 
 
-def test_lc_init_writes_the_guide_for_codex_and_claude_code(tmp_path):
-    directory = init_project(tmp_path / "edit.lc")
+def test_init_writes_the_guide_for_codex_and_claude_code(tmp_path):
+    directory = init_project(tmp_path / "edit.lungecuta")
     agents = (directory / "AGENTS.md").read_text()
     assert agents.startswith(START) and agents.rstrip().endswith(END) and guide_text() in agents
     assert (directory / "CLAUDE.md").read_text() == IMPORT + "\n"
-    server = {"command": "lc", "args": ["mcp"]}
+    server = {"command": "lungecuta", "args": ["mcp"]}
     assert json.loads((directory / ".mcp.json").read_text()) == {"mcpServers": {"lungecuta": server}}
     assert tomllib.loads((directory / ".codex" / "config.toml").read_text()) == {"mcp_servers": {"lungecuta": server}}
 
 
-def test_the_readme_installs_lc_as_lc_init_says_to():
+def test_the_readme_installs_lungecuta_as_init_says_to():
     assert INSTALL in (Path(__file__).parents[1] / "README.md").read_text()
 
 
 def test_the_guide_names_only_commands_that_exist():
     text = guide_text()
-    commands = set(re.findall(r"`lc ([a-z-]+)", text))
+    commands = set(re.findall(r"`lungecuta ([a-z-]+)", text))
     assert {"changes", "op", "sheet", "still", "scope", "render", "verify", "flash"} <= commands
     assert commands <= set(main.commands), commands - set(main.commands)
     listed = re.search(r"\(move, (.*?)\): the editor's", text, re.S).group(1)
     ops = {"move", *(name.strip() for name in listed.replace("\n", " ").split(","))}
     assert ops == set(main.commands["op"].commands), ops ^ set(main.commands["op"].commands)
-    assert ops == set(OPERATIONS), ops ^ set(OPERATIONS)  # the editor's table and lc op's are one
+    assert ops == set(OPERATIONS), ops ^ set(OPERATIONS)  # the editor's table and lungecuta op's are one
     for flag in ("--every", "--from", "--to"):
         assert flag in {param.opts[0] for param in main.commands["sheet"].params if param.opts}
 
 
 def test_writing_the_guide_again_keeps_what_the_person_wrote(tmp_path):
-    directory = init_project(tmp_path / "edit.lc")
+    directory = init_project(tmp_path / "edit.lungecuta")
     agents = directory / "AGENTS.md"
     old = agents.read_text().replace(guide_text(), "an older guide\n")
     agents.write_text("# Our notes\n\nCut on the snare.\n\n" + old + "\nMore notes.\n")
@@ -69,19 +69,19 @@ def test_a_guide_is_added_to_an_agents_file_without_one(tmp_path):
     assert text.startswith("# Notes\n\n" + START) and guide_text() in text
 
 
-def test_lc_guide_prints_the_guide():
+def test_guide_prints_the_guide():
     assert run("guide")["guide"] == guide_text()
 
 
-def test_lc_commands_describes_every_command_and_operation():
+def test_commands_describes_every_command_and_operation():
     described = {c["command"]: c for c in run("commands")["commands"]}
-    assert set(described) == {f"lc {name}" for name in main.commands}
-    op = described["lc op"]
-    assert {c["command"].removeprefix("lc op ") for c in op["commands"]} == set(OPERATIONS)
-    sheet = described["lc sheet"]
+    assert set(described) == {f"lungecuta {name}" for name in main.commands}
+    op = described["lungecuta op"]
+    assert {c["command"].removeprefix("lungecuta op ") for c in op["commands"]} == set(OPERATIONS)
+    sheet = described["lungecuta sheet"]
     every = next(o for o in sheet["options"] if o["flags"] == ["--every"])
     assert every["required"] and "b:1" in every["help"] and sheet["arguments"][0]["name"] == "comp"
-    render = described["lc render"]
+    render = described["lungecuta render"]
     preset = next(o for o in render["options"] if o["flags"] == ["--preset"])
     assert "web-hevc10" in preset["choices"]
     assert "  " not in sheet["summary"] and sheet["summary"].startswith("A contact sheet")

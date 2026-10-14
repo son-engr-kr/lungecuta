@@ -26,7 +26,7 @@ class ColorSettings(BaseModel):
 
 
 class LintSettings(BaseModel):
-    """`lc lint`'s thresholds (09-agent-interface.md, Lint), each from the past projects'
+    """`lungecuta lint`'s thresholds (09-agent-interface.md, Lint), each from the past projects'
     review rules; `null` or `false` turns a rule off."""
 
     model_config = ConfigDict(extra="forbid")

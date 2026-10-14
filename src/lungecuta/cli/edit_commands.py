@@ -1,4 +1,4 @@
-"""lc commands that change a comp or check what changed: the op group, diff, lint and audio-check."""
+"""lungecuta commands that change a comp or check what changed: the op group, diff, lint and audio-check."""
 from __future__ import annotations
 
 import json
@@ -35,7 +35,7 @@ def lint_command(comp: str, project_dir: Path | None) -> None:
     project.json's `lint`: graphics on screen long enough to read, no source frame shown by
     two layers, a licence record on every music file and sound, no sound repeated on
     consecutive sound layers, no frame with nothing on screen. The rules not checked yet
-    are listed (flashes are checked on a render, by lc flash)."""
+    are listed (flashes are checked on a render, by lungecuta flash)."""
     from ..lint import lint
 
     print_json(lint(project_of(project_dir), comp))
@@ -259,7 +259,7 @@ def op_unkey(comp: str, layer: str, prop: str, at: str, project_dir: Path | None
 def op_set(comp: str, layer: str, prop: str, value: str, project_dir: Path | None) -> None:
     """Set PROP of LAYER to a constant: a footage layer's transform or its motion blur
     shutter in degrees, an audio layer's gain in dB or its fades. A property with keys
-    takes a key instead (lc op key)."""
+    takes a key instead (lungecuta op key)."""
     if prop in ("fade_in", "fade_out") or value == "none":
         parsed: Any = None if value == "none" else value
     elif "," in value:

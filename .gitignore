@@ -1,6 +1,6 @@
 # project caches and renders
 cache/
-*.lc/cache/
+*.lungecuta/cache/
 out/
 
 # Python

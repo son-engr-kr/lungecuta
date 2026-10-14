@@ -1,11 +1,11 @@
-"""`lc lint` (docs/design/09-agent-interface.md, Lint): the past projects' review rules that
+"""`lungecuta lint` (docs/design/09-agent-interface.md, Lint): the past projects' review rules that
 a machine can check, as warnings, each with its threshold in `project.json`'s `lint`.
 
 Checked so far: graphics layers on screen long enough to read, no source frame shown by
 two layers, a licence record on every music file and sound a comp uses, no sound on two
 consecutive sound layers ("SFX vary"), and no frame with nothing on screen (a gap between
 cuts, or the frame before a first cut on a beat that falls just after the comp's start). Flashes are checked on a render, by
-`lc flash FILE` (`flash.py`), since any layer can make one. Not checked yet, and listed in
+`lungecuta flash FILE` (`flash.py`), since any layer can make one. Not checked yet, and listed in
 every report so their absence is not mistaken for a pass: the dead gap before a hit (it
 needs the crescendo found), sources for on-screen numbers and font licences (no text
 layers yet).
@@ -18,7 +18,7 @@ from .comp import load_comp, resolve
 from .media import Project
 
 NOT_CHECKED = [
-    "flashes are not strobing: checked on the render, by lc flash FILE",
+    "flashes are not strobing: checked on the render, by lungecuta flash FILE",
     "no dead gap before the hit: the crescendo before a hit is not found yet",
     "on-screen claims have sources, fonts are licensed: there are no text layers yet",
 ]
@@ -66,7 +66,8 @@ def lint(project: Project, name: str) -> dict[str, Any]:
             if record.licence is None:
                 warnings.append({"rule": "music_licence", "layers": [s.layer.id for s in sounds
                                                                      if s.record.key == key],
-                                 "message": f"{key} has no licence record (lc licence {key} --name ... --source ...)"})
+                                 "message": f"{key} has no licence record "
+                                            f"(lungecuta licence {key} --name ... --source ...)"})
     if settings.no_black:
         empty = [index for index in range(resolved.end)
                  if not resolved.stack(index) and not resolved.nests_at(index)

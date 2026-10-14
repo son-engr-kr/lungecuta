@@ -1,7 +1,7 @@
-"""`lc still COMP`, `lc sheet COMP` and `lc scope COMP`: looking at a comp the way it renders
+"""`lungecuta still COMP`, `lungecuta sheet COMP` and `lungecuta scope COMP`: looking at a comp the way it renders
 (docs/design/09-agent-interface.md), so an agent can see an edit without rendering it.
 
-Each frame is the frame `lc render` delivers (`compose.frame_at`: final quality, graphics
+Each frame is the frame `lungecuta render` delivers (`compose.frame_at`: final quality, graphics
 included), at the comp's size; the numbers printed come from that float frame. A smaller
 picture (`--height`) is that frame area-averaged on its display-encoded values, as a
 player shows a smaller copy of the deliverable. A position lands on the first frame at or

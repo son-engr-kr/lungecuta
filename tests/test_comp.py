@@ -127,7 +127,7 @@ def test_the_first_changed_beat_is_where_the_numbering_moves():
     assert first_changed(match(current, beat_map([0.51, 1.0, 1.5, 2.0, 2.5]))) == 5
 
 
-def test_lc_validate_resolves_every_comp(cut_project):
+def test_validate_resolves_every_comp(cut_project):
     from click.testing import CliRunner
 
     from lungecuta.cli import main

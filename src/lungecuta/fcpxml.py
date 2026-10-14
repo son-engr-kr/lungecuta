@@ -12,7 +12,7 @@ reference and its 1.10 DTD, not against Resolve, until the Phase 0 import is don
   points are written against each clip's timecode;
 - constant speed is a `timeMap` of two linear points from adjusted clip time (`time`) to
   original clip time (`value`), its first and last points bounding the clip, with the
-  default `frameSampling="floor"`, the rule `lc` uses for a source time between frames;
+  default `frameSampling="floor"`, the rule `lungecuta` uses for a source time between frames;
   remap keys are points at the keys; a style's speed track, whose integral no FCPXML
   interpolation reproduces, is a linear point on every comp frame;
 - music is an audio-only asset of the 48 kHz WAV its beats were found in, as connected
@@ -41,7 +41,7 @@ from .schema.media import MediaRecord
 from .ticks import TICKS_PER_SECOND, format_rate, parse_rate, ticks_per_frame, ticks_per_sample
 
 VERSION = "1.10"
-FCPXML_DIR = Path("cache") / "lc" / "fcpxml"
+FCPXML_DIR = Path("cache") / "lungecuta" / "fcpxml"
 _TIMECODE = re.compile(r"(\d{2}):(\d{2}):(\d{2}):(\d{2})")
 
 
@@ -312,8 +312,8 @@ def _decimal_db(value: float) -> str:
 
 
 def cut_list(resolved: Resolved) -> list[dict[str, Any]]:
-    """What `lc fcpxml` prints for each cut, so a few can be checked frame by frame in
-    Resolve's viewer against `lc still`."""
+    """What `lungecuta fcpxml` prints for each cut, so a few can be checked frame by frame in
+    Resolve's viewer against `lungecuta still`."""
     out = []
     for cut in resolved.cuts:
         first, last = cut.source_frames
@@ -328,7 +328,7 @@ def cut_list(resolved: Resolved) -> list[dict[str, Any]]:
             "source_frames": [first, last],
             "source_tc_in": timecode_text(tc_frames + first, media_rate),
             "speed": float(cut.speed),
-            "check": f"lc still --media {cut.record.key} --at f:{first}",
+            "check": f"lungecuta still --media {cut.record.key} --at f:{first}",
         })
     return out
 
@@ -343,7 +343,7 @@ def sound_list(resolved: Resolved) -> list[dict[str, Any]]:
 
 
 def export(project: Project, name: str, out: Path | None = None) -> dict[str, Any]:
-    """Write the FCPXML of comp `name` and return what `lc fcpxml` prints."""
+    """Write the FCPXML of comp `name` and return what `lungecuta fcpxml` prints."""
     from .comp import load_comp, resolve
     from .files import write_atomic
 
@@ -366,7 +366,8 @@ def export(project: Project, name: str, out: Path | None = None) -> dict[str, An
             f"layer {cut.layer.id} has motion blur, which is not written to FCPXML yet"
         )
         assert not cut.layer.grade, (
-            f"layer {cut.layer.id} has a grade, which FCPXML cannot carry; grade in Resolve, or render with lc render"
+            f"layer {cut.layer.id} has a grade, which FCPXML cannot carry; grade in Resolve, "
+            "or render with lungecuta render"
         )
     for sound in resolved.sounds:
         # A constant gain is the DTD's `adjust-volume amount`; the parameter that animates it
@@ -381,7 +382,7 @@ def export(project: Project, name: str, out: Path | None = None) -> dict[str, An
         out = project.directory / FCPXML_DIR / f"{name}.fcpxml"
     out.parent.mkdir(parents=True, exist_ok=True)
     # Graphics layers go to Resolve as ProRes 4444 with alpha, rendered over their visible
-    # frames by `lc graphic`, next to the FCPXML.
+    # frames by `lungecuta graphic`, next to the FCPXML.
     graphics_files = []
     for overlay in resolved.overlays:
         movie = out.with_name(f"{out.stem}.{overlay.layer.id}.mov")

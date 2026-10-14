@@ -18,11 +18,11 @@ what was done. Adopted findings are summarized in `docs/design/decisions.md`, D1
 | a graphic in a Resolve DWG/DI timeline may go through the output tone mapping, changing the baseline's title colours | not checked in Resolve | Phase 0 test with a card of known patches ([10-roadmap.md](../design/10-roadmap.md#phase-0-the-baseline-days)) |
 | the proxy profile was chosen by speed and size, but must pass a parity test nobody had run on it | PSNR and parity not yet measured | Proxy, LT and 4444 tested in Phase 0 (D7 amended) |
 | the go/no-go compares against one timed Phase 0 edit, with no breakdown | design inspection | time recorded by stage, with the material described, and a running baseline, *proposed* |
-| media paths were absolute in a project meant to be committed | design inspection | named media roots and `lc relink` (D13) |
+| media paths were absolute in a project meant to be committed | design inspection | named media roots and `lungecuta relink` (D13) |
 | media records inside `project.json` meant every import rewrote the file being edited | design inspection | one file per record under `media/` (D13) |
 | keyframe times were comp time without saying so, so moving a layer left its keys behind | design inspection | After Effects layer timing, decided by the user (D11) |
-| the edit operations were said to be callable from `lc` but no command existed | `06-editing.md` against the command table | `lc op` (D13, [09-agent-interface.md](../design/09-agent-interface.md#commands)) |
-| the content-hash rule kept the UI from overwriting the agent, not the reverse; the agent had no way to see the person's changes before M8's `lc diff`; undo was never mentioned | design inspection | UI journal, `lc changes`, undo on the journal (D13) |
+| the edit operations were said to be callable from `lungecuta` but no command existed | `06-editing.md` against the command table | `lungecuta op` (D13, [09-agent-interface.md](../design/09-agent-interface.md#commands)) |
+| the content-hash rule kept the UI from overwriting the agent, not the reverse; the agent had no way to see the person's changes before M8's `lungecuta diff`; undo was never mentioned | design inspection | UI journal, `lungecuta changes`, undo on the journal (D13) |
 | the preview cache key had no versions, and its size was not considered | 1.56 MB per 540p RGB frame, 2.8 GB per minute at 30p | versions in the key and a render manifest; storage decided in Phase 1 (D13) |
 
 Also clarified on the way: a linked style instance's compiled remap keys are derived data

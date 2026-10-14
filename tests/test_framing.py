@@ -1,4 +1,4 @@
-"""lc framing: the comp's window in a footage layer's frame (src/lungecuta/framing.py)."""
+"""lungecuta framing: the comp's window in a footage layer's frame (src/lungecuta/framing.py)."""
 import json
 
 import pytest

@@ -60,7 +60,7 @@ design gives every proxy its own decode record.
 ## Y'CbCr to R'G'B': `uv run python bench/swscale_range.py`
 
 ffmpeg 8.1's scale filter to `rgb48le` (flags `accurate_rnd+full_chroma_int+full_chroma_inp`,
-explicit `in_color_matrix=bt709` and `in_range`, the path `lc` used until 2026-10-13)
+explicit `in_color_matrix=bt709` and `in_range`, the path `lungecuta` used until 2026-10-13)
 against ITU-T H.273 V4's equations, on flat frames whose codes are made from known
 R'G'B'. R'G'B' in 10-bit codes (value x 1023), swscale minus H.273. Run 2026-10-13:
 
@@ -76,11 +76,11 @@ R'G'B'. R'G'B' in 10-bit codes (value x 1023), swscale minus H.273. Run 2026-10-
   1022.02), a left shift rather than a scaling.
 - Values below 0 (a bar's empty channels, where code rounding falls under black) are
   clipped to 0 by swscale and kept by H.273.
-- Y'CbCr to Y'CbCr at 16 bits (`yuv444p16le`), which `lc` used for one day to let ffmpeg
+- Y'CbCr to Y'CbCr at 16 bits (`yuv444p16le`), which `lungecuta` used for one day to let ffmpeg
   upsample chroma, is not a shift either: on a 960x540 frame of the S-Log3 proxy luma's top
   bits were replicated into the low ones (10-bit 104 became 6662, 104 x 64 = 6656) and
   chroma was shifted, while an 8x2 test frame was shifted in both, which is why the first
-  check passed; why the two differ is not established. `lc` now
+  check passed; why the two differ is not established. `lungecuta` now
   takes the decoder's own planes and does chroma, range and matrix itself
   (`docs/design/02-media.md#decode`).
 - Measurements in this file from before 2026-10-13 were decoded through swscale's path; the
@@ -129,7 +129,7 @@ so R'G'B' codes only, the matrix taken from its XML for the measurement):
 
 Findings:
 
-- **A lossless 4:4:4 proxy built from lc's own decode is as close as rounding allows**: the
+- **A lossless 4:4:4 proxy built from lungecuta's own decode is as close as rounding allows**: the
   maximum, 1.64 and 1.66 codes in limited range and 1.43 and 1.44 in full, is the bound
   that rounding each plane to a 10-bit code puts on R'G'B' (`tests/test_proxy.py`), and
   the bias is under 0.1 code.
@@ -145,7 +145,7 @@ Findings:
   proxy of clip A is at p99 1.24 in R'G'B' codes and 3.94 in DI, with a bias of about +0.55
   in every channel: the proxy is downscaled before the input transform and the reference
   after it, and on noisy pixels the two orders disagree.
-- Building from lc's decode runs at about 30 fps, against 100 to 180 fps with ffmpeg's
+- Building from lungecuta's decode runs at about 30 fps, against 100 to 180 fps with ffmpeg's
   scaler: a 23.5 s 4K clip takes about 24 s.
 - ProRes 4444 reads back as `yuv444p12le` with range `tv` whatever range was written:
   the range of a ProRes proxy can only live in its record.
@@ -158,12 +158,12 @@ Findings:
 
 ## One still: `uv run python bench/still_cost.py WORKDIR CLIP [FRAME]`
 
-`lc still --media KEY --at f:352` on clip A, 15 OCIO threads, median of three runs, in
+`lungecuta still --media KEY --at f:352` on clip A, 15 OCIO threads, median of three runs, in
 milliseconds; the stages in-process, then the whole command as a new process (Python and
 OCIO start-up included). Every run gave the same frame, and the PNG decodes back to the
 frame's quantized codes. Run 2026-10-12.
 
-| size | seek and decode | input transform | downscale | view | numbers | PNG | `lc still` as a process |
+| size | seek and decode | input transform | downscale | view | numbers | PNG | `lungecuta still` as a process |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 3840x2160 | 593 | 6 | | 124 | 148 | 569 (15.6 MB) | 1552 |
 | 960x540 (`--height 540`) | 571 | 6 | 39 | 9 | 9 | 43 (0.9 MB) | 812 |
@@ -185,13 +185,13 @@ are given:
 | --- | --- | --- | --- |
 | the 24 frames at every 30th, one decode from the start | 6536 ms | 4433 ms | 5381 ms |
 | the same 24 frames, a seek per frame | 23476 ms | 19179 ms | 18783 ms |
-| `lc sheet --every f:30` (24 tiles, one page) | 7697 ms | 6762 ms | 5869 ms |
-| `lc sheet --every f:5` (141 tiles, four pages) | 14060 ms | 13944 ms | 11823 ms |
-| `lc scope --at f:352`, 3840x2160 | 1816 ms | 1933 ms | 1671 ms |
-| `lc scope --at f:352 --height 540` | 1259 ms | 1088 ms | 968 ms |
+| `lungecuta sheet --every f:30` (24 tiles, one page) | 7697 ms | 6762 ms | 5869 ms |
+| `lungecuta sheet --every f:5` (141 tiles, four pages) | 14060 ms | 13944 ms | 11823 ms |
+| `lungecuta scope --at f:352`, 3840x2160 | 1816 ms | 1933 ms | 1671 ms |
+| `lungecuta scope --at f:352 --height 540` | 1259 ms | 1088 ms | 968 ms |
 
 - The two reads gave identical frames; one decode is 3.5 to 4.4 times faster than a seek
-  per frame here, which is why `lc sheet` uses it. A seek costs 0.8 to 1.0 s on average
+  per frame here, which is why `lungecuta sheet` uses it. A seek costs 0.8 to 1.0 s on average
   here against 0.6 s for frame 352 alone (`still_cost.py`); why is not measured (each
   seek includes an ffmpeg process start, and frames sit at different places in their
   GOPs).
@@ -216,7 +216,7 @@ The errors are the model's 20 ms frame grid: the true beats fall on odd 10 ms st
 The music sample (MP3, 48 kHz, 124.9 s): 258 beats, 65 downbeats, mean interval 0.48 s
 (125 BPM), the first beat at 0.02 s a pickup before the first downbeat. ffmpeg decode
 113 ms, no resampling, model load 180 ms (with the checkpoint cached), analysis 1222 ms;
-`lc import` of it took 2.2 s as a process. A second analysis (`lc beats`) matched every
+`lungecuta import` of it took 2.2 s as a process. A second analysis (`lungecuta beats`) matched every
 beat one to one with the same downbeats. No ground truth exists for this file.
 
 ## PyAV against the ffmpeg CLI: `uv run bench/pyav_check.py FILE...`
@@ -290,12 +290,12 @@ the same page live in a transparent iframe over the same frame: over the 141,066
 the title covers, **max 1 code, p99 1.0**, 2.6 to 3.3 % of values differing, at t = 0.3,
 0.6 and 2.0 s. Criterion p99 within 2 codes: met.
 
-## A render and its check: `lc render COMP --preset web-h264`, `lc verify FILE --comp COMP --preset web-h264`
+## A render and its check: `lungecuta render COMP --preset web-h264`, `lungecuta verify FILE --comp COMP --preset web-h264`
 
 The Phase 0 check comp of `docs/research/phase0-resolve-checks.md` (3840x2160, 29.97,
 476 frames: four cuts of the S-Log3 sample on beats, one at 50 %, the music sample under
 them), rendered 2026-10-13 one frame at a time (OCIO on 15 threads, x264 CRF 18, AAC
-256 kbps through AudioToolbox): **195 s, 2.4 frames a second**. `lc verify` passed every
+256 kbps through AudioToolbox): **195 s, 2.4 frames a second**. `lungecuta verify` passed every
 check: codec, profile, `yuv420p`, size, rate, 476 frames, tags 1-1-1 `tv`, chroma `left`,
 48 kHz stereo; the two frames either side of every cut, decoded from the file, against
 the engine's reference render: **PSNR 39.24 dB, bias +0.20 +0.05 +0.35** ten-bit codes,
@@ -332,7 +332,7 @@ its numbers were taken: PCM gave back exactly the samples; AAC started at lag 0 
 | -9 | +8.42 dB | -7.30 dB | -9.00, -1.07 | -9.0, -1.1 | -9.0, **-0.6** | 3.67 s |
 
 So a lossy encode adds 0.2 to 0.5 dB of true peak, more as the limiter works harder, and
-a file mastered to the ceiling breaks it once encoded. `lc render` therefore measures the
+a file mastered to the ceiling breaks it once encoded. `lungecuta render` therefore measures the
 decoded AAC and masters again under a lowered ceiling (07-audio.md). A -6 LUFS target is
 refused: more gain stops raising the loudness under -1 dBTP. A first version of the
 limiter that aimed at the ceiling every pass still overshot by thousandths of a dB after
@@ -340,22 +340,22 @@ four passes on the -9 row (the over-ceiling samples halved each pass); aiming ea
 under the ceiling by the last overshoot brings it under in two.
 
 **With the chain in a render** (2026-10-13): the Phase 0 check comp of the render section
-below, `lc render check --preset web-h264` with 15 workers, 141.5 s. Its mix came in at
+below, `lungecuta render check --preset web-h264` with 15 workers, 141.5 s. Its mix came in at
 -16.02 LUFS; the master raised it 2.02 dB with the limiter cutting at most 0.88 dB; the
 first AAC encode decoded at -0.95 dBTP, so the render mastered again under -1.065 dBTP and
-the delivered AAC decoded at -1.003. `lc verify` passed every check, loudness included:
+the delivered AAC decoded at -1.003. `lungecuta verify` passed every check, loudness included:
 -14.0 LUFS integrated and -1.0 dBTP by `ebur128`, picture as before (PSNR 39.24 dB, bias
 +0.20 +0.05 +0.35).
 
-## An alpha render: `lc render alpha --preset prores-4444-alpha`, `lc verify`
+## An alpha render: `lungecuta render alpha --preset prores-4444-alpha`, `lungecuta verify`
 
 The Phase 0 package's comp `alpha` (3840x2160, 29.97, 90 frames: the S-Log3 sample at 60 %
 scale under a feathered ellipse mask, 0.9 of the layer, feather 0.05 of its height),
-2026-10-13. `lc verify` against the engine's reference on the frames it samples: colour
+2026-10-13. `lungecuta verify` against the engine's reference on the frames it samples: colour
 over black bias -0.007 +0.021 +0.034 ten-bit codes; the alpha's largest error 0.685
 ten-bit codes, read back from ffmpeg's ProRes decoder at 12 bits (`yuva444p12le`). Half a
 code of that is the 10-bit rounding the render writes; the rest comes with the 12-bit
-decode, which is why `lc verify` allows one code.
+decode, which is why `lungecuta verify` allows one code.
 
 ## HEVC Main 10, VideoToolbox against x265 and x264: `uv run python bench/hevc_quality.py REFERENCE OUT_DIR SETTING...`
 
@@ -391,7 +391,7 @@ tested on, and it explains the first sweep's puzzle.
 | `libx265 -preset medium -crf 18` | 79.76 | 41.74 / 48.22 / 50.27 | 40.21 | 5.3 fps |
 | `libx265 -preset medium -crf 22` | 19.20 | 39.78 / 47.02 / 49.46 | 42.94 | 6.8 fps |
 | `libx264 -crf 18` 8-bit (web-h264's settings) | 150.63 | 43.70 / 49.66 / 51.20 | 38.33 | 18.4 fps |
-| `lc render check --preset web-h264` (engine dither and chroma) | 153.59 (video) | 43.57 / (49.51 / 51.03) | 38.13 | |
+| `lungecuta render check --preset web-h264` (engine dither and chroma) | 153.59 (video) | 43.57 / (49.51 / 51.03) | 38.13 | |
 
 The q50 row is explained: its encode is nearly a still picture, smoothed. Its consecutive
 frames differ by 56.5 dB against the reference's 37.8 (frames 20 to 120), its keyframes
@@ -415,10 +415,10 @@ the rule being web-h264's PSNR on every plane at the least bitrate VideoToolbox 
 much grain it smooths against web-h264 is for the person to judge on screen. One comp of
 one shot is the evidence; a bright, detailed shot may place the settings differently.
 
-## The web-hevc10 render and a flash check: `lc render check --preset web-hevc10`, `lc verify`, `lc flash FILE`
+## The web-hevc10 render and a flash check: `lungecuta render check --preset web-hevc10`, `lungecuta verify`, `lungecuta flash FILE`
 
 The same check comp, 2026-10-13, 15 workers, nothing else running: **149.5 s** (3.2 frames
-a second; web-h264's best was 151.7 s at 15 workers, above), 168 Mbps of video. `lc verify`
+a second; web-h264's best was 151.7 s at 15 workers, above), 168 Mbps of video. `lungecuta verify`
 passed every check: `hevc`, Main 10, `yuv420p10le`, size, rate, 476 frames, tags 1-1-1
 `tv`, 48 kHz stereo, -14.0 LUFS and -1.0 dBTP; the frames either side of every cut against
 the engine's reference: PSNR 39.24 dB, bias +0.004 +0.007 +0.074 ten-bit codes. The PSNR
@@ -426,7 +426,7 @@ is web-h264's to the hundredth although the codecs differ (Y PSNR over every fra
 against 43.70); one reading, not verified, is that the 4:2:0 chroma round trip both share
 dominates that RGB number on this footage.
 
-`lc flash` (WCAG 2.2's general flash threshold, `src/lungecuta/flash.py`) on that file:
+`lungecuta flash` (WCAG 2.2's general flash threshold, `src/lungecuta/flash.py`) on that file:
 **75.9 s** for 476 frames decoded at 4K (533 by 300 cells, a 133 by 100 field), passed: 78
 transitions in all, no cell over six in a second. On the web-h264 render of the same comp
 it took 58.3 s with an HEVC sweep running beside it, and passed with 80 transitions. The
@@ -444,14 +444,14 @@ median gap is 0.125 s, a sixteenth note at the sample's tempo of about 125 BPM, 
 smallest 0.04 s. A real song has no ground truth here, so these are a sanity check; on the
 synthetic drum track of `tests/clips.py` (four bars at 120 BPM) every kick, hat and the
 last bass note's cut-off click is found and nothing else, each 5 or 10 ms before its hit
-(`tests/test_onsets.py`). `lc audio-check check` on the Phase 0 check comp: cuts 0.5 to
+(`tests/test_onsets.py`). `lungecuta audio-check check` on the Phase 0 check comp: cuts 0.5 to
 31 ms after their beats and -14 to +38 ms from their nearest onsets, 102 onsets in the
 comp's 15.9 s.
 
 ## What a footage import costs: `uv run python bench/import_cost.py PROJECT KEY`
 
-The S-Log3 sample (4K 4:2:2 10-bit H.264, 705 frames), 2026-10-13, after `lc import` had
-made its record and proxy. `lc import` took 64 s; profiled by stage, 23.3 s went to the
+The S-Log3 sample (4K 4:2:2 10-bit H.264, 705 frames), 2026-10-13, after `lungecuta import` had
+made its record and proxy. `lungecuta import` took 64 s; profiled by stage, 23.3 s went to the
 decoder check (two ffmpeg `framemd5` runs of 300 frames: 11.8 s each, at 234 % CPU,
 against 3.5 s for decoding all 705 frames to raw output, so the time was the md5 of
 33 MB a frame), 21.8 s to the proxy build (12 s of dense matrix products whose operators
@@ -463,13 +463,13 @@ which read the same eleven frames.
 | decoder check: both decoders at once, raw frames compared byte for byte, stopping at the first that is not identical | 23.3 s | 0.6 s | the same verdict (failed); `framemd5` and the byte comparison agree on HEVC (identical) and ProRes (different) |
 | proxy build: sparse operators, the pipe read ahead on a thread | 21.8 s | 9.2 s | identical, every frame (framemd5 of the two proxies) |
 | parity: each frame read once for both spaces, reads overlapped | 17.4 s | 4.1 s | the same numbers, to the four decimals recorded |
-| whole `lc import` | 64 s | 19.9 s | |
+| whole `lungecuta import` | 64 s | 19.9 s | |
 
 Parity with 1, 2, 4, 8 and 15 reads at once: 8.6, 5.1, **4.1**, 4.4 and 4.3 s, the same
 numbers each time; so `PARITY_READS = 4`. Each read is an ffmpeg seek, mostly a decode from
 the keyframe before.
 
-## How many files `lc import` imports at once: `uv run python bench/import_jobs.py WORKDIR FILE...`
+## How many files `lungecuta import` imports at once: `uv run python bench/import_jobs.py WORKDIR FILE...`
 
 The six HLG clips of the HLG sample's shoot (five at 29.97p, one at 59.94p; undecided, so
 proxies without parity tests), 2026-10-13, imported into a fresh project with N files at
@@ -484,7 +484,7 @@ Every run's records and proxies (frame by frame) identical to the one-at-a-time 
 Two at once saves about a quarter; three and four are within the spread of two, and each
 import of a 4K clip holds several frames at once, so `IMPORT_JOBS = 2`.
 
-## What `lc verify` costs: `uv run python bench/verify_cost.py PROJECT COMP FILE PRESET`
+## What `lungecuta verify` costs: `uv run python bench/verify_cost.py PROJECT COMP FILE PRESET`
 
 The dry run's web-h264 render below (1080p, 462 frames, eight cuts, 18 frames sampled),
 2026-10-13. It took 34 s: 25 s of it reading the 4K original by seek to render reference
@@ -498,7 +498,7 @@ consecutive sampled frames is one job:
 
 Every report identical to the one-job report and to the report before the change; so
 `FRAMES_AT_ONCE = 4` (`compose.py`), past which the time stays flat while the frames held
-grow. `lc sheet` samples its frames the same way: the dry run's sheet of eight tiles went
+grow. `lungecuta sheet` samples its frames the same way: the dry run's sheet of eight tiles went
 from 6.9 s to 3.3 s, the page and its numbers identical.
 
 ## What a render spends a frame on: `uv run python bench/render_stages.py PROJECT COMP FRAME 1`
@@ -527,7 +527,7 @@ view, OCIO's ACES 2.0 transform on the CPU at about 180 ns a pixel; making it ch
 
 ## An edit made as an agent makes one: `sh bench/dry_run.sh FOOTAGE MUSIC WORKDIR`
 
-The S-Log3 sample and the music sample, 2026-10-13, every stage through `lc` from an empty
+The S-Log3 sample and the music sample, 2026-10-13, every stage through `lungecuta` from an empty
 project: a 1080p comp 32 beats long on the song (15.4 s), the clip placed at 0 s and split
 on every bar, two parts slipped, a punch-in style on four parts, a look on all eight, a
 dissolve, then the checks and the web-h264 render. Each stage's wall time, in the first
@@ -538,12 +538,12 @@ identical):
 | --- | --- | --- |
 | import the 4K footage (probe, decoder check, proxy and its parity test) | 64 | 14 |
 | import the music (WAV and beat map) | 3 | 3 |
-| the edit, 30 `lc op` calls | 4 | 5 |
-| `lc lint`, `lc audio-check` | under 1 each | under 1, 1 |
-| `lc sheet` at every bar | 8 | 3 |
-| `lc render --preset web-h264` | 58 | 45 |
-| `lc verify` | 35 | 9 |
-| `lc flash` | 13 | 11 |
+| the edit, 30 `lungecuta op` calls | 4 | 5 |
+| `lungecuta lint`, `lungecuta audio-check` | under 1 each | under 1, 1 |
+| `lungecuta sheet` at every bar | 8 | 3 |
+| `lungecuta render --preset web-h264` | 58 | 45 |
+| `lungecuta verify` | 35 | 9 |
+| `lungecuta flash` | 13 | 11 |
 
 The second run's render took 45 s against 37.5 s when run alone (above), with web searches
 running beside it; the stage times are wall times on a machine in use.
@@ -554,7 +554,7 @@ seven things the unit tests had not met, all fixed before these numbers: an end 
 refused by `new-comp`, beat splits of a clip `place` wrote in frames, split names
 growing `.2.2.2`, a 4K clip left at its own size in a 1080p comp, the comp's last frame left
 black by `place`, beat cuts and styles on a layer that starts at 0 s before the first beat,
-and a split part that could not be slipped back past its layer time 0; `lc audio-check`
+and a split part that could not be slipped back past its layer time 0; `lungecuta audio-check`
 also reported a dissolved cut at the dissolve's start, 226 ms before its beat.
 
 ## 4K into numpy: `uv run bench/pipe_read.py CLIP 300 sw|hw`
@@ -695,23 +695,23 @@ private origin cannot be checked from this repository.
 
 ## A second edit made as an agent makes one: `sh bench/dry_run2.sh FOOTAGE MUSIC WORKDIR`
 
-The S-Log3 sample and the music sample, 2026-10-13: a 16-beat comp built one `lc op place`
+The S-Log3 sample and the music sample, 2026-10-13: a 16-beat comp built one `lungecuta op place`
 per shot (four shots from 1, 6, 12 and 18 s of the clip, the first from 0 s up to `b:4`),
-a time-remap ramp on the third, a title page on the first bar (`lc op graphic`), a
-synthesized click on every cut (`lc op sfx --on cuts`), then the checks and the web-h264
+a time-remap ramp on the third, a title page on the first bar (`lungecuta op graphic`), a
+synthesized click on every cut (`lungecuta op sfx --on cuts`), then the checks and the web-h264
 render.
 
 | stage | s |
 | --- | --- |
 | import the footage, the music, the click | 26, 3, under 1 |
 | the edit, 11 commands | 2 |
-| `lc lint`, `lc audio-check` | under 1, 1 |
-| `lc sheet` at every beat (16 tiles), `lc still` at a cut | 6, 2 |
-| `lc render --preset web-h264` (7.7 s of comp) | 23 |
-| `lc verify`, `lc flash` | 5, 5 |
+| `lungecuta lint`, `lungecuta audio-check` | under 1, 1 |
+| `lungecuta sheet` at every beat (16 tiles), `lungecuta still` at a cut | 6, 2 |
+| `lungecuta render --preset web-h264` (7.7 s of comp) | 23 |
+| `lungecuta verify`, `lungecuta flash` | 5, 5 |
 
 Every check passed (-14.0 LUFS, -1.6 dBTP, 39.33 dB PSNR against the reference frames;
-no flash). Cuts landed 10.5 to 25.8 ms after their beats. `lc lint` warned twice that
+no flash). Cuts landed 10.5 to 25.8 ms after their beats. `lungecuta lint` warned twice that
 consecutive clicks are the same sound, as its rule says with one sound given. The cuts'
 nearest onsets were 10 to 41 ms before them: SuperFlux combines onsets within 30 ms,
 keeping the first, so a click on a cut just after a drum hit is reported as the hit. The

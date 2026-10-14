@@ -1,7 +1,7 @@
-"""`lc status` (docs/design/09-agent-interface.md): what is in a project, for an agent that
+"""`lungecuta status` (docs/design/09-agent-interface.md): what is in a project, for an agent that
 has just arrived. Its media (footage with its colour decision, music with its tempo and
 whether its licence is recorded), its comps (size, rate, length, layers by type, markers,
-transitions), how many editor changes the agent has not seen yet (`lc changes` would
+transitions), how many editor changes the agent has not seen yet (`lungecuta changes` would
 list them), and the renders in the cache with whether each still matches its comp and
 media. Nothing is changed: the journal cursor stays where it is.
 """

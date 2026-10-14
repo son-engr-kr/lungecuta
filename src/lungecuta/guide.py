@@ -1,8 +1,8 @@
 """The guide a coding agent reads in a project (docs/design/09-agent-interface.md, Working
 in a project): `AGENTS.md`, which Codex reads, and `CLAUDE.md`, which Claude Code reads and
-which imports `AGENTS.md`; and `.mcp.json` and `.codex/config.toml`, which start `lc mcp`
+which imports `AGENTS.md`; and `.mcp.json` and `.codex/config.toml`, which start `lungecuta mcp`
 for Claude Code and for Codex (Codex reads a project's own config once the project is
-trusted). `lc init` writes them; `lc guide --write` brings the guide up to this version of
+trusted). `lungecuta init` writes them; `lungecuta guide --write` brings the guide up to this version of
 lungecuta. The guide sits between two markers in `AGENTS.md`, so whatever the person
 writes outside them is kept, and both configs keep the other servers they list."""
 from __future__ import annotations
@@ -15,11 +15,11 @@ from typing import Any
 
 from .files import json_text, write_atomic
 
-START = "<!-- lc:guide start: written by lc guide --write; edit outside these markers -->"
-END = "<!-- lc:guide end -->"
+START = "<!-- lungecuta:guide start: written by lungecuta guide --write; edit outside these markers -->"
+END = "<!-- lungecuta:guide end -->"
 IMPORT = "@AGENTS.md"
-SERVER = {"command": "lc", "args": ["mcp"]}  # lc on the PATH; it finds the project from where it starts
-# How the repository puts lc on the PATH, with the versions uv.lock pins (README.md says it too)
+SERVER = {"command": "lungecuta", "args": ["mcp"]}  # lungecuta on the PATH; it finds the project from where it starts
+# How the repository puts lungecuta on the PATH, with the versions uv.lock pins (README.md says it too)
 INSTALL = "uv tool install --editable . --constraints <(uv export --frozen --no-dev --no-emit-project --no-hashes)"
 
 GUIDE = """\
@@ -27,19 +27,19 @@ GUIDE = """\
 
 This directory is a lungecuta project: a music-driven video edit kept as JSON files that
 you, an agent, and a person edit together. The person watches and listens in the editor
-(`lc serve`); you read and write the files and use `lc` to see and check what they mean.
-Every `lc` command prints one JSON object; `lc COMMAND --help` says exactly what it does,
-`lc commands` lists every command with its arguments and options as JSON, and
-`lc schema` prints the JSON Schema of every file. The same commands are MCP tools when
-`lc mcp` runs (this project's `.mcp.json` starts it for Claude Code, and its
-`.codex/config.toml` for Codex once the project is trusted): `lc_still`,
-`lc_op_move` and so on, with the pictures they write returned as images.
+(`lungecuta serve`); you read and write the files and use `lungecuta` to see and check what they mean.
+Every `lungecuta` command prints one JSON object; `lungecuta COMMAND --help` says exactly what it does,
+`lungecuta commands` lists every command with its arguments and options as JSON, and
+`lungecuta schema` prints the JSON Schema of every file. The same commands are MCP tools when
+`lungecuta mcp` runs (this project's `.mcp.json` starts it for Claude Code, and its
+`.codex/config.toml` for Codex once the project is trusted): `still`,
+`op_move` and so on, with the pictures they write returned as images.
 
 ## Files
 
 - `project.json`: colour settings, media roots, the comps, lint thresholds, deliverables.
 - `comps/NAME.json`: a comp. Layers are listed bottom first; every time is a literal.
-- `media/KEY.json`: one record per imported file, written by `lc import`; not edited by hand.
+- `media/KEY.json`: one record per imported file, written by `lungecuta import`; not edited by hand.
 - `styles/`, `grades/`, `graphics/`, `luts/`: what comps refer to by name.
 - `cache/` and `roots.local.json`: rebuilt or machine-specific, never committed.
 
@@ -52,44 +52,44 @@ spans from its `start`: `b:4` there is four beats on.
 
 ## Arriving
 
-`lc status` lists the media (and which clips are usable), the comps with their length,
+`lungecuta status` lists the media (and which clips are usable), the comps with their length,
 layers and markers, the editor changes you have not seen, and whether each render in the
-cache still matches its comp. `lc validate` checks every file.
+cache still matches its comp. `lungecuta validate` checks every file.
 
 ## Every edit
 
-1. `lc changes` before you edit: what the person did in the editor since you last asked.
+1. `lungecuta changes` before you edit: what the person did in the editor since you last asked.
    Never write over it.
-2. Prefer `lc op OP COMP ...` (move, trim, slip, slide, roll, ripple-delete, split, snap,
+2. Prefer `lungecuta op OP COMP ...` (move, trim, slip, slide, roll, ripple-delete, split, snap,
    place, graphic, key, unkey, move-key, set, remap, style, unstyle, grade, look, unlook,
    masks, transition, untransition, sfx): the editor's own functions, written only if the
    file is still the one read, the change printed in editing terms. Edit the JSON for anything
-   else, then run `lc validate`.
-3. Look at what you changed. `lc sheet COMP --every b:1 --from P --to P` over the range,
-   `lc still COMP --at P` on the frames that matter (cuts, hits, titles, faces),
-   `lc scope COMP --at P` for levels, and `lc framing COMP LAYER` after a transform
+   else, then run `lungecuta validate`.
+3. Look at what you changed. `lungecuta sheet COMP --every b:1 --from P --to P` over the range,
+   `lungecuta still COMP --at P` on the frames that matter (cuts, hits, titles, faces),
+   `lungecuta scope COMP --at P` for levels, and `lungecuta framing COMP LAYER` after a transform
    reframes footage (it lists the frames where the source's edge shows). Trust the
    printed numbers over your reading of an image.
-4. Sound changed: `lc audio-check COMP` (cut offsets to beats and to the mix's onsets,
+4. Sound changed: `lungecuta audio-check COMP` (cut offsets to beats and to the mix's onsets,
    level per half beat).
-5. Before showing the person: `lc lint COMP`, and `lc diff COMP` for what changed since
+5. Before showing the person: `lungecuta lint COMP`, and `lungecuta diff COMP` for what changed since
    the last commit.
-6. Delivering: `lc render COMP --preset P` (`web-h264`, `web-hevc10`, `master-prores-hq`,
-   `prores-4444-alpha`), then `lc verify FILE --comp COMP --preset P` and `lc flash FILE`.
+6. Delivering: `lungecuta render COMP --preset P` (`web-h264`, `web-hevc10`, `master-prores-hq`,
+   `prores-4444-alpha`), then `lungecuta verify FILE --comp COMP --preset P` and `lungecuta flash FILE`.
    Both exit with status 1 when the file fails.
 7. Commit each review round (the project is meant to be a git repository); never
    overwrite a version the person has seen.
 
 ## Building a cut
 
-Choose in points from the footage itself: `lc sheet --media KEY --every f:15` labels each
+Choose in points from the footage itself: `lungecuta sheet --media KEY --every f:15` labels each
 frame with its seconds. Then one `place` per shot, on the beat grid:
-`lc op place COMP KEY --at b:8 --for b:4 --source 2.5s` puts KEY from 2.5 s into it at
+`lungecuta op place COMP KEY --at b:8 --for b:4 --source 2.5s` puts KEY from 2.5 s into it at
 beat 8 for four beats; `--to b:4` ends a layer at a position instead, as the first shot
 from `0s` needs (no beat span starts before the first beat). A later layer is drawn over
-an earlier one, so shots that meet at cuts need no ordering. `lc op graphic COMP
+an earlier one, so shots that meet at cuts need no ordering. `lungecuta op graphic COMP
 graphics/title.html --at 0s --to b:4 --params '{{...}}'` puts a title page on top.
-`lc audio-check COMP` then gives every cut's offset to its beat.
+`lungecuta audio-check COMP` then gives every cut's offset to its beat.
 
 ## What you cannot judge
 

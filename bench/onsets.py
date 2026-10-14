@@ -2,7 +2,7 @@
 far apart, and how long the detection takes.
 
 Usage: uv run python bench/onsets.py WAV
-  WAV is a 48 kHz PCM WAV as lc import writes it under cache/audio/.
+  WAV is a 48 kHz PCM WAV as lungecuta import writes it under cache/audio/.
 
 There is no ground truth for a real song, so the numbers are a sanity check (a count a
 second and gaps that match the music's subdivisions); `tests/test_onsets.py` checks the

@@ -1,4 +1,4 @@
-"""`lc sheet --media` on small synthetic clips (tests/clips.py); the samples are in test_samples.py."""
+"""`lungecuta sheet --media` on small synthetic clips (tests/clips.py); the samples are in test_samples.py."""
 import json
 from fractions import Fraction
 from pathlib import Path
@@ -23,7 +23,7 @@ NTSC = Fraction(30000, 1001)
 
 @pytest.fixture
 def project(tmp_path):
-    directory = init_project(tmp_path / "edit.lc")
+    directory = init_project(tmp_path / "edit.lungecuta")
     (directory / "footage").mkdir()
     return directory
 
@@ -78,7 +78,7 @@ def test_frames_from_one_decode_are_the_seeked_frames(project):
                          chroma_location="left"))
 
 
-def test_lc_sheet_tiles_are_the_stills_at_the_tile_size(project):
+def test_sheet_tiles_are_the_stills_at_the_tile_size(project):
     key = write_record(project, make_clip(project / "footage" / "C0001.mov", frames=7))
     result = CliRunner().invoke(main, ["sheet", "--media", key, "--every", "f:2", "--height", "36", "--columns", "3",
                                        "--rows", "1", "--project", str(project)])
@@ -87,7 +87,7 @@ def test_lc_sheet_tiles_are_the_stills_at_the_tile_size(project):
     assert [tile["frame"] for tile in printed["tiles"]] == [0, 2, 4, 6]
     assert [tile["page"] for tile in printed["tiles"]] == [0, 0, 0, 1]
     assert printed["size"] == [64, 36] and printed["every"] == 2
-    first = project / "cache" / "lc" / "sheet" / f"{key}_every2f_64x36.png"
+    first = project / "cache" / "lungecuta" / "sheet" / f"{key}_every2f_64x36.png"
     assert printed["pages"] == [str(first), str(first.with_name(f"{first.stem}_p1.png"))]
     record = stored(project, key)
     page = decode_png(first)

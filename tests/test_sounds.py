@@ -102,7 +102,7 @@ def test_lint_finds_the_same_sound_twice_in_a_row(sounding):
     assert "sfx_vary" not in [w["rule"] for w in run(sounding, "lint", "main")["warnings"]]
 
 
-def test_lc_op_sfx_puts_a_sound_on_every_cut_in_turn(sounding):
+def test_op_sfx_puts_a_sound_on_every_cut_in_turn(sounding):
     (sounding / "footage" / "two.wav").write_bytes(wav_bytes(impact() * 0.7, RATE))
     run(sounding, "import", str(sounding / "footage" / "two.wav"), "--root", "project", "--sound")
     with_sounds(sounding)

@@ -1,4 +1,4 @@
-"""`lc mcp`: the commands as MCP tools over stdio, spoken to by the SDK's own client
+"""`lungecuta mcp`: the commands as MCP tools over stdio, spoken to by the SDK's own client
 (src/lungecuta/mcp_server.py)."""
 import base64
 import io
@@ -18,17 +18,17 @@ LAUNCH = "from lungecuta.cli import main; main()"
 
 def test_every_command_is_a_tool_with_its_own_parameters():
     table = tools(main)
-    assert {"lc_still", "lc_sheet", "lc_op_move", "lc_op_look", "lc_status", "lc_render"} <= set(table)
-    assert not {"lc_serve", "lc_mcp", "lc_commands"} & set(table)
-    words, still = table["lc_still"]
+    assert {"still", "sheet", "op_move", "op_look", "status", "render"} <= set(table)
+    assert not {"serve", "mcp", "commands"} & set(table)
+    words, still = table["still"]
     properties = schema(still)["properties"]
     assert words == ["still"] and {"comp", "media", "at", "height", "project"} <= set(properties)
     assert schema(still)["required"] == ["at"] and properties["height"]["type"] == "integer"
-    words, key = table["lc_op_key"]
+    words, key = table["op_key"]
     assert words == ["op", "key"] and "position" in schema(key)["properties"]["prop"]["enum"]
-    framing = schema(table["lc_framing"][1])["properties"]["at"]
+    framing = schema(table["framing"][1])["properties"]["at"]
     assert framing["type"] == "array"  # --at may be given more than once
-    assert argv(*table["lc_framing"], {"comp": "main", "layer": "shot1", "at": ["b:1", "b:2"]}) == \
+    assert argv(*table["framing"], {"comp": "main", "layer": "shot1", "at": ["b:1", "b:2"]}) == \
         ["framing", "main", "shot1", "--at", "b:1", "--at", "b:2"]
 
 
@@ -42,15 +42,15 @@ async def _session(project, steps):
 
 def test_an_agent_sees_a_frame_and_edits_through_the_server(cut_project):
     async def steps(client, init):
-        assert "lc changes" in init.instructions and init.server_info.name == "lungecuta"
+        assert "lungecuta changes" in init.instructions and init.server_info.name == "lungecuta"
         names = {tool.name for tool in (await client.list_tools()).tools}
-        still = await client.call_tool("lc_still", {"comp": "main", "at": "b:4", "height": 36})
-        moved = await client.call_tool("lc_op_move", {"comp": "main", "layer": "shot2", "by": "f:1"})
-        wrong = await client.call_tool("lc_still", {"comp": "main", "at": "b:400"})
+        still = await client.call_tool("still", {"comp": "main", "at": "b:4", "height": 36})
+        moved = await client.call_tool("op_move", {"comp": "main", "layer": "shot2", "by": "f:1"})
+        wrong = await client.call_tool("still", {"comp": "main", "at": "b:400"})
         return names, still, moved, wrong
 
     names, still, moved, wrong = anyio.run(_session, cut_project, steps)
-    assert "lc_op_move" in names
+    assert "op_move" in names
     assert not still.is_error
     printed = json.loads(still.content[0].text)
     assert printed["frame"] == 68 and printed["layers"] == ["shot2"]

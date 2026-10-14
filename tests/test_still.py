@@ -1,4 +1,4 @@
-"""`lc still --media` on small synthetic clips made with ffmpeg; the samples are in test_samples.py."""
+"""`lungecuta still --media` on small synthetic clips made with ffmpeg; the samples are in test_samples.py."""
 import json
 import os
 import struct
@@ -24,13 +24,13 @@ from clips import SIZE, SPACE, make_clip, stored, write_record
 
 @pytest.fixture
 def project(tmp_path):
-    directory = init_project(tmp_path / "edit.lc")
+    directory = init_project(tmp_path / "edit.lungecuta")
     (directory / "footage").mkdir()
     return directory
 
 
 def sequential(path: Path, index: int, size: tuple[int, int], *, autorotate: bool = False) -> np.ndarray:
-    """Frame `index` from a decode from the start, independent of lc's seeking."""
+    """Frame `index` from a decode from the start, independent of lungecuta's seeking."""
     raw = run(["ffmpeg", "-v", "error", *([] if autorotate else ["-noautorotate"]), "-i", str(path),
                "-map", "0:v:0", "-vf", f"select=eq(n\\,{index})", "-frames:v", "1", "-f", "rawvideo",
                "-pix_fmt", "yuv422p10le", "-"]).stdout
@@ -69,7 +69,7 @@ def test_a_source_time_names_a_frame():
         source_frame("b:1", rate=rate, frames=3)
 
 
-def test_lc_still_is_the_frame_through_the_input_transform_and_the_view(project):
+def test_still_is_the_frame_through_the_input_transform_and_the_view(project):
     key = write_record(project, make_clip(project / "footage" / "C0001.mov"))
     result = CliRunner().invoke(main, ["still", "--media", key, "--at", "f:1", "--project", str(project)])
     assert result.exit_code == 0, result.output
@@ -80,7 +80,7 @@ def test_lc_still_is_the_frame_through_the_input_transform_and_the_view(project)
     assert (printed["frame"], printed["size"], printed["rotation"]) == (1, list(SIZE), 0)
     assert (printed["space"], printed["view"]) == (SPACE, DEFAULT_COLOR.view)
     path = Path(printed["png"])
-    assert path == project / "cache" / "lc" / "still" / f"{key}_f1_128x72.png"
+    assert path == project / "cache" / "lungecuta" / "still" / f"{key}_f1_128x72.png"
     eight = np.floor(np.clip(expected, 0, 1) * 255 + 0.5).astype(np.uint8)
     assert np.array_equal(decoded_png(path, SIZE), eight)
 

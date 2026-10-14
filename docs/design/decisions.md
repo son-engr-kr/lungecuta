@@ -77,8 +77,8 @@ generated video and engine renders.
 - Picture and sound kept cue times in two places and every version duplicated its
   builder; one timeline with shared cue definitions removes both.
 - The review tools (framing, contact and timeline sheets, audio check with cut-to-onset
-  offsets, face audit) become `lc` commands, and the taste rules a machine can check
-  become `lc lint`.
+  offsets, face audit) become `lungecuta` commands, and the taste rules a machine can check
+  become `lungecuta lint`.
 
 ## D5: colour sources, tagging and the Mac decode
 
@@ -150,7 +150,7 @@ and size, which are all the evidence above measures. Measured on both samples
 19 times ProRes Proxy's size, and is used *provisionally*; proxies keep the original's
 range. The DaVinci Intermediate criterion cannot be met by a proxy downscaled before the
 input transform (lossless: p99 3.94 DI codes), so the gate is provisionally in R'G'B'
-codes. (Re-measured 2026-10-13 with proxies built from lc's own H.273 decode; the first
+codes. (Re-measured 2026-10-13 with proxies built from lungecuta's own H.273 decode; the first
 runs decoded or built through ffmpeg's scaler, which put most of a code of bias on a range
 conversion and about 0.3 code on every proxy, and reached the same verdicts.) Open for the user: keep
 FFV1, store proxies in the working space after the input transform, or restate the
@@ -213,7 +213,7 @@ Also adopted: audio clock from `getOutputTimestamp()`; content hashes instead of
 numbers in files; normalization before the true-peak limiter; audio muxed once over
 joined chunks; downbeats from Beat This! or madmom; vector motion blur instead of
 averaging RIFE sub-frames; flow estimated on a display-rendered copy; comp-relative units
-for pixel-sized parameters; LUT references that name their spaces; `lc verify` checking
+for pixel-sized parameters; LUT references that name their spaces; `lungecuta verify` checking
 bias and cut times, not only PSNR against its own render.
 
 Reproduced later (2026-10-11): an untagged H.264 clip is given SMPTE-C primaries at 256x64
@@ -297,23 +297,23 @@ Found by a second review of the design (`docs/research/design-review-2026-10-11.
 - the Sony XML's `captureFps`, `formatFps`, `RecordingMode` and timecode are read; a clip
   whose two rates differ stays undecided in time until an S&Q file confirms the fields.
 - a source time between two frames shows the frame whose interval holds it, as FCPXML's
-  default `frameSampling="floor"` does (*proposed*, found while writing `lc still` and
+  default `frameSampling="floor"` does (*proposed*, found while writing `lungecuta still` and
   the FCPXML exporter, which both need it); markers land on the first frame at or after
   their time (*proposed*).
 
 ## D13: project files that two editors write
 
 **Decided.** One media record per file under `media/`; media paths relative to named
-roots, which `roots.local.json` (gitignored) places on each machine, with `lc relink` by
-size and hash; the full hash at import and a size and mtime check on open; `lc` writes
+roots, which `roots.local.json` (gitignored) places on each machine, with `lungecuta relink` by
+size and hash; the full hash at import and a size and mtime check on open; `lungecuta` writes
 checked against content hashes like UI writes; a journal of UI writes behind
-`lc changes`, recovery of overwritten UI changes, and undo; preview cache keys and a
+`lungecuta changes`, recovery of overwritten UI changes, and undo; preview cache keys and a
 render manifest that include the versions deciding the pixels
 ([01-architecture.md](01-architecture.md#files-edits-and-concurrency),
 [03-project-format.md](03-project-format.md#media)).
 
 **Evidence.** The first draft put absolute paths into a project meant to be committed,
-had `lc import` rewrite the same `project.json` the person and the agent edit (where the
+had `lungecuta import` rewrite the same `project.json` the person and the agent edit (where the
 hash rule would refuse the UI's writes after every import), protected the agent's edits
 from the UI but not the reverse, and keyed the cache without versions.
 

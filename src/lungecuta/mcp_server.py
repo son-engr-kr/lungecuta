@@ -1,16 +1,16 @@
-"""`lc mcp`: the lc commands as tools over the Model Context Protocol (stdio), for Claude
+"""`lungecuta mcp`: the lungecuta commands as tools over the Model Context Protocol (stdio), for Claude
 Code, Codex and any other MCP client (docs/design/09-agent-interface.md: "An MCP server, if
 one is added, is a thin wrapper over the same commands").
 
 Each command (the op group's operations each on their own) is a tool named for it
-(`lc_still`, `lc_op_move`), its input schema built from the command's own arguments and
+(`still`, `op_move`), its input schema built from the command's own arguments and
 options, its description the command's help. A call runs the command in this process,
 exactly as the CLI would, and returns what it prints; a frame, sheet, scope or framing
 picture it writes comes back too, as an image the agent sees, no larger than 1568 pixels
 on its long side (the size Anthropic's vision documentation says images are scaled down
 to beyond; the file on disk keeps its own size). The server starts in a project (its
 `--project`, or the directory it was started in), and every tool's `project` defaults to
-it. The project guide (`lc guide`) is the server's instructions.
+it. The project guide (`lungecuta guide`) is the server's instructions.
 
 A command that fails returns its error and traceback as the tool's error instead of
 ending the server: the protocol is the boundary where a failure becomes a message for the
@@ -84,9 +84,9 @@ def tools(group: click.Group) -> dict[str, tuple[list[str], click.Command]]:
             continue
         if isinstance(command, click.Group):
             for sub, inner in sorted(command.commands.items()):
-                out[f"lc_{name}_{sub}".replace("-", "_")] = ([name, sub], inner)
+                out[f"{name}_{sub}".replace("-", "_")] = ([name, sub], inner)
         else:
-            out[f"lc_{name}".replace("-", "_")] = ([name], command)
+            out[name.replace("-", "_")] = ([name], command)
     return out
 
 
@@ -156,8 +156,8 @@ def call(group: click.Group, words: list[str], command: click.Command, arguments
     failed, detail = False, ""
     with _ONE_AT_A_TIME, contextlib.redirect_stdout(out):
         try:
-            group.main(args=args, prog_name="lc", standalone_mode=False)
-        except SystemExit as stop:  # `lc verify` and `lc flash` print their report, then exit 1 when it fails
+            group.main(args=args, prog_name="lungecuta", standalone_mode=False)
+        except SystemExit as stop:  # verify and flash print their report, then exit 1 when it fails
             failed = stop.code not in (0, None)
         except Exception:  # the boundary: the error becomes the tool's error, with its traceback
             failed, detail = True, traceback.format_exc()

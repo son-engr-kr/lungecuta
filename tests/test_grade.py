@@ -140,7 +140,7 @@ def test_nodes_run_in_order_keyed_by_their_window_and_mixed(cut_project):
     assert [op.op for op in grade.operations(project, serial)] == ["primary", "primary"]
 
 
-def test_lc_op_grade_takes_a_node_graph(cut_project):
+def test_op_grade_takes_a_node_graph(cut_project):
     graph = {"nodes": [{"ops": [{"op": "primary", "saturation": 0.0}], "window": [
         {"shape": "ellipse", "size": [0.5, 0.5], "feather": 0.1, "invert": True}], "mix": 0.8}]}
     result = CliRunner().invoke(main, ["op", "grade", "main", "shot1", "--ops", json.dumps(graph),

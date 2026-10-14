@@ -5,7 +5,7 @@ Usage: uv run python bench/proxy_parity.py WORKDIR CLIP [CLIP...]
 
 For each clip and each candidate (ProRes Proxy, LT, 422 HQ and 4444; lossless FFV1 4:2:2
 and 4:4:4; limited range, and full range for 4444 and FFV1 4:4:4) at 540 lines, builds the
-proxy the way `lc import` does and measures the parity test of
+proxy the way `lungecuta import` does and measures the parity test of
 docs/design/02-media.md#proxies on the same eleven frames: the original decoded with its
 own matrix and range and area-downscaled, against the proxy decoded with its own range.
 Differences are in 10-bit DaVinci Intermediate codes when the clip's colour space is

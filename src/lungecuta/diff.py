@@ -1,4 +1,4 @@
-"""`lc diff` (docs/design/09-agent-interface.md): what changed in a comp between two
+"""`lungecuta diff` (docs/design/09-agent-interface.md): what changed in a comp between two
 revisions, in editing terms ("shot3 out point moved b:68 to b:67+0.5").
 
 A revision is a git revision of the repository the project lives in, a path to a comp

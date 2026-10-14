@@ -74,7 +74,7 @@ def test_the_spine_holds_the_cuts_with_gaps_and_the_in_points_follow_the_timecod
         "layer": "shot1", "media": "C0001", "comp_frames": [8, 68], "timeline_tc_in": "00:00:00:08",
         "source_frames": [2, 61], "source_tc_in": "00:00:21:17", "speed": 1.0, "check": None,
     }
-    assert printed["cuts"][0]["check"] == "lc still --media C0001 --at f:2"
+    assert printed["cuts"][0]["check"] == "lungecuta still --media C0001 --at f:2"
 
 
 def test_constant_speed_is_a_linear_time_map(cut_project):

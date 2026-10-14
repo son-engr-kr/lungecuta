@@ -13,14 +13,14 @@ the Phase 0 media tests need samples of your own (see Conventions).
 - Decisions D1 to D15 are made (D10, the licence: MIT and Pickapicka's rules for model
   weights; D15, the rules written with M1 to M7's first parts, confirmed 2026-10-13); the
   rules D12 and the open decisions below mark *proposed* await the user's confirmation.
-- **Phase 0's code is written (tasks 1 to 7)**: the package, `lc init`, `lc schema`, the
-  tick unit and the time literals (`ticks.py`, `literals.py`); `lc detect`, `lc root`,
-  `lc relink` and `lc import` with the decoder check, the proxy and its parity test (the
-  proxy built from lc's own decode); `lc still`, `lc sheet`
-  and `lc scope` for one clip (`still.py`, `sheet.py`, `scope.py`, `geometry.py`,
-  `images.py`); music import with its WAV and beat map, and `lc beats` (`music.py`,
-  `beats.py`); the Phase 0 comp format, `lc validate` and `lc fcpxml` (`schema/comp.py`,
-  `comp/`, `fcpxml.py`, `validate.py`); `lc graphic`, `lc patch-card` and `lc patches`
+- **Phase 0's code is written (tasks 1 to 7)**: the package, `lungecuta init`, `lungecuta schema`, the
+  tick unit and the time literals (`ticks.py`, `literals.py`); `lungecuta detect`, `lungecuta root`,
+  `lungecuta relink` and `lungecuta import` with the decoder check, the proxy and its parity test (the
+  proxy built from lungecuta's own decode); `lungecuta still`, `lungecuta sheet`
+  and `lungecuta scope` for one clip (`still.py`, `sheet.py`, `scope.py`, `geometry.py`,
+  `images.py`); music import with its WAV and beat map, and `lungecuta beats` (`music.py`,
+  `beats.py`); the Phase 0 comp format, `lungecuta validate` and `lungecuta fcpxml` (`schema/comp.py`,
+  `comp/`, `fcpxml.py`, `validate.py`); `lungecuta graphic`, `lungecuta patch-card` and `lungecuta patches`
   (`graphics.py`, `patches.py`). Frames are decoded from the decoder's own planes: chroma
   upsampled by linear interpolation where the stream says it sits, then ITU-T H.273, in
   numpy; ffmpeg's scale filter is not used to decode, since it was found off by a gain and
@@ -33,56 +33,56 @@ the Phase 0 media tests need samples of your own (see Conventions).
   the cameras, and are the person's. The user asked on 2026-10-13 to carry on to the end
   rather than stop at each gate, so M0 to M2 work continues while those wait; nothing
   claims a milestone's exit criteria until they are met.
-- **M2 has started**: `lc render` renders Phase 0's comp format (one picture track of cuts
+- **M2 has started**: `lungecuta render` renders Phase 0's comp format (one picture track of cuts
   at constant speed, music) to `master-prores-hq`, `web-h264`, `web-hevc10` or `prores-4444-alpha`
   (straight alpha, no audio) with a version manifest,
-  and `lc verify` checks a render against its comp (`compose.py`, `mixdown.py`, `render.py`, `encode.py`,
+  and `lungecuta verify` checks a render against its comp (`compose.py`, `mixdown.py`, `render.py`, `encode.py`,
   `verify.py`), with layer transforms and eased keyframes (`keyframes.py`, `geometry.py`),
   overlapping layers composited in stack order, graphics layers as top overlays (also
   written to FCPXML as ProRes 4444), frames rendered several at a time, time remap keys
   (eased, forwards or backwards; to FCPXML as a time map) and `nearest` and `blend`
   retiming (blends in linear light), and the master audio chain (`audio.py`: high-pass,
   loudness to the preset's target, true-peak limiter, the ceiling held in the delivered
-  AAC; `lc verify` checks loudness and true peak by EBU R 128's tolerance). M1's clip
+  AAC; `lungecuta verify` checks loudness and true peak by EBU R 128's tolerance). M1's clip
   grade is written too (`grade.py`: OCIO's primary grade with its controls in DI code
   values, ASC CDL, LUTs with declared spaces, on a footage layer's `grade`, as a list or a
   node graph whose nodes take windows and an HSL qualifier in OCIO's HSY), and M2's
   minimal style instance (`schema/style.py`: linked speed and scale tracks from
-  `styles/`, the speed integrated exactly; `lc op style`), and looks (styles holding a
-  grade, linked from a node: `lc op look`), and motion blur of a layer's own movement
+  `styles/`, the speed integrated exactly; `lungecuta op style`), and looks (styles holding a
+  grade, linked from a node: `lungecuta op look`), and motion blur of a layer's own movement
   over its shutter (`motion_blur.shutter_deg`). Not written yet: flow retiming and the
   vector blur of motion inside footage, parallel nodes, FCPXML transforms. Graphics under
   footage render through the inverse output view; the editor does not draw them yet.
-- **M3 has started**: `lc serve` opens the editor (`server.py`, `preview.py`, `journal.py`,
+- **M3 has started**: `lungecuta serve` opens the editor (`server.py`, `preview.py`, `journal.py`,
   `web/`): the viewer on proxies through PyAV, the timeline with the beat grid and
   markers, playback against the audio output clock, move, trim, split and ripple delete
-  by drag and keys through `lc op`'s functions, the journal with undo, redo and
-  `lc changes`, file watching, graphics drawn live from a sandboxed origin, the
+  by drag and keys through `lungecuta op`'s functions, the journal with undo, redo and
+  `lungecuta changes`, file watching, graphics drawn live from a sandboxed origin, the
   inspector (transform keys and eases, time remap, styles, the primary grade) and the
   graph editor (speed, source time, position, scale, opacity, rotation and gain, their
-  keys dragged), each edit an `lc op`
+  keys dragged), each edit an `lungecuta op`
   operation (`key`, `unkey`, `set`, `remap`, `style`, `grade`, `masks`, `transition`),
   and scopes of the frame on screen (on the proxy). Not written yet: the colour page's
   node graph.
-- **The agent sees a comp without rendering it**: `lc still COMP --at P`, `lc sheet COMP
-  --every b:1` and `lc scope COMP --at P` show the frame the render delivers, labelled with
-  its beat and the layers on screen (`look.py`). `lc init` writes a project's own
+- **The agent sees a comp without rendering it**: `lungecuta still COMP --at P`, `lungecuta sheet COMP
+  --every b:1` and `lungecuta scope COMP --at P` show the frame the render delivers, labelled with
+  its beat and the layers on screen (`look.py`). `lungecuta init` writes a project's own
   `AGENTS.md` and `CLAUDE.md`, the guide Codex and Claude Code read there, and
-  `lc guide --write` updates it (`guide.py`); keep it in step with the CLI, which
-  `tests/test_guide.py` checks. `lc status` describes a project, `lc commands` the CLI as
-  JSON, and `lc mcp` serves every command as an MCP tool (`mcp_server.py`), started for
+  `lungecuta guide --write` updates it (`guide.py`); keep it in step with the CLI, which
+  `tests/test_guide.py` checks. `lungecuta status` describes a project, `lungecuta commands` the CLI as
+  JSON, and `lungecuta mcp` serves every command as an MCP tool (`mcp_server.py`), started for
   Claude Code by the project's `.mcp.json` and for Codex by its `.codex/config.toml`.
 - **M5 and M7 have started**: transitions (`dissolve`, `dip`, `fade_in`, `fade_out` in
-  the working space, `lc op transition`), precomps (`comp` layers, recursive, composited
+  the working space, `lungecuta op transition`), precomps (`comp` layers, recursive, composited
   in the working space), layer rotation, masks (rectangles and ellipses, feathered,
-  `lc op masks`), audio layer gain in dB with keys and fades, `lc audio-check` (cut
-  offsets to beats and to onsets by SuperFlux, `onsets.py`; RMS per half beat), `lc lint`
-  (five of the review rules), `lc flash`, `lc diff` and `lc licence`.
+  `lungecuta op masks`), audio layer gain in dB with keys and fades, `lungecuta audio-check` (cut
+  offsets to beats and to onsets by SuperFlux, `onsets.py`; RMS per half beat), `lungecuta lint`
+  (five of the review rules), `lungecuta flash`, `lungecuta diff` and `lungecuta licence`.
 - **Two edits made as an agent makes one** run end to end on the samples
   (`bench/dry_run.sh`, `bench/dry_run2.sh`; their stage times in `bench/RESULTS.md`): a cut
-  built one `lc op place COMP KEY --at P --for SPAN --source T` (or `--to P`) per shot,
-  splits, slips, styles, looks, a dissolve, a title by `lc op graphic`, sounds by
-  `lc op sfx`, a remap ramp, then lint, audio-check, sheet, render, verify and flash. What
+  built one `lungecuta op place COMP KEY --at P --for SPAN --source T` (or `--to P`) per shot,
+  splits, slips, styles, looks, a dissolve, a title by `lungecuta op graphic`, sounds by
+  `lungecuta op sfx`, a remap ramp, then lint, audio-check, sheet, render, verify and flash. What
   they tripped over is fixed and tested. Import, render, verify and sheet were profiled
   and made faster with outputs identical (`bench/import_cost.py`, `render_stages.py`,
   `verify_cost.py`).
@@ -159,7 +159,7 @@ editor:
 - Model weights as Pickapicka takes them (D10): permissive code and weights on the default
   path, anything narrower an opt-in download that shows its terms, files fetched on first
   use and pinned by size and SHA-256, never committed.
-- CLI with click; entry point `lc = "lungecuta.cli:main"`.
+- CLI with click; entry point `lungecuta = "lungecuta.cli:main"`.
 - Tests with pytest in a `dev` dependency group, run as `uv run pytest tests/`.
 - Dependencies at their current releases, pinned by `uv.lock`.
 
@@ -222,15 +222,15 @@ Exit criterion: one real music edit made end to end with these tools, its time r
 by stage as [docs/design/10-roadmap.md](docs/design/10-roadmap.md#phase-0-the-baseline-days)
 describes.
 
-1. **Skeleton**: package, `lc` entry point, pytest, the schema module. Time literals and
+1. **Skeleton**: package, `lungecuta` entry point, pytest, the schema module. Time literals and
    the tick unit first, following the grammar in
    [docs/design/03-project-format.md](docs/design/03-project-format.md#literal-grammar),
    with round-trip tests across every rate listed there, source-time fields, layer time
    ([layer timing](docs/design/03-project-format.md#layer-timing)), and the rules for
    frames and samples
    ([from time to frames and samples](docs/design/03-project-format.md#from-time-to-frames-and-samples)).
-   Then `lc init`, with `media/`, `roots.local.json` and its `.gitignore`.
-2. **`lc detect` and `lc import`**: the evidence chain of
+   Then `lungecuta init`, with `media/`, `roots.local.json` and its `.gitignore`.
+2. **`lungecuta detect` and `lungecuta import`**: the evidence chain of
    [docs/design/02-media.md](docs/design/02-media.md#colour-space-detection), Sony XML
    first. Media tests on the S-Log3 sample (expect the record in
    [docs/design/03-project-format.md](docs/design/03-project-format.md#media), with the
@@ -243,7 +243,7 @@ describes.
    the proxy with its own decode record. Run the proxy parity test on ProRes Proxy, LT and
    4444 at 540p on both samples before fixing the profile
    ([proxies](docs/design/02-media.md#proxies)), and put the results in `bench/RESULTS.md`.
-3. **`lc still --media KEY --at f:N`**: one frame through CPU OpenColorIO (explicit matrix
+3. **`lungecuta still --media KEY --at f:N`**: one frame through CPU OpenColorIO (explicit matrix
    and range, input transform, the project's output view), threaded by row bands as
    `bench/ocio_threads.py` does. Decode with the ffmpeg CLI, not PyAV, until PyAV has passed
    a framemd5 check against the CLI. The PNG is 8-bit and holds display-encoded code values
@@ -253,7 +253,7 @@ describes.
    `-sws_flags accurate_rnd+full_chroma_int+full_chroma_inp`; default size is the clip's
    own; OCIO threads default to the machine's core count. Checking the seeked frame
    against a sequential decode is a `media` test, not something every call does.
-4. **`lc sheet --media KEY --every f:30` and `lc scope --media KEY --at f:N`**: images plus
+4. **`lungecuta sheet --media KEY --every f:30` and `lungecuta scope --media KEY --at f:N`**: images plus
    the numbers defined in
    [docs/design/09-agent-interface.md](docs/design/09-agent-interface.md#scope-numbers),
    following that document's conventions for finding the project, writing outputs and
@@ -270,7 +270,7 @@ describes.
    and reports what arrived; an agent cannot operate Resolve's GUI. Find out on that
    import whether markers survive, whether variable speed arrives as an editable curve
    (`docs/research/resolve-notes.md`), and whether in points land on the intended source
-   frames (a few cuts compared against `lc still`).
+   frames (a few cuts compared against `lungecuta still`).
 7. **Graphics**: the past projects' web-page renderer producing ProRes 4444 with alpha,
    for import into Resolve (where it is: `AGENTS.local.md`). With it, render a card of
    known colour patches; the user puts it over footage in the DWG/DI timeline and exports,
@@ -280,10 +280,10 @@ describes.
 
 - Phase 1 thresholds marked *proposed* in the roadmap.
 - That a re-analysis moving downbeats is not applied either, like one moving beats
-  (*proposed* with `lc beats`).
+  (*proposed* with `lungecuta beats`).
 - A source time between two frames shows the frame whose interval holds it, and markers
   land on the first frame at or after their time (*proposed*, D12; the FCPXML exporter
-  and `lc still` use them).
+  and `lungecuta still` use them).
 - Music goes to Resolve as a 32-bit float WAV (no clipping of a decode over full scale);
   whether Resolve takes it is a Phase 0 check.
 - In comps: layers listed bottom first (a later layer over an earlier one); transform
@@ -298,7 +298,7 @@ describes.
   sharper filter would differ only at chroma edges).
 - The rules D12 marks *proposed*: where a cut lands between frames, audio rounding, the
   re-analysis rule, overlapping music layers, and S&Q clips.
-- Which source frame a source time between two frames shows; `lc still --media` refuses
+- Which source frame a source time between two frames shows; `lungecuta still --media` refuses
   such a time until it is decided
   ([03-project-format.md](docs/design/03-project-format.md#from-time-to-frames-and-samples)).
 - The findings left open in
@@ -306,7 +306,7 @@ describes.
 - The `web-hevc10` preset: VideoToolbox at `-q:v 70`, the lowest setting with web-h264's
   PSNR on every plane, on the grainy check comp (`bench/RESULTS.md`), *proposed*; it
   smooths a little more grain than web-h264, which the person judges on screen.
-- The flash rule's standard: `lc flash` applies WCAG 2.2's general flash threshold (read,
+- The flash rule's standard: `lungecuta flash` applies WCAG 2.2's general flash threshold (read,
   defined for web pages at 1024x768, mapped onto a video frame as *proposed* in
   `src/lungecuta/flash.py`), since the deliverables are for the web; ITU-R BT.1702 for
   television is not read (its site and Ofcom's refuse automated downloads). Red flashes

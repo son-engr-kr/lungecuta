@@ -9,7 +9,7 @@ the user to confirm, not measurements.
 
 Agent tools on top of Resolve free, no editor:
 
-- `lc import`, `lc detect`, `lc still`, `lc sheet`, `lc scope` on CPU OpenColorIO, so the
+- `lungecuta import`, `lungecuta detect`, `lungecuta still`, `lungecuta sheet`, `lungecuta scope` on CPU OpenColorIO, so the
   agent can see footage and frames with correct colour;
 - the agent writes a cut (beats, cut points, constant speed segments, markers) as FCPXML,
   imported into Resolve free through File > Import > Timeline. Blackmagic's 21.1 release
@@ -27,7 +27,7 @@ baseline depends on and nobody has checked:
 - **in points land on the intended source frame.** The originals carry a start timecode
   (00:00:21:15 on the S-Log3 sample) and FCPXML addresses clips by it, while lungecuta
   counts source time from the first frame ([02-media.md](02-media.md#rates-and-timecode));
-  a few cuts are checked frame by frame in Resolve's viewer against `lc still`;
+  a few cuts are checked frame by frame in Resolve's viewer against `lungecuta still`;
 - **cuts land on frames by the stated rule**
   ([03-project-format.md](03-project-format.md#from-time-to-frames-and-samples)), and the
   music the cut was timed against is the PCM WAV the beats were found in
@@ -38,7 +38,7 @@ baseline depends on and nobody has checked:
   in the baseline, which is the problem lungecuta's top overlays solve
   ([01-architecture.md](01-architecture.md#where-display-referred-layers-enter)).
 
-The commands for all of this exist (`lc fcpxml`, `lc still`, `lc patch-card`, `lc patches`),
+The commands for all of this exist (`lungecuta fcpxml`, `lungecuta still`, `lungecuta patch-card`, `lungecuta patches`),
 and the checks themselves are a procedure for the person, since they need Resolve's GUI:
 [docs/research/phase0-resolve-checks.md](../research/phase0-resolve-checks.md).
 
@@ -92,8 +92,8 @@ OpenColorIO with the provisional FFV1 proxy read by PyAV:
 ## M0: foundations
 
 Project schema and validation, the tick time model with unit literals and the rules for
-source time and for frames and samples, `lc import` with the per-codec decoder check,
-rates and timecode, media records as files under named roots with `lc relink`, proxies
+source time and for frames and samples, `lungecuta import` with the per-codec decoder check,
+rates and timecode, media records as files under named roots with `lungecuta relink`, proxies
 with their own decode records, beat maps with downbeats, the comp grid from several music
 layers, and the re-analysis rule.
 
@@ -114,18 +114,18 @@ original (the criterion the user settles from the Phase 0 measurement).
 ## M2: a timeline renders
 
 Cuts, remap and constant speed (`nearest`, `blend`), layer timing as in After Effects
-with the edit operations behind `lc op`, transform keyframes with easing, a minimal style
+with the edit operations behind `lungecuta op`, transform keyframes with easing, a minimal style
 instance, audio pass-through mix, final encode with tags set on frames and a version
 manifest.
 
 **Exit:** a past deliverable's cut, rebuilt as a project, matches that deliverable frame by
-frame at every cut, and `lc verify` passes its tag, bias and loudness checks.
+frame at every cut, and `lungecuta verify` passes its tag, bias and loudness checks.
 
 ## M3: the editor, and the go/no-go
 
 Viewer, layer timeline, beat grid, remap and speed graphs, keyframe editing, playback
 against the audio output clock, file watching with the agent editing alongside, the UI
-write journal with `lc changes`, and undo and redo on it.
+write journal with `lungecuta changes`, and undo and redo on it.
 
 **Exit, and the decision:** two new edits (not re-cuts of earlier ones), each made in
 lungecuta and timed against the Phase 0 workflow on comparable material, each finished to
@@ -164,12 +164,12 @@ Tracks, gain automation, fades, ducking, the effects past edits used, normalizat
 a true-peak limiter ([07-audio.md](07-audio.md)).
 
 **Exit:** a past promo's audio rebuilt, passing the same loudness checks, with cut-to-onset
-offsets reported by `lc audio-check`.
+offsets reported by `lungecuta audio-check`.
 
 ## M8: styles from words, lint, diff
 
 Style library UI, linked instances with overrides, the agent writing a style from a
-description and proving it with a sheet; `lc lint`; `lc diff`.
+description and proving it with a sheet; `lungecuta lint`; `lungecuta diff`.
 
 **Exit:** three styles described in words, created, adjusted by the user and applied to
 several places each in one edit.
@@ -179,7 +179,7 @@ several places each in one edit.
 The sandboxed expression runtime; face and plate anonymization with the final-frame audit;
 synth voices and TTS.
 
-**Exit:** a piece with people in public rendered with no face found by `lc face-audit`
+**Exit:** a piece with people in public rendered with no face found by `lungecuta face-audit`
 outside the allowed list, its sheet checked by the user.
 
 ## M10: packaging

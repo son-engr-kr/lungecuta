@@ -1,4 +1,4 @@
-"""Edit operations (docs/design/06-editing.md#edit-operations): the functions `lc op` and
+"""Edit operations (docs/design/06-editing.md#edit-operations): the functions `lungecuta op` and
 the editor both call, so an agent never ripples a timeline by editing every later
 layer's JSON by hand.
 
@@ -21,7 +21,7 @@ from .styles import style, transition, unstyle, untransition
 from .timing import graphic, move, place, ripple_delete, roll, slide, slip, snap, split, trim
 
 
-# Every edit operation by the name `lc op` and the editor give it: the one table both use.
+# Every edit operation by the name `lungecuta op` and the editor give it: the one table both use.
 OPERATIONS = {
     "move": move, "trim": trim, "slip": slip, "slide": slide, "roll": roll, "ripple-delete": ripple_delete,
     "split": split, "snap": snap, "place": place, "style": style, "unstyle": unstyle, "key": key, "unkey": unkey,

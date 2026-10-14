@@ -50,7 +50,7 @@ def test_a_look_node_is_the_look_s_grade_mixed_like_any_node(cut_project):
         ["primary", "cdl"]
 
 
-def test_lc_op_look_adds_one_node_and_unlook_takes_it_off(cut_project):
+def test_op_look_adds_one_node_and_unlook_takes_it_off(cut_project):
     put_look(cut_project)
     run(cut_project, "op", "grade", "main", "shot1", "--ops", '[{"op": "primary", "contrast": 1.1}]')
     printed = run(cut_project, "op", "look", "main", "shot1", "warm", "--mix", "0.7")

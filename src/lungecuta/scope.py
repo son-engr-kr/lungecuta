@@ -1,4 +1,4 @@
-"""`lc scope --media`: waveform, RGB parade and vectorscope of one frame, with the numbers
+"""`lungecuta scope --media`: waveform, RGB parade and vectorscope of one frame, with the numbers
 behind them (docs/design/09-agent-interface.md#scope-numbers). Everything is computed on
 the display-encoded output of the project's display and view, as a grading application's
 scopes show it."""
@@ -15,7 +15,7 @@ from .images import draw_text, png8, text_height
 from .media import Project, load_record
 from .still import OUTPUT_CODES, PERCENTILES, code_numbers, open_clip, source_frame
 
-SCOPE_DIR = Path("cache") / "lc" / "scope"
+SCOPE_DIR = Path("cache") / "lungecuta" / "scope"
 # BT.709-6 (docs/research/color-sources.md, section 7): EY = 0.2126 ER + 0.7152 EG +
 # 0.0722 EB, ECB = (EB - EY) / 1.8556, ECR = (ER - EY) / 1.5748, on the encoded R'G'B',
 # which is the definition of video luma.
@@ -171,7 +171,7 @@ def scope(
     project: Project, key: str, at: str, *, height: int | None = None, threads: int | None = None,
     out: Path | None = None,
 ) -> dict[str, Any]:
-    """Write the scope image of one frame of media `key` and return what `lc scope` prints."""
+    """Write the scope image of one frame of media `key` and return what `lungecuta scope` prints."""
     clip = open_clip(project, load_record(project, key))
     index = source_frame(at, rate=clip.rate, frames=clip.video.frames)
     size = scaled_size(clip.shown, height) if height is not None else None

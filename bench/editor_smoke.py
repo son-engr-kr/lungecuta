@@ -5,7 +5,7 @@ Usage: uv run python bench/editor_smoke.py PROJECT LAYER OUT_DIR
   (inside the project) PROJECT should be a copy: the drag writes to its first comp. LAYER
   is a footage layer of that comp to drag by about a beat.
 
-Starts `lc serve`'s app on a free port, opens it headless, waits for the first frame,
+Starts `lungecuta serve`'s app on a free port, opens it headless, waits for the first frame,
 presses Shift+Right twice, plays for two seconds, drags LAYER right by about the comp's
 first beat interval, and prints the readouts, the status line, the journal and any page
 errors, with screenshots before and after in OUT_DIR. Checked: the drag is journalled.
