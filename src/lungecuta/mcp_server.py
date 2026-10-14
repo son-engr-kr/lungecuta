@@ -156,8 +156,9 @@ def call(group: click.Group, words: list[str], command: click.Command, arguments
     failed, detail = False, ""
     with _ONE_AT_A_TIME, contextlib.redirect_stdout(out):
         try:
-            group.main(args=args, prog_name="lungecuta", standalone_mode=False)
-        except SystemExit as stop:  # verify and flash print their report, then exit 1 when it fails
+            # detect, beats and doctor print their report, then exit 1 when it fails: click returns the code
+            failed = group.main(args=args, prog_name="lungecuta", standalone_mode=False) not in (0, None)
+        except SystemExit as stop:  # verify and flash raise it
             failed = stop.code not in (0, None)
         except Exception:  # the boundary: the error becomes the tool's error, with its traceback
             failed, detail = True, traceback.format_exc()
@@ -166,6 +167,7 @@ def call(group: click.Group, words: list[str], command: click.Command, arguments
     if text and detail:
         content.append(types.TextContent(type="text", text=detail))
     if text and not failed:
+        assert text.startswith("{"), f"lungecuta {' '.join(words)} printed more than its JSON: {text[:300]}"
         printed = json.loads(text)
         content += [_image(path) for path in pictures(printed)]
     return types.CallToolResult(content=content, is_error=failed)

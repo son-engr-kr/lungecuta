@@ -8,7 +8,9 @@ is a thin wrapper over the same commands: each an MCP tool over stdio, its input
 its arguments and options, its result what it prints, and the pictures it writes returned
 as images no larger than 1568 pixels on the long side, the size Anthropic's vision
 documentation scales larger images down to (`src/lungecuta/mcp_server.py`). A command
-that fails returns its error and traceback as the tool's error; the server keeps running.
+that fails returns its error and traceback as the tool's error, and one that reports a
+failed check and exits with status 1 (`verify`, `flash`, `detect`, `beats`, `doctor`)
+returns its report as the tool's error; the server keeps running.
 
 ## Commands
 

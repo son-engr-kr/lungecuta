@@ -6,12 +6,13 @@ import json
 import sys
 
 import anyio
+import click
 from mcp.client.session import ClientSession
 from mcp.client.stdio import StdioServerParameters, stdio_client
 from PIL import Image
 
 from lungecuta.cli import main
-from lungecuta.mcp_server import argv, schema, tools
+from lungecuta.mcp_server import argv, call, schema, tools
 
 LAUNCH = "from lungecuta.cli import main; main()"
 
@@ -59,3 +60,31 @@ def test_an_agent_sees_a_frame_and_edits_through_the_server(cut_project):
     assert not moved.is_error and json.loads(moved.content[0].text)["changes"]
     assert json.loads((cut_project / "comps" / "main.json").read_text())["layers"][2]["start"] != "b:4"
     assert wrong.is_error and "outside the beat grid" in wrong.content[0].text  # an error, not a dead server
+
+
+def test_a_command_that_exits_1_is_a_tool_error_with_its_report():
+    """doctor, detect and beats exit through click (which returns the code when not
+    standalone), verify and flash by SystemExit; either way the report comes back, marked
+    as an error."""
+    @click.group()
+    def group():
+        pass
+
+    @group.command()
+    @click.pass_context
+    def through_click(context):
+        click.echo('{"ok": false}')
+        context.exit(1)
+
+    @group.command()
+    def through_system_exit():
+        click.echo('{"ok": false}')
+        raise SystemExit(1)
+
+    @group.command()
+    def passing():
+        click.echo('{"ok": true}')
+
+    for name, error in (("through-click", True), ("through-system-exit", True), ("passing", False)):
+        result = call(group, [name], group.commands[name], {}, None)
+        assert result.is_error == error and json.loads(result.content[0].text)["ok"] == (not error), name
