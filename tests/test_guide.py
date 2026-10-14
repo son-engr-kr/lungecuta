@@ -29,7 +29,9 @@ def test_init_writes_the_guide_for_codex_and_claude_code(tmp_path):
 
 
 def test_the_readme_installs_lungecuta_as_init_says_to():
-    assert INSTALL in (Path(__file__).parents[1] / "README.md").read_text()
+    repository = Path(__file__).parents[1]
+    assert INSTALL in (repository / "README.md").read_text()
+    assert f"--python {(repository / '.python-version').read_text().strip()} " in INSTALL
 
 
 def test_the_guide_names_only_commands_that_exist():

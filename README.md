@@ -47,13 +47,13 @@ Run each step and check it before the next, and tell the person what each downlo
 3. `uv --version`. If uv is missing, install it with Astral's installer,
    `curl -LsSf https://astral.sh/uv/install.sh | sh`, which puts it in `~/.local/bin`.
 4. Clone the repository to `~/.local/share/lungecuta` and, in that directory, put the
-   `lungecuta` command on the PATH with the versions `uv.lock` pins (editable, so a
-   `git pull` updates it):
+   `lungecuta` command on the PATH with the Python and the versions the repository pins
+   (editable, so a `git pull` updates it):
 
    ```sh
    git clone https://github.com/son-engr-kr/lungecuta ~/.local/share/lungecuta
    cd ~/.local/share/lungecuta
-   uv tool install --editable . --constraints <(uv export --frozen --no-dev --no-emit-project --no-hashes)
+   uv tool install --editable . --python 3.12 --constraints <(uv export --frozen --no-dev --no-emit-project --no-hashes)
    ```
 
 5. `lungecuta setup` fetches, once, what lungecuta needs beside its Python packages (the
