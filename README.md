@@ -21,30 +21,65 @@ real edit. Agents working on the repository start with [AGENTS.md](AGENTS.md). S
 with [docs/design/00-overview.md](docs/design/00-overview.md); measurements behind the
 design are in [bench/RESULTS.md](bench/RESULTS.md).
 
+## Getting started
+
+lungecuta runs on a Mac with Apple Silicon. You need Claude Code or Codex, and you do not
+need to program: open either one in any folder, paste this, and answer its questions.
+
+```
+Install https://github.com/son-engr-kr/lungecuta so I can edit videos with it.
+```
+
+It installs lungecuta as the steps below say (asking you to approve the commands that
+download or write outside that folder), then asks for your footage and your song and
+makes your first project. You watch, scrub and adjust the edit in the editor it opens in
+your browser.
+
+### Installing, for the agent
+
+Run each step and check it before the next, and tell the person what each download is.
+
+1. `uname -sm` prints `Darwin arm64`. If not, stop: lungecuta runs only on macOS on
+   Apple Silicon.
+2. `git --version`. On a Mac without Apple's command line developer tools this opens
+   their installer instead: ask the person to click Install, wait until it has finished,
+   and run it again.
+3. `uv --version`. If uv is missing, install it with Astral's installer,
+   `curl -LsSf https://astral.sh/uv/install.sh | sh`, which puts it in `~/.local/bin`.
+4. Clone the repository to `~/.local/share/lungecuta` and, in that directory, put the
+   `lungecuta` command on the PATH with the versions `uv.lock` pins (editable, so a
+   `git pull` updates it):
+
+   ```sh
+   git clone https://github.com/son-engr-kr/lungecuta ~/.local/share/lungecuta
+   cd ~/.local/share/lungecuta
+   uv tool install --editable . --constraints <(uv export --frozen --no-dev --no-emit-project --no-hashes)
+   ```
+
+5. `lungecuta setup` fetches, once, what lungecuta needs beside its Python packages (the
+   pinned ffmpeg build, Playwright's headless Chromium and the beat model, each otherwise
+   fetched on first use) and writes the lungecuta skill for Claude Code
+   (`~/.claude/skills/lungecuta/`) and Codex (`~/.agents/skills/lungecuta/`).
+6. `lungecuta doctor` prints `"ok": true`. A check that fails says what to run.
+7. Read `~/.claude/skills/lungecuta/SKILL.md` (Codex's copy is the same file) and follow
+   it: it starts the person's first project.
+
+A command just installed into `~/.local/bin` may not be found by the shell that
+installed it: call it by its full path (`~/.local/bin/uv`, `~/.local/bin/lungecuta`), and
+run `uv tool update-shell` if a new terminal does not find it either.
+
+To update: `git -C ~/.local/share/lungecuta pull`, the install command again in that
+directory, then `lungecuta setup`. To work on lungecuta itself, run the same install
+command in your own clone; [AGENTS.md](AGENTS.md) is for agents working on the repository.
+
 ## Working with Claude Code or Codex
 
-Put the `lungecuta` command on the PATH, from this repository, with the versions `uv.lock`
-pins (editable, so a `git pull` updates it):
-
-```sh
-uv tool install --editable . --constraints <(uv export --frozen --no-dev --no-emit-project --no-hashes)
-```
-
-Then fetch what it needs beside its Python packages, a pinned ffmpeg build, Playwright's
-headless Chromium and the beat model (each would otherwise be fetched on first use), and
-check the machine; `lungecuta doctor` says what to run for anything that fails:
-
-```sh
-lungecuta setup
-lungecuta doctor
-```
-
-Then make a project with `lungecuta init DIR` and open Claude Code or Codex in it. The project
-gets the guide the agent reads (`AGENTS.md`, imported by `CLAUDE.md`), a `.mcp.json` that
-starts `lungecuta mcp` for Claude Code and a `.codex/config.toml` that starts it for Codex, so the
-agent offers every command as an MCP tool, with frames and sheets returned as images.
-Claude Code asks once before it starts a project's server; Codex reads the project's
-config once you trust the project when it asks.
+A project is a directory made by `lungecuta init DIR`. Open Claude Code or Codex in it:
+the project has the guide the agent reads (`AGENTS.md`, imported by `CLAUDE.md`), a
+`.mcp.json` that starts `lungecuta mcp` for Claude Code and a `.codex/config.toml` that
+starts it for Codex, so the agent offers every command as an MCP tool, with frames and
+sheets returned as images. Claude Code asks once before it starts a project's server;
+Codex reads the project's config once you trust the project when it asks.
 
 Without MCP the agent runs `lungecuta` in a shell: every command prints one JSON object, and
 `lungecuta commands` describes them all.
@@ -52,7 +87,8 @@ Without MCP the agent runs `lungecuta` in a shell: every command prints one JSON
 ## Phase 0 tools
 
 ```
-lungecuta setup                            fetch the pinned ffmpeg, the headless Chromium, the beat model
+lungecuta setup                            fetch the pinned ffmpeg, the headless Chromium, the beat model;
+                                           write the skill for Claude Code and Codex
 lungecuta doctor                           whether this machine has what lungecuta needs, and what to run
 lungecuta init DIR                         a new project, with AGENTS.md and CLAUDE.md for a coding agent
 lungecuta guide [--write]                  that guide, printed or brought up to date in a project

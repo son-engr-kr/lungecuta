@@ -79,7 +79,7 @@ def test_ffmpeg_is_the_pinned_build_and_git_comes_from_the_path():
 def test_doctor_reports_each_requirement():
     result = CliRunner().invoke(main, ["doctor"], catch_exceptions=False)
     printed = json.loads(result.output)
-    assert [check["name"] for check in printed["checks"]] == ["platform", "ffmpeg", "chromium", "beat model", "command"]
+    assert [check["name"] for check in printed["checks"]] == ["platform", "ffmpeg", "chromium", "beat model", "skill", "command"]
     assert printed["ok"] == all(check["ok"] for check in printed["checks"])
     assert result.exit_code == (0 if printed["ok"] else 1)
     assert all(("fix" in check) != check["ok"] for check in printed["checks"][1:])

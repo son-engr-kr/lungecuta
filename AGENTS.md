@@ -79,6 +79,11 @@ the Phase 0 media tests need samples of your own (see Conventions).
   model ahead; `lungecuta doctor` checks the machine (`runtime.py`). Its decodes of the
   S-Log3 and HLG samples are identical to Homebrew 8.1's, frame for frame; the music
   sample's MP3 decodes differently by at most 7.2e-7 (`bench/ffmpeg_builds.py`).
+- **A person who does not program starts with one sentence** to Claude Code or Codex,
+  asking it to install lungecuta from the repository's URL: the README's "Installing, for
+  the agent" gives each step and its check, and `lungecuta setup` writes the lungecuta skill
+  (`skill.py`) into `~/.claude/skills/` and `~/.agents/skills/`, which takes the agent to a
+  first project; keep it in step with the CLI, which `tests/test_skill.py` checks.
 - **M5 and M7 have started**: transitions (`dissolve`, `dip`, `fade_in`, `fade_out` in
   the working space, `lungecuta op transition`), precomps (`comp` layers, recursive, composited
   in the working space), layer rotation, masks (rectangles and ellipses, feathered,

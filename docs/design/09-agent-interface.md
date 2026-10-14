@@ -20,8 +20,8 @@ returns its report as the tool's error; the server keeps running.
 | `lungecuta status` | what is in the project for an agent arriving: media (footage with its colour space and whether it is usable, music with its tempo and licence), comps (size, rate, length, layers by type, markers, transitions), the editor changes `lungecuta changes` has not shown, and each render in the cache with whether its comp and media still match (`src/lungecuta/status.py`) |
 | `lungecuta commands` | every command as data: its summary, arguments and options (flags, types, defaults, choices, whether required), the `op` group's operations among them, so an agent reads the CLI without parsing help text |
 | `lungecuta mcp [--project DIR]` | every command above (but `serve`) as an MCP tool on stdio, named by its words (`still`, `op_place`; the server's name, `lungecuta`, is their namespace), defaulting to the project; the guide is the server's instructions; a project's `.mcp.json` starts it for Claude Code and its `.codex/config.toml` for Codex |
-| `lungecuta doctor` | whether this machine can run lungecuta: the platform, the pinned ffmpeg build (hashed), Playwright's headless Chromium, Beat This!'s checkpoint and the `lungecuta` command on the PATH, each with what was found and what to run when it fails; exit status 1 when one does (`src/lungecuta/runtime.py`) |
-| `lungecuta setup` | fetches what `doctor` finds missing: the pinned ffmpeg build ([08-deliver.md](08-deliver.md#licences)), the headless Chromium and the checkpoint, each otherwise fetched on first use; installers' progress goes to stderr |
+| `lungecuta doctor` | whether this machine can run lungecuta: the platform, the pinned ffmpeg build (hashed), Playwright's headless Chromium, Beat This!'s checkpoint, the lungecuta skill for Claude Code and Codex and the `lungecuta` command on the PATH, each with what was found and what to run when it fails; exit status 1 when one does (`src/lungecuta/runtime.py`) |
+| `lungecuta setup` | fetches what `doctor` finds missing: the pinned ffmpeg build ([08-deliver.md](08-deliver.md#licences)), the headless Chromium and the checkpoint, each otherwise fetched on first use, and writes the skill ([getting started](#getting-started-before-a-project-exists)); installers' progress goes to stderr |
 | `lungecuta guide [--write]` | the guide a coding agent reads in a project (below); `--write` puts it into the project's `AGENTS.md` between its markers and makes `CLAUDE.md` import it |
 | `lungecuta import FILES...` | media records, one file each under `media/`: probe, rates and timecode, colour decision with evidence, decoder check, proxy, PCM WAV and beat map for music, or with `--sound` a PCM WAV and no beat map (effects, voices). Each file must lie under a root named with `--root NAME` |
 | `lungecuta beats KEY` | runs the beat analysis of a music record again on its WAV and writes the new times only if every beat and downbeat index is kept; otherwise lists the inserted and removed beats and exits with status 1, and `--replace` applies it anyway ([03-project-format.md](03-project-format.md#beat-maps)) |
@@ -67,6 +67,27 @@ returns its report as the tool's error; the server keeps running.
 - **Schemas:** `lungecuta schema --write` regenerates `schema/*.json` from the pydantic models; a
   test fails when the committed files differ. In Phase 0 the schema covers `project.json`,
   media records and `roots.local.json`; comps, styles and grades follow in M0 and M2.
+
+### Getting started, before a project exists
+
+The person this is for may not program. They paste one sentence into Claude Code or
+Codex, asking it to install lungecuta from the repository's URL; the README's
+"Installing, for the agent" section gives the agent each step and its check (platform,
+git, uv, the clone and the install, `lungecuta setup`, `lungecuta doctor`). `lungecuta setup` also
+writes the lungecuta skill into each agent's personal skills directory,
+`~/.claude/skills/lungecuta/SKILL.md` for Claude Code and `~/.agents/skills/lungecuta/SKILL.md` for
+Codex (the places each agent's documentation names; both pick up a new skill without a
+restart, Claude Code only if `~/.claude/skills/` existed when the session started, so the
+README tells the agent to read the file directly). The skill takes the agent from an
+installed lungecuta to a first project: check the machine, ask the person in one message
+for a name, the footage folder, the song and the shape of the video, then `init`, `root`,
+`import`, `status` and `new-comp`, and tell the person how to open the agent in the
+project folder, where the project's guide takes over. It is written in the agent
+skills format (agentskills.io/specification: a `name` matching its directory and a
+`description` of at most 1024 characters) and replaced whole on every `lungecuta setup`; `lungecuta
+doctor` fails while either file differs from the installed version's, and a test fails
+when the skill names a command or an option the CLI does not have
+(`src/lungecuta/skill.py`, `tests/test_skill.py`).
 
 ### Working in a project with Claude Code or Codex
 

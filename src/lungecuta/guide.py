@@ -21,6 +21,8 @@ IMPORT = "@AGENTS.md"
 SERVER = {"command": "lungecuta", "args": ["mcp"]}  # lungecuta on the PATH; it finds the project from where it starts
 # How the repository puts lungecuta on the PATH, with the versions uv.lock pins (README.md says it too)
 INSTALL = "uv tool install --editable . --constraints <(uv export --frozen --no-dev --no-emit-project --no-hashes)"
+# What puts it there, for a command that is missing or that a shell does not find
+PUT_ON_PATH = f"`{INSTALL}` in the lungecuta repository; if it is installed already, `uv tool update-shell` and a new terminal"
 
 GUIDE = """\
 # Working in this lungecuta project (lungecuta {version})

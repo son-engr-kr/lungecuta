@@ -14,7 +14,7 @@ from ..detect import detect as detect_clip
 from ..files import json_text, write_atomic
 from ..media import import_files, relink as relink_root, set_root, summary
 from ..probe import probe
-from ..guide import INSTALL, SERVER
+from ..guide import PUT_ON_PATH, SERVER
 from ..project import find_project, init_project
 from ..runtime import on_path
 from ..schema import SCHEMAS, schema_text
@@ -38,8 +38,7 @@ def init(directory: Path) -> None:
     printed = {"project": str(init_project(directory))}
     if not on_path(SERVER["command"]):
         printed["mcp"] = (f"{SERVER['command']} is not on the PATH outside this virtual environment, so an agent "
-                          "started elsewhere cannot start the project's MCP server; `"
-                          f"{INSTALL}` in the lungecuta repository puts it there")
+                          f"started elsewhere cannot start the project's MCP server: {PUT_ON_PATH}")
     print_json(printed)
 
 

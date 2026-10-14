@@ -1,9 +1,9 @@
 """What lungecuta needs beside its Python packages, checked by `lungecuta doctor` and fetched
 by `lungecuta setup`: the pinned ffmpeg build (`tools.py`), Playwright's headless Chromium,
-which renders graphics, Beat This!'s checkpoint, which makes beat maps, and the lungecuta
-command on the PATH, which a project's MCP configuration starts. Each of the first three is
-also fetched on first use; setup fetches them ahead, so that a first import or render does
-not stop to download."""
+which renders graphics, Beat This!'s checkpoint, which makes beat maps, the lungecuta skill
+for Claude Code and Codex (`skill.py`), and the lungecuta command on the PATH, which a
+project's MCP configuration starts. Each of the first three is also fetched on first use;
+setup fetches them ahead, so that a first import or render does not stop to download."""
 from __future__ import annotations
 
 import os
@@ -16,7 +16,8 @@ from pathlib import Path
 from typing import Any
 
 from . import tools
-from .guide import INSTALL, SERVER
+from .guide import PUT_ON_PATH, SERVER
+from .skill import current, install_skill, skill_files
 
 SETUP = "lungecuta setup"
 
@@ -74,9 +75,14 @@ def checks() -> list[dict[str, Any]]:
     checkpoint = checkpoint_file()
     out.append({"name": "beat model", "ok": checkpoint.is_file(),
                 "detail": f"Beat This! checkpoint {CHECKPOINT}, for beat maps, in {checkpoint}", "fix": SETUP})
+    installed = current(Path.home())
+    out.append({"name": "skill", "ok": all(installed.values()),
+                "detail": "the lungecuta skill, for starting a project: " + ", ".join(
+                    f"{agent}'s in {file} {'current' if installed[agent] else 'missing or from another version'}"
+                    for agent, file in skill_files(Path.home()).items()), "fix": SETUP})
     out.append({"name": "command", "ok": on_path(SERVER["command"]),
                 "detail": f"{SERVER['command']} on the PATH, which a project's .mcp.json and "
-                          ".codex/config.toml start", "fix": INSTALL})
+                          ".codex/config.toml start", "fix": PUT_ON_PATH})
     for check in out:
         if check["ok"]:
             check.pop("fix", None)
@@ -84,9 +90,9 @@ def checks() -> list[dict[str, Any]]:
 
 
 def setup() -> dict[str, Any]:
-    """Fetch what is missing: the pinned ffmpeg, the headless Chromium, the beat model.
-    Installers' progress goes to stderr, never stdout, which carries the JSON (and, under
-    lungecuta mcp, the protocol)."""
+    """Fetch what is missing: the pinned ffmpeg, the headless Chromium, the beat model; and
+    write the skill for Claude Code and Codex. Installers' progress goes to stderr, never
+    stdout, which carries the JSON (and, under lungecuta mcp, the protocol)."""
     from .music import CHECKPOINT, checkpoint_file, fetch_checkpoint
 
     assert tools.supported(), (f"lungecuta pins an ffmpeg build for {tools.BUILD.system} on "
@@ -98,4 +104,4 @@ def setup() -> dict[str, Any]:
     if not checkpoint_file().is_file():
         fetch_checkpoint()
         fetched.append(f"Beat This! {CHECKPOINT}")
-    return {"fetched": fetched}
+    return {"fetched": fetched, "skill": install_skill(Path.home())}
