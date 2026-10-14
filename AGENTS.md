@@ -213,7 +213,8 @@ D-Log M and D-Log 2 (Osmo Pocket 4P), with the LUTs DJI ships for each; a lens-c
 and a colour chart from every body.
 
 The user shoots a Sony ILCE-7CM2 (S-Log3, HLG) and DJI cameras including the Osmo
-Pocket 4P (D-Log 2, 10-bit, 1x zoom only).
+Pocket 4P (D-Log 2, 10-bit, 1x zoom only). Their recent footage is all S-Log3, so the HLG
+input mapping is deferred (the user, 2026-10-13): HLG clips keep importing as undecided.
 
 ## Phase 0, as tasks
 
@@ -328,7 +329,7 @@ Each is labelled where it is cited; collected here so none is mistaken for a fac
 - VideoToolbox correctness on a real XAVC HS original
 - how OCIO's tone-zone ranges (`GradingToneTransform`) map onto DaVinci Intermediate (the primary grade's mapping is settled, `04-color.md`)
 - what reaches the screen in Chrome, QuickTime and Safari (screen capture, not decode APIs)
-- the HLG input mapping (what to do with `hlg-slog3ootf` clips)
+- the HLG input mapping (what to do with `hlg-slog3ootf` clips; deferred by the user, 2026-10-13)
 - RIFE against Resolve free's Optical Flow on the user's footage
 - VideoToolbox H.264 encode quality against x264
 - PyTorch MPS numerical agreement with numpy references
