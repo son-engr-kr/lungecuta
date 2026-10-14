@@ -22,6 +22,7 @@ def test_init_creates_the_project_layout(tmp_path):
     directory = tmp_path / "myedit.lungecuta"
     printed = run("init", str(directory))
     assert printed["project"] == str(directory.resolve())
+    assert printed["git"] == "a new repository" and (directory / ".git").is_dir()
     from lungecuta.runtime import on_path
     # .mcp.json starts `lungecuta mcp`, so init says when lungecuta is not on the PATH outside this venv
     assert ("mcp" in printed) == (not on_path("lungecuta"))
@@ -37,6 +38,15 @@ def test_init_creates_the_project_layout(tmp_path):
     assert project.color.view == "ACES 2.0 - SDR 100 nits (Rec.709)"
     assert project.proxy_height == 540
     assert project.media_roots == [] and project.comps == [] and project.deliver == []
+
+
+def test_a_project_in_a_repository_is_part_of_it(tmp_path):
+    import subprocess
+
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    printed = run("init", str(tmp_path / "edit.lungecuta"))
+    assert printed["git"] == f"in the repository at {tmp_path.resolve()}"
+    assert not (tmp_path / "edit.lungecuta" / ".git").exists()
 
 
 def test_init_accepts_an_existing_empty_directory(tmp_path):

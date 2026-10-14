@@ -100,7 +100,9 @@ graph editor, grade, and mark a range with I and O to talk about it with you.
 playhead, the selected layer and the marked range, which is what "here", "this shot"
 and "this part" mean.
 
-When a render is made and checked (the guide says how), show the file with `open -R FILE`.
+Render the video where the person will find it, not in the project's cache:
+`lungecuta render COMP --preset web-h264 --out ~/Movies/NAME.mp4 --project PROJECT`. Check
+it as the guide says, then show it to them with `open -R ~/Movies/NAME.mp4`.
 """
 
 

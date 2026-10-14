@@ -104,3 +104,11 @@ def test_a_codex_config_keeps_what_it_holds(tmp_path):
     read = tomllib.loads(config.read_text())
     assert read["model"] == "gpt-5.5" and set(read["mcp_servers"]) == {"other", "lungecuta"}
     assert write_guide(tmp_path)["files"][".codex/config.toml"] == "unchanged"
+
+
+def test_the_help_says_what_each_grade_field_and_property_value_means():
+    grade = CliRunner().invoke(main, ["op", "grade", "--help"]).output
+    assert "offset (0.0): added to the working-space code values" in grade and "power ([1.0, 1.0, 1.0])" in grade
+    for command in ("set", "key"):
+        text = CliRunner().invoke(main, ["op", command, "--help"]).output
+        assert "fractions of the comp's width and height" in text and "gain (0.0): dB" in text

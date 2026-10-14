@@ -84,8 +84,8 @@ missing; `lungecuta setup` fetches it.
 6. Delivering: `lungecuta render COMP --preset P` (`web-h264`, `web-hevc10`, `master-prores-hq`,
    `prores-4444-alpha`), then `lungecuta verify FILE --comp COMP --preset P` and `lungecuta flash FILE`.
    Both exit with status 1 when the file fails.
-7. Commit each review round (the project is meant to be a git repository); never
-   overwrite a version the person has seen.
+7. Commit each review round (`lungecuta init` made the project a git repository, unless it
+   lay in one); never overwrite a version the person has seen.
 
 ## Building a cut
 

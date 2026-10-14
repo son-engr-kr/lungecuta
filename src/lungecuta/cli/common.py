@@ -2,11 +2,14 @@
 options, and the `lungecuta` group itself."""
 from __future__ import annotations
 
+import inspect
 import json
 from pathlib import Path
 from typing import Any
 
 import click
+from pydantic import BaseModel
+from pydantic_core import PydanticUndefined
 
 from ..media import Project
 from ..project import find_project
@@ -54,3 +57,17 @@ size_option = click.option("--size", required=True, help="WIDTHxHEIGHT in pixels
 
 
 rate_option = click.option("--rate", required=True, help="Frame rate as ffprobe writes it: 30000/1001, 25, 60.")
+
+
+def fields_help(title: str, model: type[BaseModel], only: tuple[str, ...] | None = None) -> str:
+    """A model's fields as a block of help text: each field's name, its default and its
+    description, taken from the schema itself so that the help cannot disagree with what
+    the files take. `\\b` keeps click from rewrapping the lines."""
+    doc = " ".join(inspect.cleandoc(model.__doc__ or "").split())
+    lines = ["\b", f"{title}: {doc}" if doc else f"{title}:"]
+    for name, field in model.model_fields.items():
+        if name == "op" or (only is not None and name not in only):
+            continue
+        default = "required" if field.default is PydanticUndefined else json.dumps(field.default)
+        lines.append(f"  {name} ({default})" + (f": {field.description}" if field.description else ""))
+    return "\n".join(lines)

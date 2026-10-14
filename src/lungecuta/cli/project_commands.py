@@ -22,6 +22,21 @@ from ..validate import validate as validate_project
 from .common import main, parse_size, print_json, project_of, project_option
 
 
+def git_repository(directory: Path) -> str:
+    """The repository a new project's versions are committed to: the one it lies in, or a
+    new one in the project."""
+    import subprocess
+
+    from ..tools import run, tool
+
+    inside = subprocess.run([tool("git"), "-C", str(directory), "rev-parse", "--show-toplevel"],
+                            capture_output=True, text=True, stdin=subprocess.DEVNULL)
+    if inside.returncode == 0:
+        return f"in the repository at {inside.stdout.strip()}"
+    run(["git", "init", "-q", str(directory)])
+    return "a new repository"
+
+
 @main.command()
 @click.argument("directory", type=click.Path(file_okay=False, path_type=Path))
 def init(directory: Path) -> None:
@@ -31,11 +46,13 @@ def init(directory: Path) -> None:
     .gitignore for it and cache/, the empty media/, comps/, grades/, styles/,
     graphics/, luts/ and cache/ directories, and the guide a coding agent reads
     (AGENTS.md for Codex, CLAUDE.md importing it for Claude Code; see lungecuta guide) with
-    the .mcp.json and .codex/config.toml that start lungecuta mcp. The .lungecuta suffix is a
-    convention only. When `lungecuta` is not on the PATH, which both need, the output says so
-    and how to put it there.
+    the .mcp.json and .codex/config.toml that start lungecuta mcp; and makes it a git
+    repository, for the review rounds the guide commits, unless it lies in one already. The
+    .lungecuta suffix is a convention only. When `lungecuta` is not on the PATH, which both
+    need, the output says so and how to put it there.
     """
-    printed = {"project": str(init_project(directory))}
+    project = init_project(directory)
+    printed = {"project": str(project), "git": git_repository(project)}
     if not on_path(SERVER["command"]):
         printed["mcp"] = (f"{SERVER['command']} is not on the PATH outside this virtual environment, so an agent "
                           f"started elsewhere cannot start the project's MCP server: {PUT_ON_PATH}")

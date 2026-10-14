@@ -8,7 +8,13 @@ from typing import Any
 import click
 
 from .. import ops
-from .common import main, print_json, project_of, project_option
+from ..schema.comp import AudioLayer, Cdl, Lut, MotionBlur, Primary, Transform
+from .common import fields_help, main, print_json, project_of, project_option
+
+# What a property's value means, for the operations that set one
+PROPERTIES = "\n\n".join([
+    fields_help("footage", Transform), fields_help("motion blur (shutter)", MotionBlur, ("shutter_deg",)),
+    fields_help("audio", AudioLayer, ("gain", "fade_in", "fade_out"))])
 
 
 @main.command("audio-check")
@@ -214,7 +220,7 @@ def op_unstyle(comp: str, layer: str, project_dir: Path | None) -> None:
     print_json(ops.unstyle(project_of(project_dir), comp, layer))
 
 
-@op.command("key")
+@op.command("key", epilog=PROPERTIES)
 @click.argument("comp")
 @click.argument("layer")
 @click.argument("prop", type=click.Choice(ops.KEYED))
@@ -247,7 +253,7 @@ def op_unkey(comp: str, layer: str, prop: str, at: str, project_dir: Path | None
     print_json(ops.unkey(project_of(project_dir), comp, layer, prop, at))
 
 
-@op.command("set")
+@op.command("set", epilog=PROPERTIES)
 @click.argument("comp")
 @click.argument("layer")
 @click.argument("prop", type=click.Choice(["position", "scale", "opacity", "rotation", "anchor", "shutter", "gain",
@@ -313,14 +319,17 @@ def op_remap(comp: str, layer: str, project_dir: Path | None) -> None:
     print_json(ops.remap(project_of(project_dir), comp, layer))
 
 
-@op.command("grade")
+@op.command("grade", epilog="\n\n".join([
+    "Each operation's fields, with the value it takes when absent:",
+    fields_help("primary", Primary), fields_help("cdl", Cdl), fields_help("lut", Lut)]))
 @click.argument("comp")
 @click.argument("layer")
 @click.option("--ops", "operations", required=True,
               help='The grade as JSON, the operations in order: \'[{"op": "primary", "contrast": 1.1}]\', [] for none.')
 @project_option
 def op_grade(comp: str, layer: str, operations: str, project_dir: Path | None) -> None:
-    """Replace LAYER's grade (docs/design/04-color.md): primary, cdl and lut operations."""
+    """Replace LAYER's grade: primary, cdl and lut operations, applied in order on the
+    working space's code values."""
     print_json(ops.set_grade(project_of(project_dir), comp, layer, json.loads(operations)))
 
 
