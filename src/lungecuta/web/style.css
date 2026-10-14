@@ -57,6 +57,7 @@ main { display: grid; grid-template-rows: minmax(200px, 1fr) auto auto auto 90px
              border-top: 1px solid var(--line); }
 #time { font-variant-numeric: tabular-nums; min-width: 190px; }
 #beat, #selection { color: var(--dim); font-variant-numeric: tabular-nums; }
+#marks { color: #78beff; font-variant-numeric: tabular-nums; white-space: nowrap; }
 #hint { margin-left: auto; color: var(--dim); font-size: 12px; }
 #timeline-box { overflow-x: auto; overflow-y: hidden; background: var(--bg); border-top: 1px solid var(--line); }
 #timeline { display: block; }

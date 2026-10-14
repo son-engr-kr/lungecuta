@@ -206,8 +206,14 @@ def status(project_dir: Path | None) -> None:
 def changes(peek: bool, project_dir: Path | None) -> None:
     """What the editor wrote since the agent last asked, from the journal of UI writes:
     each entry's file, kind (edit, undo, redo) and changes in editing terms. Run it before
-    editing a file by hand, so as not to overwrite what the person just did."""
-    print_json(journal.changes(project_of(project_dir).directory, peek=peek))
+    editing a file by hand, so as not to overwrite what the person just did. `editor` is
+    what the person has on screen in the open editor (null when none is open): the comp,
+    the playhead, the selected layer and the range marked with I and O, each frame with its
+    seconds, beat and layers on screen; it is what "here" and "this shot" mean."""
+    from ..view import read_view
+
+    project = project_of(project_dir)
+    print_json(journal.changes(project.directory, peek=peek) | {"editor": read_view(project)})
 
 
 @main.command()

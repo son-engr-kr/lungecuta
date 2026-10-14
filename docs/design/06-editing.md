@@ -65,6 +65,21 @@ what it showed before (or nothing is written). `grade` replaces a layer's grade 
 building it; `style` and `unstyle` place and take off a style instance
 ([03-project-format.md](03-project-format.md#m2s-part-of-styles)).
 
+### What the agent sees of the editor
+
+The person talks to the agent about what is on their screen: "here", "this shot", "this
+part, a little slower". The open editor reports what that is, once the playhead rests
+(200 ms after it last moved): the comp, the playhead's frame, the selected layer, and a
+range marked with I and O (in and out marks on comp frames, both included, as an
+editor's in and out points; a mark set past the other starts a new range, and Alt+X, as
+in Resolve, clears them). It goes to `cache/editor.json`, which the server removes when
+it stops, and `lungecuta changes` prints it as `editor`: each frame placed in the comp as it
+is now (its seconds, beat coordinate and the layers on screen), the selected layer with
+whether it is still in the comp, and the marked range again as `from` and `to`
+positions, `to` the frame after the out mark, as `lungecuta sheet --from --to` takes them. A
+report is not an edit and is not journalled; a comp shortened since the report gives
+the frames past its end as such rather than moving them (`src/lungecuta/view.py`).
+
 ## The beat grid
 
 The beat map from [02-media.md](02-media.md#music-and-beats) is drawn under the

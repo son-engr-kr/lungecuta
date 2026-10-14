@@ -28,9 +28,9 @@ import numpy as np
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from . import journal, ops
+from . import journal, ops, view
 from .files import content_hash
 from .media import Project
 from .music import wav_bytes
@@ -317,6 +317,15 @@ class EditRequest(BaseModel):
     expect: str
 
 
+class ViewReport(BaseModel):
+    """What the editor shows (view.py); `in` and `out` are the marks, comp frames."""
+    comp: str
+    frame: int
+    selected: str | None
+    mark_in: int | None = Field(alias="in")
+    mark_out: int | None = Field(alias="out")
+
+
 def create_app(directory: Path) -> FastAPI:
     editor = Editor(directory)
 
@@ -327,6 +336,7 @@ def create_app(directory: Path) -> FastAPI:
         task = asyncio.create_task(editor.watch(editor.snapshot()))
         yield
         task.cancel()
+        view.remove_view(editor.directory)
         graphics_server.shutdown()
         for preview in editor.previews.values():
             preview.close()
@@ -392,6 +402,11 @@ def create_app(directory: Path) -> FastAPI:
     @app.post("/api/edit")
     def edit(request: EditRequest) -> dict[str, Any]:
         return editor.edit(request.comp, request.op, request.args, request.expect)
+
+    @app.post("/api/view")
+    def report_view(report: ViewReport) -> dict[str, Any]:
+        view.write_view(editor.directory, report.comp, report.frame, report.selected, report.mark_in, report.mark_out)
+        return {}
 
     @app.post("/api/undo")
     def undo() -> dict[str, Any]:

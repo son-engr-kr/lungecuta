@@ -64,7 +64,9 @@ missing; `lungecuta setup` fetches it.
 ## Every edit
 
 1. `lungecuta changes` before you edit: what the person did in the editor since you last asked.
-   Never write over it.
+   Never write over it. Its `editor` is what they have on screen: the playhead, the
+   selected layer and the range they marked with I and O. That is what "here", "this
+   shot" and "this part" mean; `marked` gives the range as `--from` and `--to`.
 2. Prefer `lungecuta op OP COMP ...` (move, trim, slip, slide, roll, ripple-delete, split, snap,
    place, graphic, key, unkey, move-key, set, remap, style, unstyle, grade, look, unlook,
    masks, transition, untransition, sfx): the editor's own functions, written only if the

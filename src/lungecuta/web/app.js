@@ -20,6 +20,7 @@ const state = {
   curves: null,          // the selected footage layer's properties per frame, from /curves
   styles: [],            // the project's styles
   graph: "speed",        // what the graph editor shows: "speed" or "source"
+  marks: { in: null, out: null },  // the range marked with I and O, comp frames, both included
 };
 const ROW = 30, RULER = 26, GRID = 18, LEFT = 0;
 
@@ -133,6 +134,32 @@ function readout() {
   const coordinate = beatCoordinate(state.frame);
   $("beat").textContent = coordinate === null ? "" : `b:${coordinate.toFixed(2)}`;
   $("selection").textContent = state.selected ? `selected: ${state.selected}` : "";
+  const { in: from, out: to } = state.marks;
+  $("marks").textContent = from === null && to === null ? "" : `marked ${from === null ? "start" : `f:${from}`} to ${to === null ? "end" : `f:${to}`}`;
+  reportView();
+}
+
+// What is on screen goes to the server once the playhead rests, so the agent sees what
+// "here", "this shot" and "this part" mean (lungecuta changes; view.py).
+let viewTimer = null;
+function reportView() {
+  clearTimeout(viewTimer);
+  viewTimer = setTimeout(() => {
+    if (!state.tl) return;
+    api("/api/view", { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ comp: state.tl.name, frame: state.frame, selected: state.selected,
+                             in: state.marks.in, out: state.marks.out }) })
+      .catch((error) => status(error.message, true));
+  }, 200);
+}
+
+function mark(which) {
+  const marks = state.marks;
+  marks[which] = state.frame;
+  // A mark set past the other one starts a new range, as in an editor's in and out points.
+  if (marks.in !== null && marks.out !== null && marks.in > marks.out) marks[which === "in" ? "out" : "in"] = null;
+  readout();
+  drawTimeline();
 }
 
 // ----- beats --------------------------------------------------------------
@@ -281,6 +308,15 @@ function drawTimeline() {
     const my = row < 0 ? RULER - 2 : RULER + GRID + row * ROW + 4;
     g.fillStyle = "#ff6b5b";
     g.beginPath(); g.moveTo(mx, my); g.lineTo(mx - 5, my - 7); g.lineTo(mx + 5, my - 7); g.closePath(); g.fill();
+  }
+  // The marked range, from the in mark's frame to the end of the out mark's.
+  const { in: from, out: to } = state.marks;
+  if (from !== null || to !== null) {
+    const x0 = x(from ?? 0), x1 = x((to ?? tl.frames - 1) + 1);
+    g.fillStyle = "rgba(120,190,255,0.10)";
+    g.fillRect(x0, 0, x1 - x0, height);
+    g.fillStyle = "rgba(120,190,255,0.85)";
+    g.fillRect(x0, 0, x1 - x0, 3);
   }
   // The playhead.
   g.strokeStyle = "#ffffff";
@@ -982,7 +1018,7 @@ async function loadComp(name, keepFrame = false) {
   const asked = ++timelineAsks;
   const tl = await api(`/api/comp/${name}`);
   if (asked !== timelineAsks) return;
-  if (!keepFrame) state.frame = 0;
+  if (!keepFrame) { state.frame = 0; state.marks = { in: null, out: null }; }
   setTimeline(tl);
 }
 
@@ -1038,6 +1074,8 @@ window.addEventListener("keydown", (event) => {
   else if (event.key === "-") { state.zoom = Math.max(0.25, state.zoom / 1.5); drawTimeline(); }
   else if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") { event.preventDefault(); step(event.shiftKey ? "redo" : "undo"); }
   else if (event.key === "s" && state.selected) edit("split", { layer_id: state.selected, at: `f:${state.frame}` });
+  else if (event.code === "KeyX" && event.altKey) { state.marks = { in: null, out: null }; readout(); drawTimeline(); }
+  else if (event.key === "i" || event.key === "o") mark(event.key === "i" ? "in" : "out");
   else if ((event.key === "Delete" || event.key === "Backspace") && state.selected) {
     edit("ripple-delete", { layer_id: state.selected });
     state.selected = null;

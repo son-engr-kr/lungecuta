@@ -95,7 +95,10 @@ it, giving every command `--project PROJECT`.
 Start `lungecuta serve --project PROJECT` in the background (it keeps running); it
 opens the editor in the browser at http://127.0.0.1:8770. Tell the person what they can
 do there: play with sound, scrub, drag cuts and keyframes, shape a speed ramp in the
-graph editor, grade. What they change reaches you through `lungecuta changes`.
+graph editor, grade, and mark a range with I and O to talk about it with you.
+`lungecuta changes` tells you what they changed and what is on their screen: the
+playhead, the selected layer and the marked range, which is what "here", "this shot"
+and "this part" mean.
 
 When a render is made and checked (the guide says how), show the file with `open -R FILE`.
 """

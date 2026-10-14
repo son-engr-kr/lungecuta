@@ -278,3 +278,32 @@ def test_a_key_dragged_across_the_graph_moves_in_time(page, cut_project):
           "the key moved in time")
     keys = shot1(cut_project)["transform"]["opacity"]["keys"]
     assert keys[0] == {"t": "b:1", "v": 1.0} and keys[1]["v"] == 0.5 and keys[1]["t"] != "b:3"
+
+
+def test_what_is_on_screen_reaches_the_agent(page, cut_project):
+    from lungecuta.media import Project
+    from lungecuta.view import read_view
+
+    def reported(check, what):
+        deadline = time.monotonic() + 10
+        while not ((view := read_view(Project.load(cut_project))) and check(view)):
+            assert time.monotonic() < deadline, f"{what}: not reported; status {page.inner_text('#status')!r}"
+            time.sleep(0.05)
+        return view
+
+    page.evaluate("show(20)")
+    page.keyboard.press("i")
+    page.evaluate("show(90)")
+    page.keyboard.press("o")
+    click_layer(page, "shot2")
+    view = reported(lambda v: v.get("selected") and v.get("marked", {}).get("out"), "the marks and the selection")
+    assert view["comp"] == "main" and view["selected"] == {"layer": "shot2", "in_comp": True}
+    assert (view["marked"]["from"], view["marked"]["to"]) == ("f:20", "f:91")
+    assert view["playhead"]["frame"] == 90 and "shot2" in view["playhead"]["layers"]
+    assert page.inner_text("#marks") == "marked f:20 to f:90"
+    page.evaluate("show(10)")
+    page.keyboard.press("o")  # an out before the in starts a new range
+    view = reported(lambda v: v["marked"]["out"]["frame"] == 10, "a new range")
+    assert view["marked"]["in"] is None and view["marked"]["from"] == "f:0"
+    page.keyboard.press("Alt+KeyX")
+    reported(lambda v: "marked" not in v, "clearing the marks")

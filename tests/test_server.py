@@ -164,3 +164,16 @@ def test_a_write_during_a_read_is_never_taken_for_the_version_read(cut_project, 
     monkeypatch.setattr(preview_module, "load_comp", load_then_written)
     preview = Preview(Project.load(cut_project), "main")
     assert preview.comp.layers[2].start == "b:5" and not preview.stale() and len(calls) == 2
+
+
+def test_the_editor_reports_what_is_on_screen_until_it_stops(cut_project):
+    from lungecuta.media import Project
+    from lungecuta.view import VIEW, read_view
+
+    with TestClient(create_app(cut_project)) as client:
+        report = {"comp": "main", "frame": 68, "selected": "shot2", "in": None, "out": None}
+        assert client.post("/api/view", json=report).status_code == 200
+        assert read_view(Project.load(cut_project))["playhead"]["frame"] == 68
+        refused = client.post("/api/view", json=report | {"in": 40, "out": 20})
+        assert refused.status_code == 409 and "is after out" in refused.json()["detail"]
+    assert not (cut_project / VIEW).exists()
