@@ -113,11 +113,27 @@ because AAC chunks would each carry encoder priming and leave gaps at the joins.
 
 ## Licences
 
-ffmpeg is used as a subprocess. The Homebrew build includes GPL encoders (libx264,
-libx265); using it this way does not affect lungecuta's licence. An app bundle would ship
-an LGPL ffmpeg and use the VideoToolbox encoders for H.264 and HEVC, which loses x264,
-the measured baseline above; VideoToolbox H.264 is measured against x264 on the same
-material before a bundle is offered.
+ffmpeg is used as a subprocess, and it is one pinned build, never whatever is on the PATH
+(`src/lungecuta/tools.py`): Martin Riedl's static release build of FFmpeg 9.0.2 for macOS
+on Apple Silicon (https://ffmpeg.martin-riedl.de), signed with its builder's Developer
+ID, which lungecuta fetches from the builder on first use or with `lungecuta setup`, and
+checks against the SHA-256 published beside each archive and the SHA-256 of the program
+inside. Two builds were found to decode the same MP3 to different samples (by at most
+7.2e-7, `bench/ffmpeg_builds.py`), so a beat map or a loudness figure depends on the
+build; with one build every machine gets the same numbers. No other platform has a pinned
+build yet, and `lungecuta doctor` says so.
+
+The build is GPL v3 (`ffmpeg -L`; it holds libx264 and libx265). lungecuta does not link
+it and does not redistribute it, since each machine fetches it from its builder, so its
+licence does not reach lungecuta's. Mirroring it, as Pickapicka mirrors model weights,
+would be redistribution and carry the GPL's obligation to provide its source; it is not
+done. PyAV's wheel, through which the editor decodes proxies, holds its own FFmpeg
+libraries (9.0.2 too) and calls them LGPL v3, yet ships libx264 and libx265 (in its
+`.dylibs`, seen 2026-10-14); which licence that wheel is under is not resolved, and
+lungecuta uses PyAV only to decode. An app bundle would ship an LGPL ffmpeg and use the
+VideoToolbox encoders for H.264 and HEVC, which loses x264, the measured baseline above;
+VideoToolbox H.264 is measured against x264 on the same material before a bundle is
+offered.
 
 The Python dependencies so far, from their package metadata: click (BSD-3-Clause),
 pydantic (MIT), numpy (BSD-3-Clause and others, all permissive), OpenColorIO

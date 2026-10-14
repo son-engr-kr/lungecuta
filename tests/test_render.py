@@ -11,6 +11,7 @@ from click.testing import CliRunner
 from lungecuta.cli import main
 from lungecuta.decode import Layout, frame_rgb, to_rgb
 from lungecuta.encode import PRESETS, SEMI_PLANAR, decimate, frame_bytes, quantize, ycbcr
+from lungecuta.tools import tool
 
 from clips import TITLE, comp_json, put_comp
 
@@ -111,7 +112,7 @@ def test_lossy_audio_is_muxed_as_measured_and_in_time(cut_project):
     result = CliRunner().invoke(main, ["render", "main", "--preset", "web-h264", "--project", str(cut_project)])
     assert result.exit_code == 0, result.output
     printed = json.loads(result.output)
-    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", printed["file"], "-map", "0:a:0", "-f", "f32le", "-"],
+    raw = subprocess.run([tool("ffmpeg"), "-v", "error", "-i", printed["file"], "-map", "0:a:0", "-f", "f32le", "-"],
                          capture_output=True, check=True).stdout
     decoded = np.frombuffer(raw, np.float32).reshape(-1, 2)
     assert true_peak_db(decoded, 48000) == pytest.approx(printed["audio"]["delivered_true_peak"], abs=0.005)

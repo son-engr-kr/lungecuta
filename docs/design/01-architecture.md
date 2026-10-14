@@ -219,7 +219,9 @@ to replies by id.
   FFV1 proxy (705 of 705 frames each, `bench/pyav_check.py`, 2026-10-13); Phase 0's stills
   still use the CLI with accurate seeking ([02-media.md](02-media.md#decode)), and the
   check is run on each new codec before PyAV reads it.
-- Licence: MIT, like Pickapicka, with its rules for model weights (D10). The Homebrew
-  ffmpeg is GPL (libx264, libx265); calling it as a subprocess does not affect
-  lungecuta's licence. An app bundle would ship an LGPL ffmpeg, which loses x264, so the
-  VideoToolbox H.264 encoder has to be measured against x264 before a bundle is offered.
+- Licence: MIT, like Pickapicka, with its rules for model weights (D10). The pinned
+  ffmpeg build is GPL (libx264, libx265); calling it as a subprocess, fetched by each
+  machine from its builder, does not affect lungecuta's licence
+  ([08-deliver.md](08-deliver.md#licences)). An app bundle would ship an LGPL ffmpeg,
+  which loses x264, so the VideoToolbox H.264 encoder has to be measured against x264
+  before a bundle is offered.

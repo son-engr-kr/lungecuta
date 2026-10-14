@@ -6,7 +6,8 @@ Several entries were corrected after a design review re-ran them (see
 `docs/design/decisions.md`, D9); the corrected versions are what is below.
 
 Machine: Apple M5 Pro (5 performance + 10 efficiency cores), 24 GB. ffmpeg 8.1
-(Homebrew), OpenColorIO 2.6.0, PyTorch 2.14.1, Python 3.12.13 and numpy 2.5.4 through uv,
+(Homebrew) until 2026-10-13; from 2026-10-14 lungecuta runs its pinned 9.0.2 build
+(`src/lungecuta/tools.py`, compared below), OpenColorIO 2.6.0, PyTorch 2.14.1, Python 3.12.13 and numpy 2.5.4 through uv,
 macOS 26.4.1 (25E253). Measured 2026-10-10 to 2026-10-13.
 
 ## Decode, proxy build, proxy seek: `bench/decode.sh`
@@ -237,6 +238,28 @@ checked against the CLI's md5 for its index.
   per seek: the preview reads proxies through PyAV.
 - 23 fps sequential on the 4K original is PyAV's default, which decodes on one thread; the
   CLI's 210 fps uses frame threads. Not measured with PyAV's threading turned on.
+
+## Two ffmpeg builds: `uv run python bench/ffmpeg_builds.py DIR_A DIR_B FILE...`
+
+Homebrew's ffmpeg 8.1 against the build lungecuta pins (FFmpeg 9.0.2, Martin Riedl's
+static macOS arm64 release), 2026-10-14: the framemd5 of every decoded video frame (in the
+decoder's own pixel format, `-noautorotate`) and audio frame (as 32-bit float).
+
+| file | video frames identical | audio frames identical |
+| --- | --- | --- |
+| the S-Log3 sample (H.264 4:2:2 10-bit, PCM) | 705 of 705 | 1128 of 1128 |
+| the HLG sample (H.264 4:2:2 10-bit, PCM) | 210 of 210 | 336 of 336 |
+| the music sample (MP3) | | 0 of 5204 |
+
+- The camera originals decode identically, so the measurements made with 8.1 on them
+  (decoder checks, proxy parity, stills, renders) stand for the pinned build.
+- The MP3 decodes to different samples: 9,089,620 of 11,985,936 differ, by at most
+  7.2e-7 of full scale (about -123 dBFS), a few float32 steps, as floating-point rounding
+  in two builds of the decoder would give (the cause is not checked). Inaudible, but the
+  WAV a music import writes, and so its hash, depends on the build, which is why
+  lungecuta pins one.
+- The second dry run below, repeated with the pinned build and no ffmpeg on the PATH,
+  gave the same loudness, true peak, PSNR and cut offsets.
 
 ## Phase 1 spike: `bench/spike/`
 
@@ -718,4 +741,10 @@ keeping the first, so a click on a cut just after a drum hit is reported as the 
 first run stopped on one thing: `--for b:4` from `0s` has no meaning before the first beat,
 so `place` and `graphic` take `--to`, the position a layer ends at. The footage import
 took 26 s here against 14 s in the first dry run's second pass, on a machine in use.
+
+Again on 2026-10-14 with lungecuta's pinned ffmpeg build and no ffmpeg on the PATH, run as
+the installed `lungecuta` (`LC=lungecuta`): import 15, 2 and 1 s, the edit 2, lint and
+audio-check under 1, sheet 6, still 2, render 23, verify 5, flash 6. Every check passed
+with the same numbers as above (-14.0 LUFS, -1.6 dBTP, 39.33 dB PSNR, cuts 10.5 to 25.8 ms
+after their beats, no flash).
 

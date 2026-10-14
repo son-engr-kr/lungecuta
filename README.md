@@ -30,6 +30,15 @@ pins (editable, so a `git pull` updates it):
 uv tool install --editable . --constraints <(uv export --frozen --no-dev --no-emit-project --no-hashes)
 ```
 
+Then fetch what it needs beside its Python packages, a pinned ffmpeg build, Playwright's
+headless Chromium and the beat model (each would otherwise be fetched on first use), and
+check the machine; `lungecuta doctor` says what to run for anything that fails:
+
+```sh
+lungecuta setup
+lungecuta doctor
+```
+
 Then make a project with `lungecuta init DIR` and open Claude Code or Codex in it. The project
 gets the guide the agent reads (`AGENTS.md`, imported by `CLAUDE.md`), a `.mcp.json` that
 starts `lungecuta mcp` for Claude Code and a `.codex/config.toml` that starts it for Codex, so the
@@ -43,6 +52,8 @@ Without MCP the agent runs `lungecuta` in a shell: every command prints one JSON
 ## Phase 0 tools
 
 ```
+lungecuta setup                            fetch the pinned ffmpeg, the headless Chromium, the beat model
+lungecuta doctor                           whether this machine has what lungecuta needs, and what to run
 lungecuta init DIR                         a new project, with AGENTS.md and CLAUDE.md for a coding agent
 lungecuta guide [--write]                  that guide, printed or brought up to date in a project
 lungecuta status                           what is in a project: media, comps, unseen edits, stale renders
@@ -81,9 +92,10 @@ lungecuta serve                            the editor in the browser
 lungecuta schema --write                   the JSON Schema of the project files
 ```
 
-Every command prints one JSON object; `lungecuta COMMAND --help` says what it does. It needs
-ffmpeg and ffprobe on the PATH and Playwright's Chromium
-(`uv run playwright install chromium`).
+Every command prints one JSON object; `lungecuta COMMAND --help` says what it does. It runs
+on macOS on Apple Silicon, the one platform with a pinned ffmpeg build
+([docs/design/08-deliver.md](docs/design/08-deliver.md#licences)); ffmpeg on the PATH is
+not used.
 
 ## Layout
 

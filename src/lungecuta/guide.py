@@ -54,7 +54,9 @@ spans from its `start`: `b:4` there is four beats on.
 
 `lungecuta status` lists the media (and which clips are usable), the comps with their length,
 layers and markers, the editor changes you have not seen, and whether each render in the
-cache still matches its comp. `lungecuta validate` checks every file.
+cache still matches its comp. `lungecuta validate` checks every file. `lungecuta doctor` checks
+the machine (the pinned ffmpeg, Chromium, the beat model) and says what to run when a part is
+missing; `lungecuta setup` fetches it.
 
 ## Every edit
 

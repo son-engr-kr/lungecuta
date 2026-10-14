@@ -16,6 +16,7 @@ from ..media import import_files, relink as relink_root, set_root, summary
 from ..probe import probe
 from ..guide import INSTALL, SERVER
 from ..project import find_project, init_project
+from ..runtime import on_path
 from ..schema import SCHEMAS, schema_text
 from ..validate import validate as validate_project
 from .common import main, parse_size, print_json, project_of, project_option
@@ -40,21 +41,6 @@ def init(directory: Path) -> None:
                           "started elsewhere cannot start the project's MCP server; `"
                           f"{INSTALL}` in the lungecuta repository puts it there")
     print_json(printed)
-
-
-def on_path(command: str) -> bool:
-    """Whether `command` is on the PATH as a program started outside this process would
-    see it: the bin directory of the virtual environment running lungecuta (`uv run` puts it
-    first) does not count."""
-    import os
-    import shutil
-    import sys
-
-    directories = os.environ.get("PATH", "").split(os.pathsep)
-    if sys.prefix != sys.base_prefix:
-        ours = (Path(sys.prefix) / "bin").resolve()
-        directories = [d for d in directories if d and Path(d).resolve() != ours]
-    return shutil.which(command, path=os.pathsep.join(directories)) is not None
 
 
 @main.command()

@@ -72,6 +72,13 @@ the Phase 0 media tests need samples of your own (see Conventions).
   `tests/test_guide.py` checks. `lungecuta status` describes a project, `lungecuta commands` the CLI as
   JSON, and `lungecuta mcp` serves every command as an MCP tool (`mcp_server.py`), started for
   Claude Code by the project's `.mcp.json` and for Codex by its `.codex/config.toml`.
+- **ffmpeg is one pinned build** (2026-10-14, the user's choice): FFmpeg 9.0.2 from
+  Martin Riedl's static macOS arm64 release, fetched on first use into
+  `~/Library/Caches/lungecuta/` and checked by SHA-256 (`tools.py`); ffmpeg on the PATH is
+  never used. `lungecuta setup` fetches it, Playwright's headless Chromium and the beat
+  model ahead; `lungecuta doctor` checks the machine (`runtime.py`). Its decodes of the
+  S-Log3 and HLG samples are identical to Homebrew 8.1's, frame for frame; the music
+  sample's MP3 decodes differently by at most 7.2e-7 (`bench/ffmpeg_builds.py`).
 - **M5 and M7 have started**: transitions (`dissolve`, `dip`, `fade_in`, `fade_out` in
   the working space, `lungecuta op transition`), precomps (`comp` layers, recursive, composited
   in the working space), layer rotation, masks (rectangles and ellipses, feathered,
@@ -185,7 +192,7 @@ Decided in this repository rather than taken from Pickapicka:
 
 | item | version |
 | --- | --- |
-| ffmpeg | 8.1, Homebrew (GPL build: call as a subprocess only) |
+| ffmpeg | 9.0.2, Martin Riedl's static macOS arm64 release, pinned (`src/lungecuta/tools.py`; GPL build: call as a subprocess only). Measurements before 2026-10-14 used Homebrew's 8.1 |
 | OpenColorIO | 2.6.0 from PyPI, built-in `studio-config-v5.0.0_aces-v2.1_ocio-v2.6` |
 | PyTorch | 2.14.1, MPS available |
 | Chromium | Playwright 1.63.0: chrome-headless-shell and Chrome for Testing, both 153.0.8010.12 |
@@ -342,3 +349,5 @@ Each is labelled where it is cited; collected here so none is mistaken for a fac
   space it gives a ProRes 4444 graphic (all in the Phase 0 checks)
 - whether swscale's chroma upsampling (used for 4:2:2 and 4:2:0 sources) sites chroma the
   way the camera did; flat areas are unaffected, edges are not checked
+- which licence PyAV's wheel is under: it calls its FFmpeg libraries LGPL v3 but ships
+  libx264 and libx265 ([08-deliver.md](docs/design/08-deliver.md#licences))

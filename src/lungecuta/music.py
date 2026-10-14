@@ -2,7 +2,9 @@
 This! finds in that WAV (docs/design/02-media.md#music-and-beats, D14)."""
 from __future__ import annotations
 
+import contextlib
 import struct
+import sys
 from dataclasses import dataclass
 from importlib.metadata import version
 from pathlib import Path
@@ -103,11 +105,24 @@ def checkpoint_file() -> Path:
     return Path(torch.hub.get_dir()) / "checkpoints" / f"beat_this-{CHECKPOINT}.ckpt"
 
 
+def fetch_checkpoint() -> Path:
+    """The checkpoint, downloaded first if torch.hub does not hold it yet. torch.hub
+    announces a download on stdout, which carries a command's JSON (and, under lungecuta
+    mcp, the result a tool returns), so the announcement goes to stderr."""
+    if not checkpoint_file().is_file():
+        from beat_this.inference import load_checkpoint
+
+        with contextlib.redirect_stdout(sys.stderr):
+            load_checkpoint(CHECKPOINT)
+    return checkpoint_file()
+
+
 def analyse(signal: np.ndarray, rate: int) -> BeatMap:
     """Beats and downbeats of a signal, in seconds from its first sample. Beat This!
     moves every downbeat onto the nearest beat, so each is one of the beat times."""
     from beat_this.inference import Audio2Beats
 
+    fetch_checkpoint()
     tracker = Audio2Beats(checkpoint_path=CHECKPOINT, device=DEVICE, float16=False, dbn=False)
     beats, downbeats = tracker(signal.astype(np.float64), rate)
     times = [float(t) for t in beats]

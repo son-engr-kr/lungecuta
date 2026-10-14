@@ -6,6 +6,7 @@ import pytest
 from lungecuta import color
 from lungecuta.encode import ycbcr
 from lungecuta.flash import AREA, flash, luminance_processor
+from lungecuta.tools import tool
 
 CONFIG = "studio-config-v5.0.0_aces-v2.1_ocio-v2.6"
 SRGB = "sRGB - Display"
@@ -28,7 +29,7 @@ def write(path, frames: list[np.ndarray], rate: str = "30/1") -> None:
     for rgb in frames:
         for plane in ycbcr(rgb.astype(np.float32), bits=10, matrix="bt709"):
             data += np.round(plane).astype("<u2").tobytes()
-    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "yuv444p10le", "-s",
+    subprocess.run([tool("ffmpeg"), "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "yuv444p10le", "-s",
                     f"{width}x{height}", "-r", rate, "-i", "-", "-c:v", "prores_ks", "-profile:v", "5", "-pix_fmt", "yuv444p10le",
                     "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709", "-color_range", "tv",
                     str(path)], input=bytes(data), check=True)

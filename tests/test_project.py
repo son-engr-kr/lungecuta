@@ -22,7 +22,7 @@ def test_init_creates_the_project_layout(tmp_path):
     directory = tmp_path / "myedit.lungecuta"
     printed = run("init", str(directory))
     assert printed["project"] == str(directory.resolve())
-    from lungecuta.cli.project_commands import on_path
+    from lungecuta.runtime import on_path
     # .mcp.json starts `lungecuta mcp`, so init says when lungecuta is not on the PATH outside this venv
     assert ("mcp" in printed) == (not on_path("lungecuta"))
 

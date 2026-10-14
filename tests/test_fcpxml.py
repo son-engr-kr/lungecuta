@@ -12,6 +12,7 @@ from click.testing import CliRunner
 
 from lungecuta.cli import main
 from lungecuta.fcpxml import Clock, file_uri, timecode_frames, timecode_text
+from lungecuta.tools import tool
 
 # 240000 is lcm(30000, 48000): a frame at 29.97 is 8008 of these, a 48 kHz sample 5.
 FRAME = 8008
@@ -142,7 +143,7 @@ def test_a_graphics_layer_goes_to_resolve_as_prores_4444_above_the_cuts(cut_proj
     printed, root = exported(cut_project)
     (graphic,) = printed["graphics"]
     assert graphic["comp_frames"] == [38, 128]
-    stream = json.loads(subprocess.run(["ffprobe", "-v", "error", "-count_packets", "-show_entries",
+    stream = json.loads(subprocess.run([tool("ffprobe"), "-v", "error", "-count_packets", "-show_entries",
                                         "stream=nb_read_packets,pix_fmt", "-of", "json", graphic["file"]],
                                        capture_output=True, text=True, check=True).stdout)["streams"][0]
     assert int(stream["nb_read_packets"]) == 90 and stream["pix_fmt"].startswith("yuva444p")

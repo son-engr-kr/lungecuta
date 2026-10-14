@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 
 from lungecuta.decode import KR_KB, Layout, frame_rgb, to_rgb, upsample
+from lungecuta.tools import tool
 
 
 def codes(y, cb, cr):
@@ -87,12 +88,12 @@ def test_ffmpeg_hands_over_the_decoders_planes_unchanged(tmp_path):
     """Raw output in the stream's own pixel format is the decoded frame: its md5 is the
     framemd5 ffmpeg itself reports."""
     clip = tmp_path / "c.mp4"
-    subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "testsrc2=size=64x36:rate=25", "-frames:v", "2",
+    subprocess.run([tool("ffmpeg"), "-v", "error", "-f", "lavfi", "-i", "testsrc2=size=64x36:rate=25", "-frames:v", "2",
                     "-c:v", "libx264", "-qp", "0", "-pix_fmt", "yuv422p10le", str(clip)], check=True)
     framemd5 = [line.rsplit(",", 1)[-1].strip() for line in subprocess.run(
-        ["ffmpeg", "-v", "error", "-i", str(clip), "-f", "framemd5", "-"], capture_output=True, text=True,
+        [tool("ffmpeg"), "-v", "error", "-i", str(clip), "-f", "framemd5", "-"], capture_output=True, text=True,
         check=True).stdout.splitlines() if line and not line.startswith("#")]
-    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(clip), "-f", "rawvideo", "-pix_fmt", "yuv422p10le", "-"],
+    raw = subprocess.run([tool("ffmpeg"), "-v", "error", "-i", str(clip), "-f", "rawvideo", "-pix_fmt", "yuv422p10le", "-"],
                          capture_output=True, check=True).stdout
     size = Layout.of("yuv422p10le").frame_bytes((64, 36))
     assert [hashlib.md5(raw[k * size:(k + 1) * size]).hexdigest() for k in range(2)] == framemd5
@@ -110,7 +111,7 @@ def test_the_decoder_check_compares_videotoolbox_with_software_byte_for_byte(tmp
 
     def check(name, pix_fmt, *codec):
         path = tmp_path / name
-        subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "testsrc2=size=320x180:rate=25", "-frames:v",
+        subprocess.run([tool("ffmpeg"), "-v", "error", "-f", "lavfi", "-i", "testsrc2=size=320x180:rate=25", "-frames:v",
                         "12", *codec, "-pix_fmt", pix_fmt, str(path)], check=True)
         record = decoder_check(path, pix_fmt=pix_fmt, size=(320, 180), frames=12)
         return record.decoder, record.checked.result, record.checked.frames, record.checked.detail

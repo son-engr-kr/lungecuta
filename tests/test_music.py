@@ -58,6 +58,26 @@ def test_ffmpeg_removes_the_encoder_delay(tmp_path, codec, suffix):
     assert best == 0, f"{suffix} decodes {best} samples late"
 
 
+def test_fetching_the_checkpoint_keeps_stdout_for_the_json(tmp_path, monkeypatch, capsys):
+    """torch.hub announces a download on stdout; under lungecuta mcp that line broke the
+    tool's result, so it goes to stderr."""
+    import beat_this.inference
+
+    from lungecuta import music
+
+    place = tmp_path / "beat_this-final0.ckpt"
+    monkeypatch.setattr(music, "checkpoint_file", lambda: place)
+
+    def download(name):
+        print(f'Downloading: "{name}" to {place}')
+        place.write_bytes(b"weights")
+
+    monkeypatch.setattr(beat_this.inference, "load_checkpoint", download)
+    assert music.fetch_checkpoint() == place
+    out = capsys.readouterr()
+    assert out.out == "" and "Downloading" in out.err
+
+
 def test_a_beat_map_holds_together():
     analyzer = Analyzer(name="beat_this", version="1.1.0", checkpoint="final0", checkpoint_hash="sha256:" + "0" * 64,
                         postprocessing="minimal", device="cpu")

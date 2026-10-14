@@ -16,7 +16,8 @@ stage() { name=$1; shift; t0=$(date +%s); "$@" > "$WORK/$name.out"; echo "$name 
 LC=${LC:-uv run lungecuta}
 lungecuta() { command $LC "$@" --project "$P"; }
 
-ffmpeg -v error -f lavfi -i "sine=frequency=1800:duration=0.12,afade=t=out:st=0.01:d=0.11" -ar 48000 -ac 2 \
+FFMPEG=$(uv run python -c 'from lungecuta.tools import tool; print(tool("ffmpeg"))')  # lungecuta's pinned build
+"$FFMPEG" -v error -f lavfi -i "sine=frequency=1800:duration=0.12,afade=t=out:st=0.01:d=0.11" -ar 48000 -ac 2 \
   "$WORK/sounds/click.wav"
 command $LC init "$P" > /dev/null
 lungecuta root samples "$(dirname "$FOOTAGE")" > /dev/null
