@@ -5,8 +5,38 @@
 // ----- timeline -----------------------------------------------------------
 
 function rows() {
-  // The top row is the top of the stack: the last layer listed.
+  // The layers from the top of the stack down: the last layer listed first.
   return [...state.tl.layers].sort((a, b) => b.row - a.row);
+}
+
+let packed = { tl: null, row: new Map(), count: 0 };
+function layout() {
+  // Layers packed into tracks, as an editor's video track holds its shots: a layer goes on
+  // the track above the highest one holding an earlier layer it overlaps in time, so what
+  // is drawn over what still reads from the top down, and layers that never overlap share
+  // a track. Pictures on top, sound on its own tracks below them.
+  if (packed.tl === state.tl) return packed;
+  const order = [...state.tl.layers].sort((a, b) => a.row - b.row);  // bottom of the stack first
+  const overlaps = (a, b) => a.first < b.end && b.first < a.end;
+  const pack = (layers) => {
+    const track = new Map();
+    layers.forEach((layer, k) => {
+      const under = layers.slice(0, k).filter((other) => overlaps(other, layer)).map((other) => track.get(other.id));
+      track.set(layer.id, under.length ? Math.max(...under) + 1 : 0);
+    });
+    return track;
+  };
+  const picture = pack(order.filter((l) => l.type !== "audio")), sound = pack(order.filter((l) => l.type === "audio"));
+  const top = picture.size ? Math.max(...picture.values()) + 1 : 0;
+  const row = new Map();
+  for (const [id, track] of picture) row.set(id, top - 1 - track);  // the highest track drawn first
+  for (const [id, track] of sound) row.set(id, top + track);
+  packed = { tl: state.tl, row, count: top + (sound.size ? Math.max(...sound.values()) + 1 : 0) };
+  return packed;
+}
+
+function rowOf(id) {
+  return layout().row.get(id);
 }
 
 function drawTimeline() {
@@ -14,7 +44,7 @@ function drawTimeline() {
   const canvas = $("timeline");
   const layers = rows();
   const width = Math.max(canvas.parentElement.clientWidth, Math.ceil(tl.frames * state.zoom) + 40);
-  const height = RULER + GRID + layers.length * ROW + 8;
+  const height = RULER + GRID + layout().count * ROW + 8;
   if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
   const g = canvas.getContext("2d");
   const x = (frame) => LEFT + frame * state.zoom;
@@ -39,15 +69,15 @@ function drawTimeline() {
   }
   // Layers.
   const colours = { footage: "#3d6fb6", audio: "#3f9a6b", graphics: "#b8763a", comp: "#7a5bb5" };
-  layers.forEach((layer, k) => {
-    const y = RULER + GRID + k * ROW;
-    g.fillStyle = layer.id === state.selected ? "rgba(255,255,255,0.06)" : "transparent";
-    g.fillRect(0, y, width, ROW);
+  layers.forEach((layer) => {
+    const y = RULER + GRID + rowOf(layer.id) * ROW;
+    if (layer.id === state.selected) { g.fillStyle = "rgba(255,255,255,0.06)"; g.fillRect(0, y, width, ROW); }
     const x0 = x(layer.first), x1 = x(layer.end);
     g.fillStyle = colours[layer.type];
     g.globalAlpha = layer.id === state.selected ? 1 : 0.8;
     g.fillRect(x0, y + 3, Math.max(2, x1 - x0), ROW - 6);
     g.globalAlpha = 1;
+    g.fillStyle = "#111317"; g.fillRect(x0, y + 3, 1, ROW - 6);  // a cut stays visible between shots on one track
     if (layer.id === state.selected) { g.strokeStyle = "#ffffff"; g.strokeRect(x0 + 0.5, y + 3.5, Math.max(2, x1 - x0) - 1, ROW - 7); }
     const wave = state.peaks.hash === tl.hash ? state.peaks.layers[layer.id] : null;  // audio, or a clip's own sound
     if (wave) {
@@ -85,7 +115,7 @@ function drawTimeline() {
   // Markers on the ruler (comp) or on their layer's row.
   for (const marker of tl.markers) {
     const mx = x(marker.frame);
-    const row = marker.layer ? rows().findIndex((l) => l.id === marker.layer) : -1;
+    const row = marker.layer ? rowOf(marker.layer) : -1;
     const my = row < 0 ? RULER - 2 : RULER + GRID + row * ROW + 4;
     g.fillStyle = "#ff6b5b";
     g.beginPath(); g.moveTo(mx, my); g.lineTo(mx - 5, my - 7); g.lineTo(mx + 5, my - 7); g.closePath(); g.fill();
@@ -111,8 +141,12 @@ function hit(event) {
   const frame = (px - LEFT) / state.zoom;
   if (py < RULER + GRID) return { where: "ruler", frame };
   const k = Math.floor((py - RULER - GRID) / ROW);
-  const layer = rows()[k];
-  if (!layer || frame < layer.first - 2 / state.zoom || frame > layer.end + 2 / state.zoom) return { where: "empty", frame };
+  // The layer on that row holding the frame, else the nearest edge within two pixels (at a
+  // cut between two shots on one track, the one the pointer is inside).
+  const near = 2 / state.zoom;
+  const onRow = state.tl.layers.filter((l) => rowOf(l.id) === k && frame >= l.first - near && frame <= l.end + near);
+  const layer = onRow.find((l) => frame >= l.first && frame < l.end) || onRow[0];
+  if (!layer) return { where: "empty", frame };
   const edge = 6 / state.zoom;
   if (layer.type !== "audio" && Math.abs(frame - layer.first) < edge) return { where: "in", frame, layer };
   if (layer.type !== "audio" && Math.abs(frame - layer.end) < edge) return { where: "out", frame, layer };
@@ -148,8 +182,7 @@ function onMove(event) {
   // A ghost of where the layer would land, snapped as the edit will be.
   drawTimeline();
   const g = $("timeline").getContext("2d");
-  const k = rows().findIndex((l) => l.id === drag.layer.id);
-  const y = RULER + GRID + k * ROW;
+  const y = RULER + GRID + rowOf(drag.layer.id) * ROW;
   const delta = drag.to - drag.from;
   const snap = (frame) => (event.altKey || state.tl.beats.length < 2) ? Math.round(frame) : state.tl.beats[nearestBeat(frame)].frame;
   let first = drag.layer.first, end = drag.layer.end;

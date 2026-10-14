@@ -53,11 +53,11 @@ def shot1(project):
 
 
 def click_layer(page, layer_id):
-    rows = json.loads(page.evaluate("JSON.stringify(rows().map(l => [l.id, l.first, l.end]))"))
-    k = [row[0] for row in rows].index(layer_id)
+    first, row = json.loads(page.evaluate(
+        f"JSON.stringify([state.tl.layers.find(l => l.id === {json.dumps(layer_id)}).first, rowOf({json.dumps(layer_id)})])"))
     box = page.locator("#timeline").bounding_box()
     zoom = page.evaluate("state.zoom")
-    page.mouse.click(box["x"] + (rows[k][1] + 5) * zoom, box["y"] + 26 + 18 + k * 30 + 12)
+    page.mouse.click(box["x"] + (first + 5) * zoom, box["y"] + 26 + 18 + row * 30 + 12)
 
 
 SHOWN = """(async (curves) => {
@@ -383,3 +383,19 @@ def test_a_clip_s_own_sound_is_turned_on_in_the_inspector(page, cut_project):
         time.sleep(0.05)
     page.wait_for_function("state.peaks.hash === state.tl.hash && state.peaks.layers.talk !== undefined")
     assert max(page.evaluate("state.peaks.layers.talk.peaks")) == 0.5  # the click, drawn on the footage row
+
+
+def test_shots_that_never_overlap_share_a_track(page, cut_project):
+    # shot1 and shot2 follow each other, so one track holds both; the music is below them
+    rows = json.loads(page.evaluate("JSON.stringify(Object.fromEntries(state.tl.layers.map(l => [l.id, rowOf(l.id)])))"))
+    assert rows == {"shot1": 0, "shot2": 0, "music": 1} and page.evaluate("layout().count") == 2
+    from lungecuta import ops
+    from lungecuta.media import Project
+
+    ops.slip(Project.load(cut_project), "main", "shot2", "0.5s")  # source to dissolve from
+    ops.transition(Project.load(cut_project), "main", "dissolve", ["shot1", "shot2"], "f:6")  # now they overlap
+    caught_up(page, "the dissolve", curves=False)
+    rows = json.loads(page.evaluate("JSON.stringify(Object.fromEntries(state.tl.layers.map(l => [l.id, rowOf(l.id)])))"))
+    assert rows == {"shot2": 0, "shot1": 1, "music": 2}  # the later layer, drawn over, on the track above
+    click_layer(page, "shot1")
+    page.wait_for_function("state.selected === 'shot1'")
