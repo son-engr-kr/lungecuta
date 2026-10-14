@@ -92,8 +92,9 @@ when they ask how long the edit took.
 
 ## Building a cut
 
-Choose in points from the footage itself: `lungecuta sheet --media KEY --every f:15` labels each
-frame with its seconds. Then one `place` per shot, on the beat grid:
+Choose the clips from `lungecuta clips` (a tile a clip, its middle frame, labelled with its
+length, the time it was recorded and whether it has sound), then in points from the
+footage itself: `lungecuta sheet --media KEY --every f:15` labels each frame with its seconds. Then one `place` per shot, on the beat grid:
 `lungecuta op place COMP KEY --at b:8 --for b:4 --source 2.5s` puts KEY from 2.5 s into it at
 beat 8 for four beats; `--to b:4` ends a layer at a position instead, as the first shot
 from `0s` needs (no beat span starts before the first beat). A later layer is drawn over

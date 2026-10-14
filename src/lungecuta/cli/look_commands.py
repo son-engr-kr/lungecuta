@@ -6,6 +6,7 @@ from pathlib import Path
 import click
 
 from ..scope import scope as scope_frame
+from ..clips import ROWS as CLIP_ROWS
 from ..sheet import COLUMNS, ROWS, sheet as contact_sheet
 from ..still import still as still_frame
 from .common import main, one_of, print_json, project_of, project_option, threads_option
@@ -162,6 +163,24 @@ def scope(
         print_json(comp_scope(project_of(project_dir), comp, at, height=height, threads=threads, out=out))
         return
     print_json(scope_frame(project_of(project_dir), key, at, height=height, threads=threads, out=out))
+
+
+@main.command()
+@click.argument("keys", nargs=-1)
+@click.option("--columns", type=click.IntRange(min=1), default=COLUMNS, show_default=True, help="Tiles a row.")
+@click.option("--rows", type=click.IntRange(min=1), default=CLIP_ROWS, show_default=True, help="Rows a page.")
+@click.option("--out", type=click.Path(dir_okay=False, path_type=Path),
+              help="The first page's PNG; by default cache/lungecuta/sheet/clips.png in the project.")
+@project_option
+def clips(keys: tuple[str, ...], columns: int, rows: int, out: Path | None, project_dir: Path | None) -> None:
+    """The imported footage at a glance, to choose material from: one tile a clip (KEYS,
+    or every clip in the order recorded), its middle frame through its input transform
+    and the project's output view, labelled with its key, length, the time it was recorded
+    and whether it has sound. A clip whose colour space is undecided is a black tile
+    that says so. Prints each clip's length, colour and time decisions and its page."""
+    from ..clips import overview
+
+    print_json(overview(project_of(project_dir), list(keys), columns=columns, rows=rows, out=out))
 
 
 @main.command()
