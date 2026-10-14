@@ -10,7 +10,7 @@ import numpy as np
 
 from .audio import master, true_peak_db
 from .effects import apply as apply_effects, pan_gains, source_length
-from .comp import MIX_RATE, Nest, Resolved
+from .comp import MIX_RATE, Nest, Resolved, Sound
 from .encode import Preset
 from .media import Project, music_wav
 from .music import read_wav, wav_bytes
@@ -31,19 +31,8 @@ def mix(project: Project, resolved: Resolved) -> np.ndarray:
     total = comp_samples(resolved)
     out = np.zeros((total, 2), np.float32)
     for sound in resolved.sounds:
-        signal, rate = read_wav(music_wav(project, sound.record))
-        assert rate == MIX_RATE and signal.shape[1] in (1, 2), f"{sound.record.key}: a {rate} Hz WAV"
-        end = min(sound.end, total)
-        count = end - sound.first
-        effects = sound.layer.effects
-        piece = signal[sound.source_first:sound.source_first + source_length(effects, count)]
-        piece = piece if piece.shape[1] == 2 else np.repeat(piece, 2, axis=1)
-        if effects:
-            piece = apply_effects(effects, piece, MIX_RATE, count)
-        piece = piece[:count]
-        if sound.layer.pan:
-            piece = piece * pan_gains(sound.layer.pan)
-        out[sound.first:end] += piece * sound.envelope()[:count, None].astype(np.float32)
+        piece = layer_sound(project, sound, total)
+        out[sound.first:sound.first + len(piece)] += piece
     for nest in resolved.nests:
         inner = mix(project, nest.resolved)
         first, end = nest_samples(nest)
@@ -53,6 +42,23 @@ def mix(project: Project, resolved: Resolved) -> np.ndarray:
         )
         out[first:min(end, total)] += inner[first - offset:min(end, total) - offset]
     return out
+
+
+def layer_sound(project: Project, sound: Sound, total: int) -> np.ndarray:
+    """What one audio layer adds to the mix from its first comp sample, up to comp sample
+    `total`: its source through its effects, pan, gain and fades, frames x 2 channels."""
+    signal, rate = read_wav(music_wav(project, sound.record))
+    assert rate == MIX_RATE and signal.shape[1] in (1, 2), f"{sound.record.key}: a {rate} Hz WAV"
+    count = min(sound.end, total) - sound.first
+    effects = sound.layer.effects
+    piece = signal[sound.source_first:sound.source_first + source_length(effects, count)]
+    piece = piece if piece.shape[1] == 2 else np.repeat(piece, 2, axis=1)
+    if effects:
+        piece = apply_effects(effects, piece, MIX_RATE, count)
+    piece = piece[:count]
+    if sound.layer.pan:
+        piece = piece * pan_gains(sound.layer.pan)
+    return piece * sound.envelope()[:count, None].astype(np.float32)
 
 
 def nearest_signed_sample(ticks: int) -> int:

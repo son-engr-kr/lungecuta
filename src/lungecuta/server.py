@@ -37,7 +37,7 @@ from .music import wav_bytes
 from .preview import Preview
 from .encode import PRESETS
 from .mixdown import mastered
-from .ticks import TICKS_PER_SECOND, format_rate, ticks_per_frame
+from .ticks import TICKS_PER_SECOND, format_rate, nearest_sample, ticks_per_frame, ticks_per_sample
 
 WEB_DIR = Path(__file__).parent / "web"
 POLL_SECONDS = 0.25  # how often project files are looked at; a UI setting, not a measurement
@@ -80,6 +80,7 @@ class Editor:
         self.directory = directory.resolve()
         self.previews: dict[str, Preview] = {}
         self.audio: dict[tuple[str, str], bytes] = {}
+        self.peaks_of: dict[str, tuple[str, dict[str, Any]]] = {}  # comp -> (its hash, its peaks)
         self.known: dict[str, str] = {}  # file -> the hash the server last read or wrote
         self.sockets: set[WebSocket] = set()
         self.lock = threading.Lock()
@@ -219,6 +220,32 @@ class Editor:
             signal, _ = mastered(preview.project, preview.resolved, PRESETS[preset])
             self.audio[key] = wav_bytes(signal, 48000)
         return self.audio[key]
+
+    def peaks(self, name: str) -> dict[str, Any]:
+        """Each audio layer's waveform for the timeline: the largest sample magnitude it adds
+        to the mix on each comp frame (after its effects, gain and fades), from the frame
+        its first sample falls in."""
+        from .comp import MIX_RATE
+        from .mixdown import comp_samples, layer_sound
+
+        preview = self.preview(name)
+        if name in self.peaks_of and self.peaks_of[name][0] == preview.hash:
+            return self.peaks_of[name][1]
+        resolved = preview.resolved
+        tick, sample = ticks_per_frame(resolved.rate), ticks_per_sample(MIX_RATE)
+        total = comp_samples(resolved)
+        layers = {}
+        for sound in resolved.sounds:
+            magnitude = np.abs(layer_sound(preview.project, sound, total)).max(axis=1)
+            if not len(magnitude):
+                continue
+            first = sound.first * sample // tick
+            last = (sound.first + len(magnitude) - 1) * sample // tick
+            starts = [max(0, nearest_sample(f * tick, MIX_RATE) - sound.first) for f in range(first, last + 1)]
+            layers[sound.layer.id] = {"first": first, "peaks": [round(float(v), 3)
+                                                                 for v in np.maximum.reduceat(magnitude, starts)]}
+        self.peaks_of[name] = (preview.hash, {"layers": layers})
+        return self.peaks_of[name][1]
 
     def edit(self, name: str, operation: str, args: dict[str, Any], expect: str) -> dict[str, Any]:
         """Apply an edit operation for the UI, on the version it showed, and journal it."""
@@ -390,6 +417,10 @@ def create_app(directory: Path) -> FastAPI:
         from .scope import scope_image
 
         return Response(png8(scope_image(editor.preview(name).display(frame))), media_type="image/png")
+
+    @app.get("/api/comp/{name}/peaks")
+    def peaks(name: str) -> dict[str, Any]:
+        return editor.peaks(name)
 
     @app.get("/api/styles")
     def styles() -> list[dict[str, Any]]:

@@ -22,6 +22,7 @@ const state = {
   styles: [],            // the project's styles
   graph: "speed",        // what the graph editor shows: "speed" or "source"
   marks: { in: null, out: null },  // the range marked with I and O, comp frames, both included
+  peaks: { hash: null, layers: {} },  // each audio layer's largest magnitude per comp frame, from /peaks
 };
 const ROW = 30, RULER = 26, GRID = 18, LEFT = 0;
 

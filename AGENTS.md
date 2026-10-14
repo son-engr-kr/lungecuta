@@ -53,17 +53,18 @@ the Phase 0 media tests need samples of your own (see Conventions).
   over its shutter (`motion_blur.shutter_deg`). Not written yet: flow retiming and the
   vector blur of motion inside footage, parallel nodes, FCPXML transforms. Graphics under
   footage render through the inverse output view; the editor does not draw them yet.
-- **M3 has started**: `lungecuta serve` opens the editor (`server.py`, `preview.py`, `journal.py`,
-  `web/`): the viewer on proxies through PyAV, the timeline with the beat grid and
-  markers, playback against the audio output clock, move, trim, split and ripple delete
-  by drag and keys through `lungecuta op`'s functions, the journal with undo, redo and
+- **M3 has started**: `lungecuta serve` opens the editor (`server.py`, `preview.py`,
+  `journal.py`, `web/`): the viewer on proxies through PyAV, the timeline with the beat
+  grid, markers, audio waveforms and a range marked with I and O (which the agent sees),
+  playback against the audio output clock, move, trim, split and ripple delete by drag and
+  keys through `lungecuta op`'s functions, the journal with undo, redo and
   `lungecuta changes`, file watching, graphics drawn live from a sandboxed origin, the
   inspector (transform keys and eases, time remap, styles, the primary grade) and the
   graph editor (speed, source time, position, scale, opacity, rotation and gain, their
-  keys dragged), each edit an `lungecuta op`
-  operation (`key`, `unkey`, `set`, `remap`, `style`, `grade`, `masks`, `transition`),
-  and scopes of the frame on screen (on the proxy). Not written yet: the colour page's
-  node graph.
+  keys dragged, and the speed graph's segments), each edit an `lungecuta op` operation
+  (`key`, `unkey`, `set`, `remap`, `speed`, `style`, `grade`, `masks`, `transition`), and
+  scopes of the frame on screen (on the proxy). Not written yet: the colour page's node
+  graph.
 - **The agent sees a comp without rendering it**: `lungecuta still COMP --at P`, `lungecuta sheet COMP
   --every b:1` and `lungecuta scope COMP --at P` show the frame the render delivers, labelled with
   its beat and the layers on screen (`look.py`). `lungecuta init` writes a project's own

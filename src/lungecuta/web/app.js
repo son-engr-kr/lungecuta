@@ -29,6 +29,7 @@ function setTimeline(tl) {
   if (state.selected && !tl.layers.some((l) => l.id === state.selected)) state.selected = null;
   show(Math.min(state.frame, tl.frames - 1));
   inspect();
+  loadPeaks(tl);
 }
 
 // Every request that brings a timeline back takes a number, and only the latest is shown:
@@ -42,6 +43,15 @@ async function loadComp(name, keepFrame = false) {
   if (asked !== timelineAsks) return;
   if (!keepFrame) { state.frame = 0; state.marks = { in: null, out: null }; }
   setTimeline(tl);
+}
+
+async function loadPeaks(tl) {
+  // The waveforms come after the timeline: reading every audio layer's sound takes longer.
+  if (state.peaks.hash === tl.hash) return;
+  const peaks = await api(`/api/comp/${tl.name}/peaks`);
+  if (state.tl.hash !== tl.hash) return;
+  state.peaks = { hash: tl.hash, layers: peaks.layers };
+  drawTimeline();
 }
 
 async function boot() {

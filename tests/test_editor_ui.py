@@ -357,3 +357,9 @@ def test_the_marked_range_is_set_to_a_speed_from_the_inspector(page, cut_project
     beats = [float(k["t"].removeprefix("b:")) for k in keys[1:3]]
     source = [float(k["v"].rstrip("s")) for k in keys[1:3]]
     assert (source[1] - source[0]) / ((beats[1] - beats[0]) * 0.5) == pytest.approx(1.0, abs=1e-3)
+
+
+def test_the_music_row_draws_its_waveform(page, cut_project):
+    page.wait_for_function("state.peaks.hash === state.tl.hash")
+    peaks = page.evaluate("state.peaks.layers.music.peaks")
+    assert len(peaks) == page.evaluate("state.tl.frames") and max(peaks) > 0

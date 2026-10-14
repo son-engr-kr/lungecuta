@@ -177,3 +177,20 @@ def test_the_editor_reports_what_is_on_screen_until_it_stops(cut_project):
         refused = client.post("/api/view", json=report | {"in": 40, "out": 20})
         assert refused.status_code == 409 and "is after out" in refused.json()["detail"]
     assert not (cut_project / VIEW).exists()
+
+
+def test_the_timeline_gets_each_audio_layer_s_peaks_per_frame(client, cut_project):
+    from lungecuta.comp import load_comp, resolve
+    from lungecuta.media import Project
+    from lungecuta.mixdown import comp_samples, layer_sound
+
+    peaks = client.get("/api/comp/main/peaks").json()["layers"]
+    assert list(peaks) == ["music"]
+    project = Project.load(cut_project)
+    resolved = resolve(project, load_comp(project, "main"))
+    sound = resolved.sounds[0]
+    piece = layer_sound(project, sound, comp_samples(resolved))
+    music = peaks["music"]
+    assert music["first"] == 0 and len(music["peaks"]) == resolved.end  # the music runs the comp's length
+    assert max(music["peaks"]) == round(float(abs(piece).max()), 3)  # the loudest frame holds the loudest sample
+    assert client.get("/api/comp/main/peaks").json()["layers"] == peaks  # the same until the comp changes

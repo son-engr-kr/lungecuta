@@ -49,6 +49,13 @@ function drawTimeline() {
     g.fillRect(x0, y + 3, Math.max(2, x1 - x0), ROW - 6);
     g.globalAlpha = 1;
     if (layer.id === state.selected) { g.strokeStyle = "#ffffff"; g.strokeRect(x0 + 0.5, y + 3.5, Math.max(2, x1 - x0) - 1, ROW - 7); }
+    const wave = layer.type === "audio" && state.peaks.hash === tl.hash ? state.peaks.layers[layer.id] : null;
+    if (wave) {
+      // The layer's waveform: its largest magnitude on each frame, about the row's middle.
+      g.fillStyle = "rgba(255,255,255,0.32)";
+      const middle = y + ROW / 2, half = (ROW - 8) / 2, w = Math.max(1, state.zoom);
+      wave.peaks.forEach((p, k) => { const h = Math.min(1, p) * half; g.fillRect(x(wave.first + k), middle - h, w, 2 * h); });
+    }
     g.fillStyle = "#f2f4f7";
     const speed = layer.remapped ? "  remapped" : layer.speed !== 1 ? `  ${Math.round(layer.speed * 100)}%` : "";
     const label = layer.type === "footage" ? `${layer.id}  ${layer.media}${speed}` : `${layer.id}  ${layer.media || layer.page || ""}`;
