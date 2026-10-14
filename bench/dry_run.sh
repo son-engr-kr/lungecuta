@@ -5,6 +5,7 @@
 # Usage: sh bench/dry_run.sh FOOTAGE MUSIC WORKDIR
 #   FOOTAGE: a clip with a decided colour space (the S-Log3 sample); MUSIC: a song with a
 #   steady beat. WORKDIR is emptied and holds the project and the log.
+#   LC=lc runs the lc on the PATH (README.md's install) instead of `uv run lc`.
 #
 # The edit: a 1080p comp 32 beats long on the song, the clip placed at 0 s and split on
 # every bar, two parts slipped, a punch-in style on every other part, a look on every
@@ -15,9 +16,10 @@ FOOTAGE=$1; MUSIC=$2; WORK=$3
 rm -rf "$WORK"; mkdir -p "$WORK"
 P="$WORK/promo.lc"; LOG="$WORK/log.txt"
 stage() { name=$1; shift; t0=$(date +%s); "$@" > "$WORK/$name.out"; echo "$name $(( $(date +%s) - t0 )) s" | tee -a "$LOG"; }
-lc() { uv run lc "$@" --project "$P"; }
+LC=${LC:-uv run lc}
+lc() { command $LC "$@" --project "$P"; }
 
-uv run lc init "$P" > /dev/null
+command $LC init "$P" > /dev/null
 lc root samples "$(dirname "$FOOTAGE")" > /dev/null
 lc root music "$(dirname "$MUSIC")" > /dev/null
 stage import-footage lc import "$FOOTAGE" --root samples --key clip

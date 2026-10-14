@@ -7,16 +7,18 @@
 # Usage: sh bench/dry_run2.sh FOOTAGE MUSIC WORKDIR
 #   FOOTAGE: a clip with a decided colour space, at least 22 s long (the S-Log3 sample);
 #   MUSIC: a song with a steady beat. WORKDIR is emptied and holds the project and the log.
+#   LC=lc runs the lc on the PATH (README.md's install) instead of `uv run lc`.
 set -eu
 FOOTAGE=$1; MUSIC=$2; WORK=$3
 rm -rf "$WORK"; mkdir -p "$WORK/sounds"
 P="$WORK/promo.lc"; LOG="$WORK/log.txt"
 stage() { name=$1; shift; t0=$(date +%s); "$@" > "$WORK/$name.out"; echo "$name $(( $(date +%s) - t0 )) s" | tee -a "$LOG"; }
-lc() { uv run lc "$@" --project "$P"; }
+LC=${LC:-uv run lc}
+lc() { command $LC "$@" --project "$P"; }
 
 ffmpeg -v error -f lavfi -i "sine=frequency=1800:duration=0.12,afade=t=out:st=0.01:d=0.11" -ar 48000 -ac 2 \
   "$WORK/sounds/click.wav"
-uv run lc init "$P" > /dev/null
+command $LC init "$P" > /dev/null
 lc root samples "$(dirname "$FOOTAGE")" > /dev/null
 lc root music "$(dirname "$MUSIC")" > /dev/null
 lc root sounds "$WORK/sounds" > /dev/null
