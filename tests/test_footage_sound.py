@@ -96,3 +96,25 @@ def test_lint_and_the_render_take_a_clip_s_sound(cut_project):
     assert render.exit_code == 0, render.output
     manifest = json.loads((cut_project / "cache" / "lungecuta" / "render" / "main.web-h264.mp4.manifest.json").read_text())
     assert sorted(key for key, _ in manifest["media"]) == ["C0001", "C0002", "track"]
+
+
+def test_the_music_ducks_under_a_shot_s_own_sound(cut_project):
+    from lungecuta.ticks import ticks_per_frame
+
+    write_record(cut_project, clip_with_sound(cut_project / "footage" / "C0002.mov"))
+    comp = json.loads((cut_project / "comps" / "main.json").read_text())
+    comp["layers"].append({"id": "talk", "type": "footage", "media": "C0002", "start": "b:4", "out": "1s",
+                           "source_start": "0.5s", "sound": {}})
+    put_comp(cut_project, comp)
+    result = ops.duck(Project.load(cut_project), "main", "music", -12.0, "f:6", under="talk")
+    project = Project.load(cut_project)
+    resolved = resolve(project, load_comp(project, "main"))
+    talk = next(cut for cut in resolved.cuts if cut.layer.id == "talk")
+    assert result["changes"] == [f"music ducked -12 dB from f:{talk.first} to f:{talk.end} under talk, ramps of f:6"]
+    music = next(s for s in resolved.sounds if s.layer.id == "music")
+    tick = ticks_per_frame(resolved.rate)
+    level = lambda frame: float(music.gain.at(frame * tick)[0])
+    assert [level(f) for f in (talk.first - 6, talk.first, talk.end - 1, talk.end + 6)] == [0.0, -12.0, -12.0, 0.0]
+    assert level(talk.first - 3) == pytest.approx(-6.0) and level(talk.end + 30) == 0.0
+    with pytest.raises(AssertionError, match="gain keys at .* inside the duck"):
+        ops.duck(Project.load(cut_project), "main", "music", -6.0, "f:6", start=f"f:{talk.first}", end=f"f:{talk.end}")

@@ -319,6 +319,24 @@ def op_remap(comp: str, layer: str, project_dir: Path | None) -> None:
     print_json(ops.remap(project_of(project_dir), comp, layer))
 
 
+@op.command("duck")
+@click.argument("comp")
+@click.argument("layer")
+@click.option("--by", type=float, required=True, help="dB, negative: how far the layer goes down (-12).")
+@click.option("--ramp", required=True, help="How long it takes to go down before and to come back after (0.25s, f:6).")
+@click.option("--under", help="The layer it goes down for: a shot with its own sound, a sound, a title.")
+@click.option("--from", "start", help="Where the span starts, a comp position; with --to instead of --under.")
+@click.option("--to", "end", help="Where it ends (the first frame after it).")
+@project_option
+def op_duck(comp: str, layer: str, by: float, ramp: str, under: str | None, start: str | None, end: str | None,
+            project_dir: Path | None) -> None:
+    """Lower audio LAYER (the music) by --by dB while --under plays, or from --from to
+    --to: gain keys --ramp before and after at its level there, and lowered from the
+    span's first frame to its end. Gain keys already inside the duck are refused; duck
+    once over neighbouring shots instead."""
+    print_json(ops.duck(project_of(project_dir), comp, layer, by, ramp, under, start, end))
+
+
 @op.command("sound")
 @click.argument("comp")
 @click.argument("layer")

@@ -1,5 +1,6 @@
 """Placing sounds on events: a cut, a beat, a downbeat or a marker (07-audio.md, SFX
-placement); and a footage layer's own sound (07-audio.md, Location sound)."""
+placement); a footage layer's own sound (07-audio.md, Location sound); and the music
+lowered under it."""
 from __future__ import annotations
 
 import math
@@ -119,5 +120,56 @@ def sound(project: Project, name: str, layer_id: str, on: bool = True, gain: flo
         described = ", ".join(f"{field.replace('_', ' ')} {value}{' dB' if field == 'gain' else ''}"
                               for field, value in settings.items())
         edit.changes.append(f"{layer_id} plays its own sound" + (f" ({described})" if described else ""))
+    _resolves(project, edit)
+    return edit.save()
+
+
+def duck(project: Project, name: str, layer_id: str, by: float, ramp: str, under: str | None = None,
+         start: str | None = None, end: str | None = None, expect: str | None = None) -> dict[str, Any]:
+    """Lower an audio layer (the music) by `by` dB while layer `under` plays (a shot with
+    its own sound, a sound), or from `start` to `end`: four gain keys, the outer two `ramp`
+    before and after the span (on the nearest frames) at the level the layer had there, the
+    inner two on the span's first frame and the frame after it, lowered by `by`. A gain key
+    already inside the duck is refused rather than merged: duck once over neighbouring shots."""
+    from ..comp import resolve
+    from .properties import _key_tick, _key_time, _keys, _put_keys
+
+    assert (under is None) != (start is None and end is None), "give --under, or --from and --to"
+    assert under is not None or (start is not None and end is not None), "a span needs both --from and --to"
+    edit = Edit.open(project, name, expect)
+    layer = edit.layer(layer_id)
+    assert layer["type"] == "audio", f"{layer_id} is not an audio layer"
+    resolved = resolve(project, edit.comp)
+    tick = ticks_per_frame(edit.rate)
+    if under is not None:
+        spans = {cut.layer.id: (cut.first, cut.end) for cut in resolved.cuts}
+        spans |= {o.layer.id: (o.first, o.end) for o in resolved.overlays}
+        spans |= {s.layer.id: (-(-s.first * ticks_per_sample(MIX_RATE) // tick), -(-s.end * ticks_per_sample(MIX_RATE) // tick))
+                  for s in resolved.sounds if not s.footage}
+        assert under in spans and under != layer_id, f"comp {name} has no other layer {under!r} to duck under"
+        first, last = spans[under]
+    else:
+        at = lambda text: -(-resolve_position(parse_literal(text, Field.POSITION), rate=edit.rate, grid=edit.grid) // tick)
+        first, last = at(start), at(end)
+        assert first < last, f"{start} to {end} is no span"
+    t0, t1 = first * tick, last * tick
+    length = resolve_span(parse_literal(ramp, Field.LAYER), anchor=t0, rate=edit.rate, grid=edit.grid)
+    assert length > 0, f"a ramp of {ramp}"
+    nearest = lambda ticks: (2 * ticks + tick) // (2 * tick) * tick  # the nearest frame, halves up
+    a, d = nearest(t0 - length), nearest(t1 + length)
+    assert a >= edit.start(layer), f"the duck's ramp would start before {layer_id} does"
+    sound = next(s for s in resolved.sounds if s.layer.id == layer_id)
+    level = lambda ticks: 0.0 if sound.gain is None else float(sound.gain.at(ticks)[0])
+    keys = _keys(edit, layer, "gain")
+    inside = [key["t"] for key in keys if a <= _key_tick(edit, layer, key) <= d]
+    assert not inside, (f"{layer_id} has gain keys at {', '.join(inside)} inside the duck; duck once over the whole "
+                        "span, or take those keys off first")
+    new = [{"t": _key_time(edit, layer, f"f:{ticks // tick}")[1], "v": round(level(ticks) + shift, 2)}
+           for ticks, shift in ((a, 0.0), (t0, by), (t1, by), (d, 0.0))]
+    ticks_of = [_key_tick(edit, layer, key) for key in keys]
+    _put_keys(layer, "gain", [key for key, k in zip(keys, ticks_of) if k < a] + new
+              + [key for key, k in zip(keys, ticks_of) if k > d])
+    edit.changes.append(f"{layer_id} ducked {by:g} dB from f:{first} to f:{last}"
+                        + (f" under {under}" if under else "") + f", ramps of {ramp}")
     _resolves(project, edit)
     return edit.save()

@@ -89,6 +89,14 @@ could break (*proposed*: the field rather than a linked audio layer).
   person's own recording). FCPXML refuses it for now: Resolve imports the clip with its
   audio, so it is raised there.
 
+**Ducking** (`lungecuta op duck`, `ops/sounds.py`): the music goes down by a given number of
+dB while a layer plays (a shot with its own sound, a sound, a title), or over a span: four
+gain keys on the music, the outer two a given ramp before and after the span, on the
+nearest frames, at the level the music had there, and the inner two on the span's first
+frame and the frame after it. How far and how fast are the caller's: no default is
+given, since none is measured here. A gain key already inside the duck is refused rather
+than merged, so neighbouring shots are ducked once, over their whole span.
+
 ## Effects
 
 The set past edits needed, each a parameterized engine effect:
