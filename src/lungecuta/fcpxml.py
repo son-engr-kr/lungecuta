@@ -357,6 +357,9 @@ def export(project: Project, name: str, out: Path | None = None) -> dict[str, An
     assert not resolved.nests, "precomp layers are not written to FCPXML yet"
     for overlay in resolved.overlays:
         assert overlay.top, f"graphics layer {overlay.layer.id} is under footage, which is not written to FCPXML yet"
+        assert overlay.placement is None and not overlay.layer.masks and overlay.shutter is None, (
+            f"graphics layer {overlay.layer.id} has a transform, masks or motion blur, which are not written to FCPXML yet"
+        )
     resolved.one_track()
     for cut in resolved.cuts:
         assert cut.placement is None, (

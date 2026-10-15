@@ -99,6 +99,16 @@ class MotionBlur(_Part):
         return self
 
 
+class PageMotionBlur(MotionBlur):
+    """A graphics layer's motion blur: the page captured at several times over the shutter
+    and averaged, each capture placed by the layer's transform at its time. lungecuta sees
+    the transform's movement, not what the page draws moving, so `samples` sets how many
+    captures there are at least."""
+
+    samples: int | None = Field(default=None, ge=1, le=256, description="captures over the shutter, at least; "
+                                "absent, as many as the transform's movement needs (one if it has none)")
+
+
 class StyleTime(_Part):
     """A style instance (03-project-format.md#styles): the style's tracks placed at `at`
     in layer time, speed 1 from `source_start` outside its speed track."""
@@ -350,7 +360,9 @@ class GraphicsLayer(_Part):
     `graphics/` that sets `window.ready` and draws layer time t in `window.renderAt(t)`. Its
     `params` reach the page as the JSON in its `params` query parameter. Only `display`
     space for now: its codes are the deliverable's codes, composited after the output
-    view as a top overlay (01-architecture.md)."""
+    view in the top run of the stack, or through the inverse view under footage
+    (01-architecture.md). Placed, masked and blurred as footage is, its layer's pixels
+    being the page's CSS pixels, the comp's size."""
 
     id: LayerId
     type: Literal["graphics"]
@@ -361,6 +373,13 @@ class GraphicsLayer(_Part):
                      json_schema_extra={"x-time": "layer"})
     out: str = _time("layer", "a span from start: where the layer ends")
     params: dict[str, Any] = Field(default_factory=dict)
+    transform: Transform | None = None
+    masks: list[Mask] = Field(default_factory=list, description="in order; the layer is seen only where they "
+                              "leave it, none showing the whole layer")
+    motion_blur: PageMotionBlur | None = None
+    resolution: float | None = Field(default=None, ge=1, le=4, description="device pixels a CSS pixel the page is "
+                                     "captured at; absent, its transform's largest scale (at least 1), so a page "
+                                     "scaled up is drawn at the size it is seen")
     markers: list[Marker] = Field(default_factory=list)
 
 

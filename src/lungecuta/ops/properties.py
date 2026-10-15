@@ -15,16 +15,26 @@ from .edit import Edit, _resolves, _unit
 KEYED = ("position", "scale", "opacity", "rotation", "remap", "gain", "shutter")
 
 
-LAYER_OF = {"position": "footage", "scale": "footage", "opacity": "footage", "rotation": "footage", "remap": "footage",
-            "gain": "audio", "shutter": "footage"}
+TRANSFORMED = ("footage", "graphics", "comp")  # the layer types with a transform and masks
+# The layer types each property belongs to, as After Effects gives every visual layer one transform
+OWNERS = {"position": TRANSFORMED, "scale": TRANSFORMED, "opacity": TRANSFORMED, "rotation": TRANSFORMED,
+          "anchor": TRANSFORMED, "remap": ("footage",), "shutter": ("footage", "graphics"), "samples": ("graphics",),
+          "resolution": ("graphics",), "gain": ("audio",), "fade_in": ("audio",), "fade_out": ("audio",)}
+SETTABLE = tuple(prop for prop in OWNERS if prop != "remap")
+
+
+def _owned(layer: dict, prop: str) -> None:
+    assert layer["type"] in OWNERS[prop], (
+        f"{prop} is a property of {' and '.join(OWNERS[prop])} layers, and {layer['id']} is a {layer['type']} layer")
 
 
 def _holder(layer: dict, prop: str, create: bool = False) -> tuple[dict, str]:
     """Where a property's value sits in the layer's JSON, and its field there: the
     transform's, the layer's own (gain, fades), or the motion blur's shutter."""
-    if prop == "shutter":
-        return (layer.setdefault("motion_blur", {}) if create else layer.get("motion_blur") or {}), "shutter_deg"
-    if prop in ("gain", "fade_in", "fade_out"):
+    if prop in ("shutter", "samples"):
+        blur = layer.setdefault("motion_blur", {}) if create else layer.get("motion_blur") or {}
+        return blur, "shutter_deg" if prop == "shutter" else "samples"
+    if prop in ("gain", "fade_in", "fade_out", "resolution"):
         return layer, prop
     return (layer.setdefault("transform", {}) if create else layer.get("transform") or {}), prop
 
@@ -72,14 +82,14 @@ def _put_keys(layer: dict, prop: str, keys: list[dict]) -> None:
 
 def key(project: Project, name: str, layer_id: str, prop: str, at: str, value: Any, ease: str | None = None,
         expect: str | None = None) -> dict[str, Any]:
-    """Set a key of a footage layer's property at comp position `at`, replacing a key at
+    """Set a key of a layer's property at comp position `at`, replacing a key at
     that time or adding one, as After Effects' stopwatch does: the first key of a constant
     property makes it animated (one key is still a constant). `value` is a number or a pair
     for the transform, a source time literal for `remap`."""
     assert prop in KEYED, f"{prop!r} is not a property with keys ({', '.join(KEYED)})"
     edit = Edit.open(project, name, expect)
     layer = edit.layer(layer_id)
-    assert layer["type"] == LAYER_OF[prop], f"{prop} is a property of {LAYER_OF[prop]} layers, and {layer_id} is not one"
+    _owned(layer, prop)
     point, t = _key_time(edit, layer, at)
     keys = _keys(edit, layer, prop)
     new = {"t": t, "v": value}
@@ -165,14 +175,14 @@ def key_position(edit: Edit, layer: dict, key: dict) -> str:
 def set_value(project: Project, name: str, layer_id: str, prop: str, value: Any,
               expect: str | None = None) -> dict[str, Any]:
     """Set a property that has no keys to a constant (one with keys takes a key instead, as
-    in After Effects): a footage layer's transform, an audio layer's gain in dB, or its
-    fades as spans (None takes a fade off)."""
-    owners = {"position": "footage", "scale": "footage", "opacity": "footage", "rotation": "footage",
-              "anchor": "footage", "shutter": "footage", "gain": "audio", "fade_in": "audio", "fade_out": "audio"}
-    assert prop in owners, f"{prop!r} is not a property `set` takes ({', '.join(owners)})"
+    in After Effects): a footage, graphics or precomp layer's transform, a footage or
+    graphics layer's motion blur shutter, a graphics layer's motion blur samples and capture
+    resolution, an audio layer's gain in dB, or its fades as spans (None takes a fade, the
+    shutter, the samples or the resolution off)."""
+    assert prop in SETTABLE, f"{prop!r} is not a property `set` takes ({', '.join(SETTABLE)})"
     edit = Edit.open(project, name, expect)
     layer = edit.layer(layer_id)
-    assert layer["type"] == owners[prop], f"{prop} is a property of {owners[prop]} layers, and {layer_id} is not one"
+    _owned(layer, prop)
     holder, field = _holder(layer, prop, create=True)
     old = holder.get(field)
     assert not isinstance(old, dict), f"{layer_id}'s {prop} has keys; set a key at a time instead"
@@ -305,10 +315,10 @@ def _position_of(edit: Edit, tick: int) -> str:
 
 
 def set_masks(project: Project, name: str, layer_id: str, masks: list[dict], expect: str | None = None) -> dict[str, Any]:
-    """Replace a footage layer's masks with `masks`, in order ([] for none)."""
+    """Replace a footage, graphics or precomp layer's masks with `masks`, in order ([] for none)."""
     edit = Edit.open(project, name, expect)
     layer = edit.layer(layer_id)
-    assert layer["type"] == "footage", f"{layer_id} is not a footage layer"
+    assert layer["type"] in TRANSFORMED, f"{layer_id} is a {layer['type']} layer, which has no masks"
     old = layer.get("masks", [])
     if masks:
         layer["masks"] = masks

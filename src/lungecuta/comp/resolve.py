@@ -43,7 +43,7 @@ from ..ticks import (
 )
 from .grid import _audio_record, _music_source, _placed, beat_grid
 from .loading import MIX_RATE, load_comp, load_style
-from .parts import Cut, MarkerAt, Nest, Overlay, Resolved, Sound, _track, placement, speed_of
+from .parts import Cut, MarkerAt, Nest, Overlay, Resolved, Sound, _track, capture_resolution, placement, speed_of
 
 
 SEARCH_SECONDS = 0.6  # a sound's rise is looked for in its first 0.6 s (a past project's audio builder)
@@ -352,7 +352,11 @@ def resolve(project: Project, comp: CompFile, inside: tuple[str, ...] = ()) -> R
             first, last = first_frame_at_or_after(visible_in, rate), first_frame_at_or_after(visible_out, rate)
             assert first < last, f"layer {layer.id} is visible for no frame"
             assert last <= end, f"layer {layer.id} runs past the comp's end"
-            overlays.append(Overlay(layer=layer, start=start, first=first, end=last, top=k > last_footage))
+            overlays.append(Overlay(
+                layer=layer, start=start, first=first, end=last, top=k > last_footage, comp_rate=rate,
+                placement=None if layer.transform is None else placement(layer.transform, start, rate, grid),
+                shutter=None if layer.motion_blur is None else _track(layer.motion_blur.shutter_deg, start, rate, grid, 1),
+                resolution=capture_resolution(layer, tuple(comp.size))))
     markers = [MarkerAt(marker, _marker_frame(marker.t, None, rate, grid), None) for marker in comp.markers]
     for layer in comp.layers:
         if layer.markers:

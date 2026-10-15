@@ -201,14 +201,12 @@ function buildGraphics() {
   state.graphics.clear();
   state.ready.clear();
   const [cw, ch] = state.tl.size;
-  const [pw, ph] = state.tl.preview;
   for (const layer of state.tl.layers.filter((l) => l.type === "graphics")) {
     const frame = document.createElement("iframe");
     const query = new URLSearchParams({ id: layer.id, page: layer.page, params: JSON.stringify(layer.params || {}) });
     frame.src = `${state.project.graphics_origin}/__lungecuta_frame.html?${query}`;
     frame.width = cw;
     frame.height = ch;
-    frame.style.transform = `scale(${pw / cw})`;
     frame.hidden = true;
     box.appendChild(frame);
     state.graphics.set(layer.id, { frame, layer });
@@ -226,6 +224,33 @@ function graphicsAt(frame) {
     // preview does not capture; drawing it over everything would show the wrong stack.
     const visible = layer.top && frame >= layer.first && frame < layer.end;
     iframe.hidden = !visible;
-    if (visible) iframe.contentWindow.postMessage({ lungecuta: "at", t: (frame - layer.start) / state.tl.fps }, "*");
+    if (visible) {
+      placeGraphic(iframe, layer, frame);
+      iframe.contentWindow.postMessage({ lungecuta: "at", t: (frame - layer.start) / state.tl.fps }, "*");
+    }
+  }
+}
+
+function placeGraphic(iframe, layer, frame) {
+  // The page placed as the engine places it: its anchor at its position, turned and scaled
+  // about the anchor, in comp pixels, cut by its masks in its own frame; then scaled to the
+  // preview. Motion blur is drawn by renders and lungecuta still, not here.
+  const [cw, ch] = state.tl.size;
+  let transform = `scale(${state.tl.preview[0] / cw})`, opacity = 1;
+  if (layer.placed) {
+    const [x, y, sx, sy, o, r] = layer.placed[Math.max(0, Math.min(layer.placed.length - 1, frame - layer.first))];
+    const [ax, ay] = layer.anchor;
+    transform += ` translate(${x * cw}px, ${y * ch}px) rotate(${r}deg) scale(${sx}, ${sy})`
+               + ` translate(${-ax * cw}px, ${-ay * ch}px)`;
+    opacity = o;
+  }
+  iframe.style.transform = transform;
+  iframe.style.opacity = opacity;
+  const mask = layer.masks && layer.masks.length
+    ? `url("/api/comp/${state.tl.name}/layer/${layer.id}/mask.png?v=${encodeURIComponent(JSON.stringify(layer.masks))}")`
+    : "none";
+  if (iframe.dataset.mask !== mask) {
+    iframe.dataset.mask = mask;
+    Object.assign(iframe.style, { maskImage: mask, maskSize: "100% 100%", maskRepeat: "no-repeat", maskMode: "luminance" });
   }
 }

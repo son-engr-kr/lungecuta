@@ -8,12 +8,14 @@ from typing import Any
 import click
 
 from .. import ops
-from ..schema.comp import AudioLayer, Cdl, Lut, MotionBlur, Primary, Transform
+from ..schema.comp import AudioLayer, Cdl, GraphicsLayer, Lut, PageMotionBlur, Primary, Transform
 from .common import fields_help, main, print_json, project_of, project_option
 
 # What a property's value means, for the operations that set one
 PROPERTIES = "\n\n".join([
-    fields_help("footage", Transform), fields_help("motion blur (shutter)", MotionBlur, ("shutter_deg",)),
+    fields_help("footage, graphics and precomp (transform)", Transform),
+    fields_help("motion blur (shutter; samples, graphics only)", PageMotionBlur, ("shutter_deg", "samples")),
+    fields_help("graphics", GraphicsLayer, ("resolution",)),
     fields_help("audio", AudioLayer, ("gain", "fade_in", "fade_out"))])
 
 
@@ -256,18 +258,20 @@ def op_unkey(comp: str, layer: str, prop: str, at: str, project_dir: Path | None
 @op.command("set", epilog=PROPERTIES)
 @click.argument("comp")
 @click.argument("layer")
-@click.argument("prop", type=click.Choice(["position", "scale", "opacity", "rotation", "anchor", "shutter", "gain",
-                                           "fade_in", "fade_out"]))
+@click.argument("prop", type=click.Choice(ops.SETTABLE))
 @click.option("--value", required=True,
-              help="A number, a pair as 0.4,0.6, a span for a fade (b:2, 1.5s), or none to take a fade or the "
-                   "shutter off.")
+              help="A number, a pair as 0.4,0.6, a span for a fade (b:2, 1.5s), or none to take a fade, the "
+                   "shutter, the samples or the resolution off.")
 @project_option
 def op_set(comp: str, layer: str, prop: str, value: str, project_dir: Path | None) -> None:
-    """Set PROP of LAYER to a constant: a footage layer's transform or its motion blur
-    shutter in degrees, an audio layer's gain in dB or its fades. A property with keys
-    takes a key instead (lungecuta op key)."""
+    """Set PROP of LAYER to a constant: a footage, graphics or precomp layer's transform,
+    a footage or graphics layer's motion blur shutter in degrees, a graphics layer's
+    motion blur samples and capture resolution, an audio layer's gain in dB or its fades.
+    A property with keys takes a key instead (lungecuta op key)."""
     if prop in ("fade_in", "fade_out") or value == "none":
         parsed: Any = None if value == "none" else value
+    elif prop == "samples":
+        parsed = int(value)
     elif "," in value:
         parsed = [float(part) for part in value.split(",")]
     else:

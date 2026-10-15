@@ -110,8 +110,9 @@ def overlay_pages(project: Project, resolved: Resolved) -> Iterator[dict]:
     overlays = _all_overlays(resolved)
     with ExitStack() as stack:
         browser = stack.enter_context(graphics.chromium()) if overlays else None
-        yield {path: (overlay, stack.enter_context(graphics.opened(browser, project.directory / overlay.layer.page, size,
-                                                                    overlay.layer.params, photos_of(project, overlay))))
+        yield {path: (overlay, stack.enter_context(graphics.opened(
+                   browser, project.directory / overlay.layer.page, size, overlay.layer.params, photos_of(project, overlay),
+                   resolution=overlay.resolution)))
                for path, overlay, size in overlays}
 
 
@@ -128,18 +129,54 @@ def photos_of(project: Project, overlay) -> dict[str, Path]:
     return {} if key is None else {key: photo_file(project, key)}
 
 
-def _inline(project: Project, png: bytes, comp: tuple[int, int], threads: int | None) -> tuple[np.ndarray, np.ndarray]:
-    """A captured page under footage, brought into the working space through the inverse
-    of the output view (01-architecture.md, Where display-referred layers enter), as a
-    premultiplied layer and its alpha."""
+Shots = list[tuple[int, bytes]]  # a graphics layer's captures for one comp frame: (comp ticks, PNG)
+
+
+def page_layer(project: Project, overlay: Overlay, shots: Shots, comp: tuple[int, int], threads: int | None, *,
+               inline: bool) -> tuple[np.ndarray, np.ndarray]:
+    """A graphics layer on one comp frame, premultiplied, with its alpha. Each capture holds
+    straight 8-bit codes; under footage (`inline`) it is brought into the working space
+    through the inverse of the output view (01-architecture.md, Where display-referred
+    layers enter). Each is placed by the layer's transform at its time and cut by its masks,
+    as footage is, and with motion blur the captures are averaged: in linear light under
+    footage, as footage's samples are, and on display-encoded values on top, where the page
+    is composited (*proposed*). A plain layer is its capture as it is."""
     settings = project.file.color
-    rgb, alpha = graphics.straight(png, comp)
-    color.apply(color.inverse_view_processor(settings.config, settings.working, settings.display, settings.view),
-                rgb, threads)
-    return rgb * alpha, alpha
+    size = (int(comp[0] * overlay.resolution), int(comp[1] * overlay.resolution))
+    into = color.inverse_view_processor(settings.config, settings.working, settings.display, settings.view)
+    if overlay.plain:
+        ((_, png),) = shots
+        rgb, alpha = graphics.straight(png, size)
+        if inline:
+            color.apply(into, rgb, threads)
+        return rgb * alpha, alpha
+    linear = inline and len(shots) > 1
+    mask = mask_alpha(overlay.layer.masks, size) if overlay.layer.masks else None
+    total = cover = None
+    for ticks, png in shots:
+        rgb, alpha = graphics.straight(png, size)
+        if inline:
+            color.apply(into, rgb, threads)
+        if linear:
+            color.apply(color.cpu_processor(settings.config, settings.working, settings.linear), rgb, threads)
+        position, scale, opacity, anchor, rotation = (IDENTITY if overlay.placement is None
+                                                      else transform_ticks(overlay.placement, ticks))
+        r = float(overlay.resolution)  # the capture's pixels are 1 / r of a layer pixel
+        placed, shown = place(rgb, comp, position=position, anchor=anchor, scale=(scale[0] / r, scale[1] / r),
+                              rotation=rotation, mask=alpha if mask is None else alpha * mask)
+        placed, shown = placed * np.float32(opacity), shown * np.float32(opacity)
+        total = placed if total is None else total + placed
+        cover = shown if cover is None else cover + shown
+    total /= np.float32(len(shots))
+    cover /= np.float32(len(shots))
+    if linear:
+        straight = np.ascontiguousarray(np.divide(total, cover, out=np.zeros_like(total), where=cover > 0))
+        color.apply(color.cpu_processor(settings.config, settings.linear, settings.working), straight, threads)
+        total = straight * cover
+    return np.ascontiguousarray(total, dtype=np.float32), np.ascontiguousarray(cover, dtype=np.float32)
 
 
-def finish(project: Project, resolved: Resolved, index: int, footage: dict[str, tuple], captures: dict[str, bytes],
+def finish(project: Project, resolved: Resolved, index: int, footage: dict[str, tuple], captures: dict[str, Shots],
            threads: int | None = None, alpha: bool = False) -> np.ndarray:
     """Comp frame `index` from its footage layers (placed, premultiplied, in the working
     space) and its graphics captures: everything below the top run of graphics composited
@@ -156,14 +193,17 @@ def finish(project: Project, resolved: Resolved, index: int, footage: dict[str, 
         elif layer.id in nests:
             layers.append(_nested(project, nests[layer.id], index, comp, captures, threads, f"{layer.id}/"))
         elif layer.id in captures and not overlays[layer.id].top:
-            layers.append(_inline(project, captures[layer.id], comp, threads))
+            layers.append(page_layer(project, overlays[layer.id], captures[layer.id], comp, threads, inline=True))
     view = color.view_processor(settings.config, settings.working, settings.display, settings.view)
     if not alpha:
         frame = composite(layers, comp)
         color.apply(view, frame, threads)
         for overlay in resolved.overlays:
             if overlay.top and overlay.layer.id in captures:
-                frame = graphics.over(frame, captures[overlay.layer.id])
+                # on display-encoded values, as the browser composites: a display-referred layer's codes
+                # are the deliverable's (04-color.md, Graphics), within a code of the live page (Phase 1 spike)
+                page, page_alpha = page_layer(project, overlay, captures[overlay.layer.id], comp, threads, inline=False)
+                frame = np.ascontiguousarray(page + frame * (1 - page_alpha), dtype=np.float32)
         return frame
     # With alpha: the output view on straight colour (a colour transform of premultiplied
     # values is wrong wherever the coverage is partial), and the top graphics composited
@@ -173,9 +213,9 @@ def finish(project: Project, resolved: Resolved, index: int, footage: dict[str, 
     color.apply(view, frame, threads)
     for overlay in resolved.overlays:
         if overlay.top and overlay.layer.id in captures:
-            colour, page_alpha = graphics.straight(captures[overlay.layer.id], comp)
+            page, page_alpha = page_layer(project, overlay, captures[overlay.layer.id], comp, threads, inline=False)
             total = page_alpha + cover * (1 - page_alpha)
-            mixed = colour * page_alpha + frame * cover * (1 - page_alpha)
+            mixed = page + frame * cover * (1 - page_alpha)
             frame = np.divide(mixed, total, out=np.zeros_like(mixed), where=total > 0)
             cover = total
     return np.ascontiguousarray(np.concatenate([frame, cover], axis=2), dtype=np.float32)
@@ -204,7 +244,7 @@ def footage_at(project: Project, resolved: Resolved, index: int, threads: int | 
             for cut in resolved.stack(index)}
 
 
-def working_frame(project: Project, resolved: Resolved, index: int, captures: dict[str, bytes],
+def working_frame(project: Project, resolved: Resolved, index: int, captures: dict[str, Shots],
                   threads: int | None = None, prefix: str = "") -> tuple[np.ndarray, np.ndarray]:
     """A precomp's frame `index` in the working space, premultiplied, with its coverage:
     its footage, its own precomps, and its graphics, which all enter through the inverse
@@ -212,6 +252,7 @@ def working_frame(project: Project, resolved: Resolved, index: int, captures: di
     size = tuple(resolved.comp.size)
     footage = footage_at(project, resolved, index, threads)
     nests = {nest.layer.id: nest for nest in resolved.nests_at(index)}
+    overlays = {overlay.layer.id: overlay for overlay in resolved.overlays}
     layers = []
     for layer in resolved.comp.layers:
         if layer.id in footage:
@@ -219,11 +260,11 @@ def working_frame(project: Project, resolved: Resolved, index: int, captures: di
         elif layer.id in nests:
             layers.append(_nested(project, nests[layer.id], index, size, captures, threads, f"{prefix}{layer.id}/"))
         elif prefix + layer.id in captures:
-            layers.append(_inline(project, captures[prefix + layer.id], size, threads))
+            layers.append(page_layer(project, overlays[layer.id], captures[prefix + layer.id], size, threads, inline=True))
     return composite_alpha(layers, size)
 
 
-def _nested(project: Project, nest: Nest, index: int, comp: tuple[int, int], captures: dict[str, bytes],
+def _nested(project: Project, nest: Nest, index: int, comp: tuple[int, int], captures: dict[str, Shots],
             threads: int | None, prefix: str) -> tuple[np.ndarray, np.ndarray]:
     """A precomp layer on comp frame `index`: the precomp's frame, transparent where it has
     nothing, placed and masked as footage is."""
@@ -270,19 +311,22 @@ def _corners(placement: Placement, ticks: int, layer: tuple[int, int], canvas: t
     return np.array(out)
 
 
-def shutter_times(cut: Cut, index: int, layer: tuple[int, int], canvas: tuple[int, int],
-                  factor: float = 1.0) -> list[int]:
+def shutter_times(cut: Cut | Overlay, index: int, layer: tuple[int, int], canvas: tuple[int, int],
+                  factor: float = 1.0, at_least: int = 1) -> list[int]:
     """The times (ticks) a layer is placed at for comp frame `index`: its own time without
     motion blur, else spread over the shutter `[t, t + shutter]` (06-editing.md) at the
     middles of equal parts, one part for every pixel its corners travel on the canvas, so
-    neighbouring samples are at most a pixel apart. The path is measured on a polyline whose
-    segments are halved until there are at least as many as pixels it is long."""
+    neighbouring samples are at most a pixel apart, and `at_least` parts. The path is
+    measured on a polyline whose segments are halved until there are at least as many as
+    pixels it is long."""
     tick = ticks_per_frame(cut.comp_rate)
     start = index * tick
     degrees = cut.shutter_deg(start)
-    if degrees <= 0 or cut.placement is None:
+    if degrees <= 0 or (cut.placement is None and at_least == 1):
         return [start]
     span = degrees / 360 * tick
+    if cut.placement is None:
+        return [round(start + span * (k + 0.5) / at_least) for k in range(at_least)]
     segments = 1
     while True:
         points = np.array([_corners(cut.placement, round(start + span * k / segments), layer, canvas, factor)
@@ -291,7 +335,7 @@ def shutter_times(cut: Cut, index: int, layer: tuple[int, int], canvas: tuple[in
         if segments >= length:
             break
         segments *= 2
-    count = max(1, math.ceil(length))
+    count = max(at_least, math.ceil(length))
     return [round(start + span * (k + 0.5) / count) for k in range(count)]
 
 
@@ -385,7 +429,7 @@ def raw_layers(project: Project, resolved: Resolved) -> Iterator[list[tuple[Cut,
 
 
 def compose(project: Project, resolved: Resolved, index: int, raws: list[tuple[Cut, list]],
-            captures: dict[str, bytes], threads: int | None = None, alpha: bool = False) -> np.ndarray:
+            captures: dict[str, Shots], threads: int | None = None, alpha: bool = False) -> np.ndarray:
     """Comp frame `index` from its layers' raw frames and its graphics' captures: each
     footage frame decoded, through its input transform and its layer's grade, placed, and
     the whole stack finished as `finish` does."""
@@ -405,14 +449,18 @@ def compose(project: Project, resolved: Resolved, index: int, raws: list[tuple[C
     return finish(project, resolved, index, footage, captures, threads, alpha)
 
 
-def captured(resolved: Resolved, index: int, pages: dict, prefix: str = "") -> dict[str, bytes]:
+def captured(resolved: Resolved, index: int, pages: dict, prefix: str = "") -> dict[str, Shots]:
     """The graphics layers visible on comp frame `index`, precomps' included at the frame
-    each precomp shows, captured, by path."""
+    each precomp shows, captured, by path: at the frame's time, or with motion blur at each
+    of `shutter_times` (at least the layer's `samples`)."""
     out = {}
+    size = tuple(resolved.comp.size)
     for overlay in resolved.overlays:
         if overlay.first <= index < overlay.end:
             _, page = pages[prefix + overlay.layer.id]
-            out[prefix + overlay.layer.id] = graphics.frame_png(page, overlay.layer_seconds(index, resolved.rate))
+            out[prefix + overlay.layer.id] = [
+                (ticks, graphics.frame_png(page, overlay.seconds_at(ticks)))
+                for ticks in shutter_times(overlay, index, size, size, at_least=overlay.samples)]
     for nest in resolved.nests_at(index):
         out |= captured(nest.resolved, nest.frame(index), pages, f"{prefix}{nest.layer.id}/")
     return out
@@ -436,7 +484,7 @@ def frames_at(project: Project, resolved: Resolved, indices: Iterable[int], page
     """Comp frames `indices`, in order, as `frame_at` makes them, FRAMES_AT_ONCE at a time.
     Graphics are captured on the caller's thread, in order, since a page captures one frame
     at a time; the rest runs on the workers."""
-    def made(index: int, captures: dict[str, bytes]) -> np.ndarray:
+    def made(index: int, captures: dict[str, Shots]) -> np.ndarray:
         return finish(project, resolved, index, footage_at(project, resolved, index, threads), captures, threads, alpha)
 
     jobs = ((index, captured(resolved, index, pages)) for index in indices)

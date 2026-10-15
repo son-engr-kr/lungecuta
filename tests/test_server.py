@@ -125,7 +125,9 @@ def test_a_layer_s_curves_hold_its_properties_on_every_frame(client, cut_project
     assert shot2["speed"][0] == pytest.approx(0.5)
     music = client.get("/api/comp/main/layer/music/curves").json()
     assert music["gain"][0] == 0 and music["keys"] == []
-    assert client.get("/api/comp/main/layer/title/curves").status_code == 409
+    title = client.get("/api/comp/main/layer/title/curves").json()  # a graphics layer: no transform yet, so no curve
+    assert title["keys"] == [] and "position" not in title and title["end"] > title["first"]
+    assert client.get("/api/comp/main/layer/nothing/curves").status_code == 409
 
 
 def test_the_editor_lists_the_project_s_styles(client, cut_project):

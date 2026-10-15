@@ -329,6 +329,9 @@ describes.
   `docs/design/07-audio.md#location-sound`).
 - A shot of a clip that repeats its images starts on a new image (lint's `new_image`, for
   clips `lungecuta repeats` has measured; *proposed*, `docs/design/06-editing.md#repeated-images`).
+- A graphics layer's motion blur averaged on display-encoded values when it is on top of
+  the stack, where the page is composited, and in linear light under footage (*proposed*,
+  `docs/design/05-motion-graphics.md#a-page-as-a-layer`).
 - `lungecuta op speed` (the speed graph's constant segment): the rest of the layer keeps its
   speeds and its in and out points stay, so the change does not ripple the comp
   (*proposed*, `docs/design/06-editing.md#speed`).

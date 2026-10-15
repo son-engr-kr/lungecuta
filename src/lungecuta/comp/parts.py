@@ -247,9 +247,47 @@ class Overlay:
     first: int
     end: int
     top: bool = True  # in the top run of the stack, drawn after the output view; else under footage
+    comp_rate: Fraction = Fraction(0)
+    placement: Placement | None = None
+    shutter: Track | None = None  # motion blur: the output shutter in degrees against comp ticks
+    resolution: Fraction = Fraction(1)  # device pixels a CSS pixel, the comp's size times it whole
 
     def layer_seconds(self, frame: int, rate: Fraction) -> float:
         return float(Fraction(frame * ticks_per_frame(rate) - self.start, TICKS_PER_SECOND))
+
+    def seconds_at(self, ticks: int) -> float:
+        """Layer time, the page's t, at comp time `ticks`."""
+        return float(Fraction(ticks - self.start, TICKS_PER_SECOND))
+
+    def shutter_deg(self, ticks: int) -> float:
+        return 0.0 if self.shutter is None else self.shutter.at(ticks)[0]
+
+    @property
+    def samples(self) -> int:
+        """Captures over an open shutter, at least."""
+        blur = self.layer.motion_blur
+        return 1 if blur is None or blur.samples is None else blur.samples
+
+    @property
+    def plain(self) -> bool:
+        """Drawn as the page is: no transform, masks, motion blur or larger capture."""
+        return self.placement is None and not self.layer.masks and self.shutter is None and self.resolution == 1
+
+
+def capture_resolution(layer: GraphicsLayer, size: tuple[int, int]) -> Fraction:
+    """The device pixels a CSS pixel a graphics layer's page is captured at: its own
+    `resolution`, else its transform's largest scale (eases do not overshoot their keys),
+    at least 1; raised to a step of 1 / gcd(width, height), so the capture is whole pixels
+    at exactly that many a CSS pixel."""
+    wanted = layer.resolution
+    if wanted is None:
+        wanted = 1.0
+        if layer.transform is not None:
+            scale = layer.transform.scale
+            values = [k.v for k in scale.keys] if isinstance(scale, Keys) else [scale]
+            wanted = max([1.0] + [float(x) for v in values for x in ((v,) if isinstance(v, int | float) else v)])
+    step = math.gcd(*size)
+    return Fraction(max(step, math.ceil(wanted * step - 1e-9)), step)
 
 
 @dataclass(frozen=True)

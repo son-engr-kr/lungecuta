@@ -133,6 +133,38 @@ A text or shape layer can move between tiers because the project file describes 
 same way. skia-python has one active maintainer, so the wheels are pinned and the
 rasteriser stays behind a thin interface.
 
+## A page as a layer
+
+A graphics layer takes what a footage layer takes, as every visual layer in After Effects
+has one transform: `transform` (position, anchor, scale, rotation, opacity, each a
+constant or keys with eases), `masks` and `motion_blur` (`src/lungecuta/schema/comp.py`,
+`src/lungecuta/compose.py`). Its layer's pixels are the page's CSS pixels, the comp's
+size, so a layer without a transform covers the comp as it always did, code for code.
+
+- **Placed after capture**: each capture is placed by the transform at its time with the
+  same weights footage is placed with (`geometry.place`), its own alpha carried with its
+  colour, then cut by its masks.
+- **Drawn at the size it is seen**: a page scaled up is captured at more device pixels a
+  CSS pixel (Chromium's device scale factor), its transform's largest scale unless the
+  layer's `resolution` says otherwise, raised to a step of 1 / gcd(width, height) so the
+  capture is whole pixels; a circle drawn 20 CSS px across and scaled 2 times is the
+  same frame as one drawn 40 px across (`tests/test_page_layers.py`). This is After
+  Effects' continuous rasterisation, done by the browser. A canvas page draws at
+  `window.devicePixelRatio` to gain from it.
+- **Motion blur** captures the page at several times over the shutter and averages them,
+  each placed by the transform at its time: one for every pixel the transform moves the
+  layer's corners, as footage, and at least the layer's `samples`, since lungecuta sees
+  the transform's movement but not what the page draws moving. Under footage the captures
+  are averaged in linear light, as footage's samples are; on top, on display-encoded
+  values, where the page is composited (*proposed*).
+- **In the editor** the live page is placed by the same transform (a CSS transform on its
+  frame, from the values the engine evaluated) and cut by its masks (a mask image the
+  engine draws); motion blur is drawn by renders and `lungecuta still`, not live.
+- A photo moves this way: keys on its layer's scale and position, the photo drawn by the
+  browser from its own pixels at the size it is seen.
+- FCPXML does not carry a graphics layer's transform, masks or motion blur yet, and
+  refuses one that has them.
+
 ## Photos
 
 A developed photo (JPEG, PNG or TIFF) is a display-referred picture, as a title is, so it

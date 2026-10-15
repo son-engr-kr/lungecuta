@@ -111,14 +111,21 @@ class Editor:
                     "fade_in": s.layer.fade_in, "fade_out": s.layer.fade_out,
                     "fades": [s.fade_in / 48000 * float(rate), s.fade_out / 48000 * float(rate)]}
                    for s in resolved.sounds if not s.footage]
+        edit = ops.Edit.open(preview.project, name)
         layers += [{"id": o.layer.id, "type": "graphics", "page": o.layer.page.removeprefix("graphics/"),
                     "params": o.layer.params, "first": o.first, "end": o.end, "start": o.start / frame,
-                    "start_seconds": o.start / TICKS_PER_SECOND, "top": o.top, "row": order[o.layer.id]}
+                    "start_seconds": o.start / TICKS_PER_SECOND, "top": o.top, "row": order[o.layer.id],
+                    "masks": [m.model_dump(mode="json") for m in o.layer.masks],
+                    "samples": None if o.layer.motion_blur is None else o.layer.motion_blur.samples,
+                    "resolution": o.layer.resolution, "keys": _key_frames(edit, o, frame),
+                    "anchor": None if o.placement is None else list(o.placement.anchor),
+                    "placed": _placed_frames(o, frame)}
                    for o in resolved.overlays]
         layers += [{"id": n.layer.id, "type": "comp", "media": n.layer.comp, "first": n.first, "end": n.end,
-                    "start": n.start / frame, "row": order[n.layer.id]} for n in resolved.nests]
+                    "start": n.start / frame, "row": order[n.layer.id],
+                    "masks": [m.model_dump(mode="json") for m in n.layer.masks], "keys": _key_frames(edit, n, frame)}
+                   for n in resolved.nests]
         # The exact in and out points (fractional frames), for trims that snap to beats.
-        edit = ops.Edit.open(preview.project, name)
         for layer, cut in zip(layers, resolved.cuts):
             layer["keys"] = _key_frames(edit, cut, frame)
         sounds = {sound.layer.id: sound for sound in resolved.sounds}
@@ -141,6 +148,18 @@ class Editor:
             "markers": [{"name": m.marker.name, "note": m.marker.note, "frame": m.frame, "layer": m.layer}
                         for m in resolved.markers],
         }
+
+    def mask(self, name: str, layer_id: str) -> bytes:
+        """A graphics layer's masks as a grey PNG at the preview's size, white where the
+        layer is seen, for the editor to cut its live page by (CSS `mask-mode: luminance`)."""
+        from .geometry import mask_alpha
+        from .images import png8
+
+        preview = self.preview(name)
+        overlay = next(o for o in preview.resolved.overlays if o.layer.id == layer_id)
+        assert overlay.layer.masks, f"{layer_id} has no masks"
+        alpha = mask_alpha(overlay.layer.masks, tuple(preview.size))
+        return png8(np.repeat(np.round(alpha * 255).astype(np.uint8), 3, axis=2))
 
     def thumbnail(self, name: str, layer_id: str, key: str) -> bytes:
         """A footage layer's first frame as a PNG THUMB_HEIGHT lines tall, kept while what
@@ -173,7 +192,19 @@ class Editor:
             gain = sound.gain.many(ticks) if sound.gain is not None else np.zeros(len(ticks))
             return {"layer": layer_id, "first": first, "end": end, "gain": [round(float(g), 3) for g in gain],
                     "keys": _gain_keys(ops.Edit.open(preview.project, name), sound, tick)}
-        assert layer_id in cuts, f"comp {name} has no footage or audio layer {layer_id!r}"
+        placed = {o.layer.id: o for o in preview.resolved.overlays} | {n.layer.id: n for n in preview.resolved.nests}
+        if layer_id in placed:
+            part = placed[layer_id]
+            tick = ticks_per_frame(preview.resolved.rate)
+            frames = list(range(part.first, part.end))
+            out = {"layer": layer_id, "first": part.first, "end": part.end,
+                   "keys": _key_frames(ops.Edit.open(preview.project, name), part, tick)}
+            if part.placement is not None:
+                out |= _placement_curves(part.placement, frames, tick)
+            if getattr(part, "shutter", None) is not None:
+                out["shutter"] = [part.shutter_deg(f * tick) for f in frames]
+            return out
+        assert layer_id in cuts, f"comp {name} has no layer {layer_id!r}"
         cut = cuts[layer_id]
         tick = ticks_per_frame(cut.comp_rate)
         media_tick = ticks_per_frame(cut.media_rate)
@@ -184,10 +215,7 @@ class Editor:
                                "speed": _speeds(cut, frames, tick),
                                "keys": _key_frames(ops.Edit.open(preview.project, name), cut, tick)}
         if cut.placement is not None:
-            values = [cut.placement.at(f * tick) for f in frames]
-            out |= {"position": [list(v[0]) for v in values], "scale": [list(v[1]) for v in values],
-                    "opacity": [v[2] for v in values],
-                    "rotation": [cut.placement.rotation_at(f * tick) for f in frames]}
+            out |= _placement_curves(cut.placement, frames, tick)
         if cut.blurred:
             out["shutter"] = [cut.shutter_deg(f * tick) for f in frames]
         return out
@@ -301,9 +329,29 @@ def _gain_keys(edit: ops.Edit, sound, tick: int) -> list[dict[str, Any]]:
             for t, v, e, key in zip(sound.gain.times, sound.gain.values, sound.gain.eases, layer["gain"]["keys"])]
 
 
+def _placement_curves(placement, frames: list[int], tick: int) -> dict[str, list]:
+    """A transform's values on each of `frames`, for the graph editor and the inspector."""
+    values = [placement.at(f * tick) for f in frames]
+    return {"position": [list(v[0]) for v in values], "scale": [list(v[1]) for v in values],
+            "opacity": [v[2] for v in values], "rotation": [placement.rotation_at(f * tick) for f in frames]}
+
+
+def _placed_frames(overlay, tick: int) -> list[list[float]] | None:
+    """A graphics layer's transform on each frame it is visible, as x, y, scale x, scale y,
+    opacity and rotation (position as fractions of the comp), for the editor to place its
+    live page by; None when it has no transform."""
+    if overlay.placement is None:
+        return None
+    out = []
+    for f in range(overlay.first, overlay.end):
+        position, scale, opacity = overlay.placement.at(f * tick)
+        out.append([*position, *scale, opacity, overlay.placement.rotation_at(f * tick)])
+    return out
+
+
 def _key_frames(edit: ops.Edit, cut, tick: int) -> list[dict[str, Any]]:
-    """Every key of a footage layer: the comp frame (fractional) it sits on, and its comp
-    position as `lungecuta op key` and `unkey` take it."""
+    """Every key of a footage, graphics or precomp layer: the comp frame (fractional) it
+    sits on, and its comp position as `lungecuta op key` and `unkey` take it."""
     layer = edit.layer(cut.layer.id)
     keys = []
     transform = layer.get("transform") or {}
@@ -314,11 +362,11 @@ def _key_frames(edit: ops.Edit, cut, tick: int) -> list[dict[str, Any]]:
                       "at": ops.key_position(edit, layer, key)}
                      for t, v, e, key in zip(track.times, track.values, track.eases, transform[prop]["keys"])]
     blur = layer.get("motion_blur") or {}
-    if isinstance(blur.get("shutter_deg"), dict):
+    if isinstance(blur.get("shutter_deg"), dict):  # only footage and graphics layers have motion blur
         keys += [{"prop": "shutter", "frame": t / tick, "value": v[0], "ease": e, "at": ops.key_position(edit, layer, key)}
                  for t, v, e, key in zip(cut.shutter.times, cut.shutter.values, cut.shutter.eases,
                                          blur["shutter_deg"]["keys"])]
-    if cut.remap is not None:
+    if getattr(cut, "remap", None) is not None:
         keys += [{"prop": "remap", "frame": t / tick, "value": v[0] / TICKS_PER_SECOND, "ease": e,
                   "at": ops.key_position(edit, layer, key)}
                  for t, v, e, key in zip(cut.remap.times, cut.remap.values, cut.remap.eases, layer["time"]["remap"])]

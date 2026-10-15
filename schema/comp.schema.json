@@ -559,7 +559,7 @@
     },
     "GraphicsLayer": {
       "additionalProperties": false,
-      "description": "A web page drawn over the comp (05-motion-graphics.md): Phase 0's contract, a page in\n`graphics/` that sets `window.ready` and draws layer time t in `window.renderAt(t)`. Its\n`params` reach the page as the JSON in its `params` query parameter. Only `display`\nspace for now: its codes are the deliverable's codes, composited after the output\nview as a top overlay (01-architecture.md).",
+      "description": "A web page drawn over the comp (05-motion-graphics.md): Phase 0's contract, a page in\n`graphics/` that sets `window.ready` and draws layer time t in `window.renderAt(t)`. Its\n`params` reach the page as the JSON in its `params` query parameter. Only `display`\nspace for now: its codes are the deliverable's codes, composited after the output\nview in the top run of the stack, or through the inverse view under footage\n(01-architecture.md). Placed, masked and blurred as footage is, its layer's pixels\nbeing the page's CSS pixels, the comp's size.",
       "properties": {
         "id": {
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
@@ -604,6 +604,51 @@
           "additionalProperties": true,
           "title": "Params",
           "type": "object"
+        },
+        "transform": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Transform"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "masks": {
+          "description": "in order; the layer is seen only where they leave it, none showing the whole layer",
+          "items": {
+            "$ref": "#/$defs/Mask"
+          },
+          "title": "Masks",
+          "type": "array"
+        },
+        "motion_blur": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PageMotionBlur"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "resolution": {
+          "anyOf": [
+            {
+              "maximum": 4,
+              "minimum": 1,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "device pixels a CSS pixel the page is captured at; absent, its transform's largest scale (at least 1), so a page scaled up is drawn at the size it is seen",
+          "title": "Resolution"
         },
         "markers": {
           "items": {
@@ -995,6 +1040,44 @@
         }
       },
       "title": "Node",
+      "type": "object"
+    },
+    "PageMotionBlur": {
+      "additionalProperties": false,
+      "description": "A graphics layer's motion blur: the page captured at several times over the shutter\nand averaged, each capture placed by the layer's transform at its time. lungecuta sees\nthe transform's movement, not what the page draws moving, so `samples` sets how many\ncaptures there are at least.",
+      "properties": {
+        "shutter_deg": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/$defs/Keys"
+            }
+          ],
+          "description": "degrees of a frame, 0 to 720 as After Effects allows",
+          "title": "Shutter Deg"
+        },
+        "samples": {
+          "anyOf": [
+            {
+              "maximum": 256,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "captures over the shutter, at least; absent, as many as the transform's movement needs (one if it has none)",
+          "title": "Samples"
+        }
+      },
+      "required": [
+        "shutter_deg"
+      ],
+      "title": "PageMotionBlur",
       "type": "object"
     },
     "Pass": {

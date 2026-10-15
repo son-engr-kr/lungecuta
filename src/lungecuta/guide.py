@@ -143,6 +143,14 @@ frame; moved by a transform on an element with `will-change: transform`, it move
 enlargement of one rendering, and softer. Several pages may be on screen at once. Look at a
 title with `lungecuta still COMP --at P` where it comes in, holds and goes.
 
+A graphics layer, a photo's included, takes keys, masks and motion blur as footage does:
+`lungecuta op key COMP LAYER scale --at P --value 1.08` (and `position`, `rotation`,
+`opacity`), `lungecuta op masks`, `lungecuta op set COMP LAYER shutter --value 180`. Its
+pixels are the page's CSS pixels, the comp's size; a page scaled up is captured at the size
+it is seen, so a photo's slow push stays sharp. lungecuta sees the transform's movement but
+not what the page draws moving, so for motion blur of a page's own movement set
+`lungecuta op set COMP LAYER samples --value 8` (captures over the shutter, at least).
+
 ## What you cannot judge
 
 You cannot watch playback or hear. Measure instead: `lungecuta levels SONG` gives a song's

@@ -89,15 +89,20 @@ def chromium() -> Iterator[Any]:
 
 @contextmanager
 def opened(browser: Any, page_file: Path, size: tuple[int, int], params: dict[str, Any] | None = None,
-           photos: dict[str, Path] | None = None) -> Iterator[Any]:
-    """A page of `size` in `browser` showing `page_file`, ready to render, in a context of
-    its own (its own origin, viewport and request gate); `params` reach the page as JSON in
-    its `params` query parameter, and `photos` are served to it by key."""
+           photos: dict[str, Path] | None = None, resolution: Fraction = Fraction(1)) -> Iterator[Any]:
+    """A page of `size` CSS pixels in `browser` showing `page_file`, ready to render, in a
+    context of its own (its own origin, viewport and request gate), captured at
+    `resolution` device pixels a CSS pixel (which must make `size` whole pixels); `params`
+    reach the page as JSON in its `params` query parameter, and `photos` are served to it
+    by key."""
     page_file = page_file.resolve()
     assert page_file.is_file(), f"{page_file} is not a file"
     width, height = size
+    assert (width * resolution).denominator == (height * resolution).denominator == 1, (
+        f"{resolution} device pixels a CSS pixel does not make {width}x{height} whole pixels")
     with serve(page_file.parent, photos) as origin:
-        context = browser.new_context(viewport={"width": width, "height": height}, device_scale_factor=1)
+        context = browser.new_context(viewport={"width": width, "height": height},
+                                      device_scale_factor=float(resolution))
         refused: list[str] = []
 
         def gate(route) -> None:
@@ -189,15 +194,3 @@ def straight(png: bytes, size: tuple[int, int]) -> tuple[np.ndarray, np.ndarray]
     assert image.shape[1::-1] == tuple(size), f"the page is {image.shape[1]}x{image.shape[0]}, the comp {size}"
     return np.ascontiguousarray(image[..., :3]), np.ascontiguousarray(image[..., 3:])
 
-
-def over(frame: np.ndarray, png: bytes) -> np.ndarray:
-    """A captured page (straight alpha, 8-bit sRGB-encoded codes) drawn over a frame of
-    display-encoded values: a display-referred layer's codes are the deliverable's codes
-    (04-color.md, Graphics), composited on encoded values as the browser composites, which
-    the spike measured within a code of the live page (bench/RESULTS.md, Phase 1 spike)."""
-    from PIL import Image
-
-    image = np.asarray(Image.open(io.BytesIO(png)).convert("RGBA")).astype(np.float32) / np.float32(255)
-    assert image.shape[:2] == frame.shape[:2], f"the page is {image.shape[1]}x{image.shape[0]}, the frame is not"
-    alpha = image[..., 3:]
-    return np.ascontiguousarray(image[..., :3] * alpha + frame * (1 - alpha), dtype=np.float32)

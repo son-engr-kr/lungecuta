@@ -165,6 +165,10 @@ def create_app(directory: Path) -> FastAPI:
         return Response(editor.thumbnail(name, layer_id, key), media_type="image/png",
                         headers={"Cache-Control": "max-age=31536000, immutable"})
 
+    @app.get("/api/comp/{name}/layer/{layer_id}/mask.png")
+    def mask(name: str, layer_id: str) -> Response:
+        return Response(editor.mask(name, layer_id), media_type="image/png")
+
     @app.get("/api/comp/{name}/peaks")
     def peaks(name: str) -> dict[str, Any]:
         return editor.peaks(name)

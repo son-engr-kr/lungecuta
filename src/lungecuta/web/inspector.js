@@ -11,7 +11,7 @@ function selectedLayer() {
 async function inspect() {
   const layer = selectedLayer();
   state.curves = null;
-  if (layer && (layer.type === "footage" || layer.type === "audio")) {
+  if (layer) {
     try {
       state.curves = await api(`/api/comp/${state.tl.name}/layer/${layer.id}/curves`);
     } catch (error) {
@@ -296,12 +296,21 @@ function renderInspector() {
   }
   if (layer.type === "comp") {
     box.append(el("p", { class: "dim" }, `precomp ${layer.media}: drawn with its footage; its graphics are not drawn in the editor yet`));
+    box.append(el("h3", {}, "Transform"), ...["position", "scale", "rotation", "opacity"].map(propertyRow));
+    box.append(el("h3", {}, "Masks"), maskSection(layer));
     return;
   }
-  if (layer.type !== "footage") {
+  if (layer.type === "graphics") {
     box.append(el("p", { class: "dim" }, `graphics page ${layer.page}`));
     if (!layer.top) box.append(el("p", { class: "dim" },
       "Under footage: composited in the working space in renders and lungecuta still; the editor does not draw it yet."));
+    box.append(el("h3", {}, "Transform"), ...["position", "scale", "rotation", "opacity"].map(propertyRow));
+    box.append(el("h3", {}, "Motion blur"), propertyRow("shutter"), settingRow(layer, "samples", 1),
+               el("p", { class: "dim" }, "the page captured this many times at least over the shutter and averaged "
+                 + "(its own movement, which lungecuta cannot see); drawn in renders and stills, not live here"));
+    box.append(el("h3", {}, "Masks"), maskSection(layer));
+    box.append(el("h3", {}, "Capture"), settingRow(layer, "resolution", 0.25),
+               el("p", { class: "dim" }, "device pixels a CSS pixel; empty is the transform's largest scale"));
     return;
   }
   box.append(el("h3", {}, "Transform"), ...["position", "scale", "rotation", "opacity"].map(propertyRow));
@@ -314,10 +323,17 @@ function renderInspector() {
   box.append(el("h3", {}, "Grade (primary, working-space codes)"), gradeSection(layer));
 }
 
+function settingRow(layer, prop, step) {
+  // A constant of the layer's own, empty for none.
+  const field = el("input", { type: "number", step, min: 1, value: layer[prop] ?? "", placeholder: "none",
+    onchange: (e) => edit("set", { layer_id: layer.id, prop, value: e.target.value === "" ? null : Number(e.target.value) }) });
+  return el("div", { class: "row" }, el("span", {}, prop), field);
+}
+
 function inspectorAt() {
   // The playhead moved: the transform values and key buttons follow it.
   const layer = selectedLayer();
-  if (!layer || layer.type === "graphics" || document.activeElement?.closest?.("#inspector")) return;
+  if (!layer || document.activeElement?.closest?.("#inspector")) return;
   renderInspector();
 }
 

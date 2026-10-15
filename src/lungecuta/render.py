@@ -106,7 +106,7 @@ def render(project: Project, name: str, preset_name: str, out: Path | None = Non
     ], stdin=subprocess.PIPE, stderr=subprocess.PIPE)
     clipped, count = 0.0, 0
 
-    def job(index: int, raws: list, captures: dict[str, bytes]) -> tuple[bytes, float]:
+    def job(index: int, raws: list, captures: dict) -> tuple[bytes, float]:
         frame = compose(project, resolved, index, raws, captures, threads=1 if workers > 1 else threads,
                         alpha=preset.alpha)
         return frame_bytes(frame, preset, seed=index)

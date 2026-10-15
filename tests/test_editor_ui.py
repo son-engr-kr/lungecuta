@@ -399,3 +399,40 @@ def test_shots_that_never_overlap_share_a_track(page, cut_project):
     assert rows == {"shot2": 0, "shot1": 1, "music": 2}  # the later layer, drawn over, on the track above
     click_layer(page, "shot1")
     page.wait_for_function("state.selected === 'shot1'")
+
+
+def test_a_graphics_layer_is_transformed_and_masked_in_the_inspector(page, cut_project):
+    from clips import TITLE, comp_json, put_comp
+
+    (cut_project / "graphics" / "title.html").write_text(TITLE)
+    comp = comp_json()
+    comp["layers"].append({"id": "title", "type": "graphics", "page": "graphics/title.html", "space": "display",
+                           "start": "b:2", "out": "b:6", "params": {"colour": "rgb(200, 40, 120)"}})
+    put_comp(cut_project, comp)
+    page.wait_for_function("state.tl.layers.some(l => l.id === 'title') && state.graphics.has('title')")
+    page.evaluate("show(60)")
+    click_layer(page, "title")
+    page.wait_for_function("document.querySelector('#inspector h2')?.textContent.startsWith('title')")
+    title = lambda: json.loads((cut_project / "comps" / "main.json").read_text())["layers"][-1]
+    deadline = time.monotonic() + 20
+    for k, written in ((0, [0.5, 1.0]), (1, 0.5)):  # one field at a time: each change is an edit
+        field = page.locator("#inspector .row", has_text="scale").locator("input[type=number]").nth(k)
+        field.fill("0.5")
+        field.press("Enter")
+        while title().get("transform") != {"scale": written}:
+            assert time.monotonic() < deadline, f"the scale: not written; status {page.inner_text('#status')!r}"
+            time.sleep(0.05)
+        caught_up(page, "the scale")
+    page.wait_for_function("state.graphics.get('title').frame.style.transform.includes('scale(0.5, 0.5)')")
+    page.get_by_role("button", name="Add ellipse").click()
+    while "masks" not in title():
+        assert time.monotonic() < deadline, "the mask: not written"
+        time.sleep(0.05)
+    caught_up(page, "the mask")
+    page.evaluate("show(61)")
+    page.wait_for_function("state.graphics.get('title').frame.style.maskImage.includes('mask.png')")
+    mask = page.evaluate("""(async () => {
+      const r = await fetch(`/api/comp/main/layer/title/mask.png`);
+      return [r.status, r.headers.get('content-type')];
+    })()""")
+    assert mask == [200, "image/png"]
