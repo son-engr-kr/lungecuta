@@ -20,6 +20,7 @@ IDLE_MINUTES = 10.0  # *proposed*: a longer gap is a break, not work
 
 _BY_COMMAND = {
     "import": "material", "detect": "material", "root": "material", "relink": "material", "beats": "material",
+    "clips": "material", "proxy": "material",
     "licence": "material", "new-comp": "cutting", "framing": "cutting", "op graphic": "graphics",
     "graphic": "graphics", "patch-card": "graphics", "patches": "graphics", "op grade": "grading",
     "op look": "grading", "op unlook": "grading", "op sfx": "audio", "op sound": "audio", "audio-check": "audio",

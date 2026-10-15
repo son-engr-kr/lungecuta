@@ -103,7 +103,9 @@ class Edit:
 
     def layer(self, layer_id: str) -> dict[str, Any]:
         found = [layer for layer in self.data["layers"] if layer["id"] == layer_id]
-        assert len(found) == 1, f"comp {self.name} has no layer {layer_id!r}"
+        assert len(found) == 1, (f"comp {self.name} has no layer {layer_id!r}; its layers are "
+                                 + ", ".join(f"{layer['id']} ({layer['type']}{', ' + layer['media'] if 'media' in layer else ''})"
+                                             for layer in self.data["layers"]))
         return found[0]
 
     # Reading a layer's times in ticks.
