@@ -105,12 +105,14 @@ def _all_overlays(resolved: Resolved, prefix: str = "") -> list[tuple[str, Overl
 
 @contextmanager
 def overlay_pages(project: Project, resolved: Resolved) -> Iterator[dict]:
-    """A Chromium page for each graphics layer, precomps' included, open for the whole
-    render, by path."""
+    """A page for each graphics layer, precomps' included, open for the whole render, by
+    path; all in one Chromium, started only when the comp has graphics."""
+    overlays = _all_overlays(resolved)
     with ExitStack() as stack:
-        yield {path: (overlay, stack.enter_context(graphics.opened(project.directory / overlay.layer.page, size,
+        browser = stack.enter_context(graphics.chromium()) if overlays else None
+        yield {path: (overlay, stack.enter_context(graphics.opened(browser, project.directory / overlay.layer.page, size,
                                                                     overlay.layer.params, photos_of(project, overlay))))
-               for path, overlay, size in _all_overlays(resolved)}
+               for path, overlay, size in overlays}
 
 
 def photo_keys(resolved: Resolved) -> set[str]:

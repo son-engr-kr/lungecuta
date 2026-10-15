@@ -186,6 +186,38 @@ def test_a_graphics_layer_is_drawn_over_the_footage_with_its_own_codes(cut_proje
     assert checked.exit_code == 0, checked.output
 
 
+def test_several_graphics_layers_are_drawn_on_one_frame(cut_project):
+    from lungecuta.comp import load_comp, resolve
+    from lungecuta.media import Project
+    from lungecuta.compose import frame_at
+
+    (cut_project / "graphics" / "title.html").write_text(TITLE)
+    (cut_project / "graphics" / "lower.html").write_text(TITLE.replace("fillRect(4, 4, 40, 20)", "fillRect(4, 48, 40, 20)"))
+    comp = comp_json()
+    comp["layers"] += [
+        {"id": "title", "type": "graphics", "page": "graphics/title.html", "space": "display", "start": "b:2",
+         "out": "b:6", "params": {"colour": "rgb(200, 40, 120)"}},
+        {"id": "lower", "type": "graphics", "page": "graphics/lower.html", "space": "display", "start": "b:2",
+         "out": "b:6", "params": {"colour": "rgb(30, 160, 90)"}},
+        {"id": "again", "type": "graphics", "page": "graphics/title.html", "space": "display", "start": "b:8",
+         "out": "b:2", "params": {"colour": "rgb(10, 20, 250)"}},
+    ]
+    put_comp(cut_project, comp)
+    project = Project.load(cut_project)
+    resolved = resolve(project, load_comp(project, "main"))
+    assert len(resolved.overlays) == 3
+    frame = frame_at(project, resolved, 60)
+    np.testing.assert_allclose(frame[10, 10] * 255, [200, 40, 120], atol=1e-3)
+    np.testing.assert_allclose(frame[55, 10] * 255, [30, 160, 90], atol=1e-3)
+    # the same page twice, with its own parameters each time
+    np.testing.assert_allclose(frame_at(project, resolved, 140)[10, 10] * 255, [10, 20, 250], atol=1e-3)
+    result = CliRunner().invoke(main, ["render", "main", "--preset", "master-prores-hq", "--project", str(cut_project)])
+    assert result.exit_code == 0, result.output
+    checked = CliRunner().invoke(main, ["verify", json.loads(result.output)["file"], "--comp", "main", "--preset",
+                                        "master-prores-hq", "--project", str(cut_project)])
+    assert checked.exit_code == 0, checked.output
+
+
 def test_graphics_under_footage_composite_in_the_working_space(cut_project):
     from lungecuta.comp import load_comp, resolve
     from lungecuta.media import Project

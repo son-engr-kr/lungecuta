@@ -76,17 +76,27 @@ def serve(directory: Path, photos: dict[str, Path] | None = None) -> Iterator[st
 
 
 @contextmanager
-def opened(page_file: Path, size: tuple[int, int], params: dict[str, Any] | None = None,
-           photos: dict[str, Path] | None = None) -> Iterator[Any]:
-    """A Chromium page of `size` showing `page_file`, ready to render; `params` reach the
-    page as JSON in its `params` query parameter, and `photos` are served to it by key."""
+def chromium() -> Iterator[Any]:
+    """One headless Chromium for every page a render opens: Playwright's sync API runs one
+    instance to a thread, so each page is a context of this browser, not a browser of its own."""
     from playwright.sync_api import sync_playwright
 
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(args=CHROMIUM_ARGS)
+        yield browser
+        browser.close()
+
+
+@contextmanager
+def opened(browser: Any, page_file: Path, size: tuple[int, int], params: dict[str, Any] | None = None,
+           photos: dict[str, Path] | None = None) -> Iterator[Any]:
+    """A page of `size` in `browser` showing `page_file`, ready to render, in a context of
+    its own (its own origin, viewport and request gate); `params` reach the page as JSON in
+    its `params` query parameter, and `photos` are served to it by key."""
     page_file = page_file.resolve()
     assert page_file.is_file(), f"{page_file} is not a file"
     width, height = size
-    with serve(page_file.parent, photos) as origin, sync_playwright() as playwright:
-        browser = playwright.chromium.launch(args=CHROMIUM_ARGS)
+    with serve(page_file.parent, photos) as origin:
         context = browser.new_context(viewport={"width": width, "height": height}, device_scale_factor=1)
         refused: list[str] = []
 
@@ -112,7 +122,7 @@ def opened(page_file: Path, size: tuple[int, int], params: dict[str, Any] | None
         yield page
         assert not errors, f"{page_file.name} raised: {errors[0]}"
         assert not refused, f"{page_file.name} asked for {refused[0]}, outside its directory; refused"
-        browser.close()
+        context.close()
 
 
 def frame_png(page: Any, t: float) -> bytes:
@@ -136,7 +146,7 @@ def render(page_file: Path, out: Path, *, size: tuple[int, int], rate: Fraction,
         "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709", "-color_range", "tv",
         str(partial),
     ]
-    with opened(page_file, size, params, photos) as page:
+    with chromium() as browser, opened(browser, page_file, size, params, photos) as page:
         encoder = subprocess.Popen(command, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
         for index in range(frames):
             encoder.stdin.write(frame_png(page, float(first_time + Fraction(index) / rate)))
