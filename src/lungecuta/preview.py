@@ -24,7 +24,7 @@ from . import color, grade
 from .comp import Cut, Nest, Resolved, load_comp, resolve
 from .decode import to_rgb
 from .files import content_hash, content_hash_text
-from .geometry import mask_alpha, place
+from .geometry import area_resize, mask_alpha, place
 from .media import Project
 from .schema.comp import StyleTime
 from .compose import composite_alpha, placed_layer, shown
@@ -217,6 +217,19 @@ class Preview:
             frame = self._working(self.resolved, index, self.size)[0]
             color.apply(self.view, frame)
             return frame
+
+    def thumbnail(self, layer_id: str, height: int) -> np.ndarray:
+        """A footage layer's first frame alone, placed as the comp places it, on black,
+        `height` lines tall (area-averaged from the preview size), sRGB-encoded uint8 for
+        the timeline."""
+        cut = next(c for c in self.resolved.cuts if c.layer.id == layer_id)
+        with self.lock:
+            frame = np.ascontiguousarray(composite_alpha([self._layer(cut, cut.first)], self.size)[0])
+            color.apply(self.view, frame)
+            color.apply(self.to_viewer, frame)
+        width = max(1, round(self.size[0] * height / self.size[1]))
+        small = area_resize(np.clip(frame, 0, 1), (width, height)) if height < self.size[1] else frame
+        return np.floor(np.clip(small, 0, 1) * np.float32(255) + np.float32(0.5)).astype(np.uint8)
 
     def frame(self, index: int) -> bytes:
         """Comp frame `index` as RGBA bytes at the preview size, sRGB-encoded for the viewer."""

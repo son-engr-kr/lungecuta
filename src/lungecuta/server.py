@@ -160,6 +160,11 @@ def create_app(directory: Path) -> FastAPI:
 
         return Response(png8(scope_image(editor.preview(name).display(frame))), media_type="image/png")
 
+    @app.get("/api/comp/{name}/layer/{layer_id}/thumb.png")
+    def thumb(name: str, layer_id: str, key: str) -> Response:
+        return Response(editor.thumbnail(name, layer_id, key), media_type="image/png",
+                        headers={"Cache-Control": "max-age=31536000, immutable"})
+
     @app.get("/api/comp/{name}/peaks")
     def peaks(name: str) -> dict[str, Any]:
         return editor.peaks(name)

@@ -194,3 +194,22 @@ def test_the_timeline_gets_each_audio_layer_s_peaks_per_frame(client, cut_projec
     assert music["first"] == 0 and len(music["peaks"]) == resolved.end  # the music runs the comp's length
     assert max(music["peaks"]) == round(float(abs(piece).max()), 3)  # the loudest frame holds the loudest sample
     assert client.get("/api/comp/main/peaks").json()["layers"] == peaks  # the same until the comp changes
+
+
+def test_a_shot_s_thumbnail_is_its_first_frame_and_survives_a_move(client, cut_project):
+    import io
+
+    from PIL import Image
+
+    from lungecuta import ops
+    from lungecuta.media import Project
+
+    keys = lambda: {l["id"]: l["thumb"] for l in client.get("/api/comp/main").json()["layers"] if l["type"] == "footage"}
+    before = keys()
+    png = client.get(f"/api/comp/main/layer/shot1/thumb.png?key={before['shot1']}")
+    assert png.status_code == 200 and Image.open(io.BytesIO(png.content)).size[1] == 24
+    ops.move(Project.load(cut_project), "main", "shot2", "b:1")  # its first frame shows the same source frame
+    assert keys()["shot2"] == before["shot2"]
+    ops.slip(Project.load(cut_project), "main", "shot1", "f:5")  # it does not
+    assert keys()["shot1"] != before["shot1"]
+    assert client.get(f"/api/comp/main/layer/shot1/thumb.png?key={before['shot1']}").status_code == 409  # stale key

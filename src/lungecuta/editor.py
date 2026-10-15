@@ -24,6 +24,21 @@ from .preview import Preview
 from .ticks import TICKS_PER_SECOND, format_rate, nearest_sample, ticks_per_frame, ticks_per_sample
 
 POLL_SECONDS = 0.25  # how often project files are looked at; a UI setting, not a measurement
+THUMB_HEIGHT = 24  # lines: a timeline row, less its margins (web/timeline.js, ROW - 6)
+THUMBS_KEPT = 1000
+
+
+def thumb_key(preview: Preview, cut) -> str:
+    """What decides a footage layer's thumbnail: the clip and the source frame its first
+    frame shows, the layer's look and placement (its JSON without its timing), the styles
+    and LUTs it may read, the comp's size and the project's colour settings."""
+    import hashlib
+
+    timing = {"start", "in", "out", "markers", "sound"}
+    layer = {k: v for k, v in cut.layer.model_dump(mode="json", by_alias=True, exclude_unset=True).items() if k not in timing}
+    described = json.dumps([cut.record.key, cut.samples(cut.first), layer, repr(preview.inputs), preview.size,
+                            preview.project.file.color.model_dump()], sort_keys=True, default=str)
+    return hashlib.sha256(described.encode()).hexdigest()[:16]
 
 
 class Editor:
@@ -34,6 +49,7 @@ class Editor:
         self.previews: dict[str, Preview] = {}
         self.audio: dict[tuple[str, str], bytes] = {}
         self.peaks_of: dict[str, tuple[str, dict[str, Any]]] = {}  # comp -> (its hash, its peaks)
+        self.thumbs: dict[str, bytes] = {}  # thumb_key -> PNG, oldest first
         self.known: dict[str, str] = {}  # file -> the hash the server last read or wrote
         self.sockets: set[WebSocket] = set()
         self.lock = threading.Lock()
@@ -85,7 +101,8 @@ class Editor:
                    if isinstance(cut.layer.grade, list) else cut.layer.grade.model_dump(mode="json", exclude_unset=True),
                    "masks": [m.model_dump(mode="json") for m in cut.layer.masks],
                    "retime": cut.retime, "ramps": [list(r) for r in cut.ramps], "row": order[cut.layer.id],
-                   "sound": None if cut.layer.sound is None else cut.layer.sound.model_dump(mode="json", exclude_unset=True)}
+                   "sound": None if cut.layer.sound is None else cut.layer.sound.model_dump(mode="json", exclude_unset=True),
+                   "thumb": thumb_key(preview, cut)}
                   for cut in resolved.cuts]
         # Audio lands on samples, not frames: its extent in (fractional) frames, for drawing.
         layers += [{"id": s.layer.id, "type": "audio", "media": s.record.key, "first": s.first / 48000 * float(rate),
@@ -124,6 +141,22 @@ class Editor:
             "markers": [{"name": m.marker.name, "note": m.marker.note, "frame": m.frame, "layer": m.layer}
                         for m in resolved.markers],
         }
+
+    def thumbnail(self, name: str, layer_id: str, key: str) -> bytes:
+        """A footage layer's first frame as a PNG THUMB_HEIGHT lines tall, kept while what
+        decides it (`thumb_key`) stays the same, so a shot moved along the timeline is not
+        drawn again."""
+        from .images import png8
+
+        preview = self.preview(name)
+        cut = next(c for c in preview.resolved.cuts if c.layer.id == layer_id)
+        current = thumb_key(preview, cut)
+        assert key == current, f"{layer_id}'s thumbnail is {current} now, not {key}"
+        if key not in self.thumbs:
+            self.thumbs[key] = png8(preview.thumbnail(layer_id, THUMB_HEIGHT))
+            while len(self.thumbs) > THUMBS_KEPT:
+                self.thumbs.pop(next(iter(self.thumbs)))
+        return self.thumbs[key]
 
     def curves(self, name: str, layer_id: str) -> dict[str, Any]:
         """A footage layer's properties on every comp frame it is visible: position, scale,

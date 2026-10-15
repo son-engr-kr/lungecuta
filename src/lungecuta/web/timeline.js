@@ -35,6 +35,19 @@ function layout() {
   return packed;
 }
 
+const thumbs = new Map();  // thumb key -> its Image, which redraws the timeline once loaded
+function thumbnail(layer) {
+  if (!layer.thumb) return null;
+  let image = thumbs.get(layer.thumb);
+  if (!image) {
+    image = new Image();
+    image.onload = () => drawTimeline();
+    image.src = `/api/comp/${state.tl.name}/layer/${encodeURIComponent(layer.id)}/thumb.png?key=${layer.thumb}`;
+    thumbs.set(layer.thumb, image);
+  }
+  return image.complete && image.naturalWidth ? image : null;
+}
+
 function rowOf(id) {
   return layout().row.get(id);
 }
@@ -86,11 +99,18 @@ function drawTimeline() {
       const middle = y + ROW / 2, half = (ROW - 8) / 2, w = Math.max(1, state.zoom);
       wave.peaks.forEach((p, k) => { const h = Math.min(1, p) * half; g.fillRect(x(wave.first + k), middle - h, w, 2 * h); });
     }
-    g.fillStyle = "#f2f4f7";
     const speed = layer.remapped ? "  remapped" : layer.speed !== 1 ? `  ${Math.round(layer.speed * 100)}%` : "";
     const label = layer.type === "footage" ? `${layer.id}  ${layer.media}${speed}` : `${layer.id}  ${layer.media || layer.page || ""}`;
     g.save(); g.beginPath(); g.rect(x0, y, Math.max(0, x1 - x0), ROW); g.clip();
-    g.fillText(label, x0 + 5, y + 19); g.restore();
+    // The shot's first frame at the left of its box, where it is wide enough to show it.
+    const thumb = layer.type === "footage" ? thumbnail(layer) : null;
+    let text = x0 + 5;
+    if (thumb && x1 - x0 > 40) {
+      g.drawImage(thumb, x0 + 1, y + 3, thumb.width, ROW - 6);
+      text = x0 + thumb.width + 5;
+    }
+    g.fillStyle = "#f2f4f7";
+    g.fillText(label, text, y + 19); g.restore();
     for (const [f0, f1, a0, a1] of layer.ramps || []) {
       // A transition's opacity ramp: darker where the layer is more transparent.
       const ramp = g.createLinearGradient(x(f0), 0, x(f1), 0);
