@@ -99,6 +99,9 @@ def opened(page_file: Path, size: tuple[int, int], params: dict[str, Any] | None
                 route.abort()
 
         context.route("**/*", gate)
+        # every step waits as long as a page's start may (a screenshot timed out at Playwright's
+        # 30 s while the machine ran another job at a load of 38 on 15 cores)
+        context.set_default_timeout(READY_TIMEOUT_MS)
         page = context.new_page()
         errors: list[str] = []
         page.on("pageerror", lambda error: errors.append(str(error)))
