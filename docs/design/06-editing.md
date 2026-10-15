@@ -282,10 +282,31 @@ rather than a script:
 
 ## Stabilization
 
-Gyro stabilization stays in the existing ingest scripts (Gyroflow), and its output is imported as
-derived media of the original. Resolve's own gyro stabilization only reads Blackmagic
-cameras (Resolve manual, "Camera Gyro"), so there is nothing to defer to there either. A
-2D stabilizer from point tracks can follow later for footage without gyro data.
+`lungecuta stabilize KEY` runs Gyroflow, the open-source stabilizer that reads the gyro,
+IBIS and lens data Sony and other cameras record, on a clip, and imports its output as
+derived media of the original (`src/lungecuta/stabilize.py`, 02-media.md): a new clip in
+the project's cache holding every frame of the original, frame for frame, with the
+original's colour and time decisions and its sound, placed as any clip. Gyroflow is one
+pinned release, fetched and checked as ffmpeg is, run as a subprocess (it is GPL-3.0), and
+given a link to the original in a folder of its own, so that nothing it writes lands beside
+the original. Resolve's own gyro stabilization only reads Blackmagic cameras (Resolve
+manual, "Camera Gyro").
+
+- `--mode stabilize` is Gyroflow's own stabilization; `--mode rolling-shutter` keeps the
+  camera's movement and corrects only the sensor readout's skew and wobble, with one crop
+  for the clip (a static zoom) so the framing does not breathe (*proposed*).
+- `--preset` takes any of Gyroflow's stabilization settings and `--output` its codecs, as
+  Gyroflow names them. By default the clip is lossless H.264, all intra, in the original's
+  pixel format, so the only change is the warp: about 9 MB a 4K frame.
+- Measured on the S-Log3 sample (`bench/RESULTS.md`, Gyroflow): Gyroflow moves code values
+  by about a code (luma) and half a code (chroma), down, so a stabilized clip is not code
+  for code; and with no warp asked for it still moves frames by up to 6 px, which may be the
+  IBIS movement it removes. A clip recorded with the camera's distortion compensation keeps
+  its lens only at Gyroflow's lens correction of 1.0; 0 adds the distortion back.
+- Not written: stabilizing a part of a clip (Gyroflow's trim lands its first frame on the
+  first at or after the trim's start, but where it ends was not found), and a stabilizer of
+  lungecuta's own: a 2D one from point tracks for footage without gyro data, and one that
+  applies the camera's orientation in the engine without an intermediate clip.
 
 ## Markers
 

@@ -86,6 +86,11 @@ the Phase 0 media tests need samples of your own (see Conventions).
   the agent" gives each step and its check, and `lungecuta setup` writes the lungecuta skill
   (`skill.py`) into `~/.claude/skills/` and `~/.agents/skills/`, which takes the agent to a
   first project; keep it in step with the CLI, which `tests/test_skill.py` checks.
+- **A clip is stabilized, or its rolling shutter corrected**, by `lungecuta stabilize`
+  (`stabilize.py`, `gyroflow.py`): the pinned Gyroflow 1.6.3, run as a subprocess on a link
+  to the original, writes a clip into the project's cache (lossless H.264 by default),
+  imported as derived media of the original with its decisions; what Gyroflow changes was
+  measured (`bench/gyroflow_check.py`, `bench/RESULTS.md`).
 - **The time an edit takes is logged**: every lungecuta command run in a project, with its
   time, duration, parameters and outcome (`activity.py`, `cache/lungecuta/commands.jsonl`), and
   `lungecuta stages` turns that and the editor's journal into minutes by stage, for Phase 0's
@@ -207,6 +212,7 @@ Decided in this repository rather than taken from Pickapicka:
 | OpenColorIO | 2.6.0 from PyPI, built-in `studio-config-v5.0.0_aces-v2.1_ocio-v2.6` |
 | PyTorch | 2.14.1, MPS available |
 | Chromium | Playwright 1.63.0: chrome-headless-shell and Chrome for Testing, both 153.0.8010.12 |
+| Gyroflow | 1.6.3, the macOS disk image from its GitHub release, pinned (`src/lungecuta/gyroflow.py`; GPL-3.0: run as a subprocess only) |
 | DaVinci Resolve | 21.0.4 free. Blackmagic's 21.1 notes: "Advanced scripting now requires DaVinci Resolve Studio" (secondary sources: Python scripting moved to Studio). Phase 0 uses File > Import > Timeline, never scripting |
 
 The machine is in `bench/RESULTS.md`.
@@ -329,6 +335,10 @@ describes.
   `docs/design/07-audio.md#location-sound`).
 - A shot of a clip that repeats its images starts on a new image (lint's `new_image`, for
   clips `lungecuta repeats` has measured; *proposed*, `docs/design/06-editing.md#repeated-images`).
+- `lungecuta stabilize --mode rolling-shutter` holds one crop for the clip (Gyroflow's static
+  zoom) rather than Gyroflow's default dynamic zoom, whose crop changes frame to frame;
+  and a stabilized clip is lossless H.264 unless `--output` says otherwise (*proposed*,
+  `docs/design/06-editing.md#stabilization`).
 - A graphics layer's motion blur averaged on display-encoded values when it is on top of
   the stack, where the page is composited, and in linear light under footage (*proposed*,
   `docs/design/05-motion-graphics.md#a-page-as-a-layer`).
@@ -376,5 +386,9 @@ Each is labelled where it is cited; collected here so none is mistaken for a fac
   space it gives a ProRes 4444 graphic (all in the Phase 0 checks)
 - whether swscale's chroma upsampling (used for 4:2:2 and 4:2:0 sources) sites chroma the
   way the camera did; flat areas are unaffected, edges are not checked
+- why Gyroflow 1.6.3 moves code values down by about a code in luma and half in chroma
+  (truncation is likely, not verified), and whether the frame-wide shifts it makes with no
+  warp asked for are the IBIS movement it removes (`bench/RESULTS.md`, Gyroflow)
+- where a Gyroflow trim range ends, so that part of a clip could be stabilized
 - which licence PyAV's wheel is under: it calls its FFmpeg libraries LGPL v3 but ships
   libx264 and libx265 ([08-deliver.md](docs/design/08-deliver.md#licences))

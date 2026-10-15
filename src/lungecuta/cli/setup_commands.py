@@ -10,7 +10,8 @@ from .common import main, print_json
 def setup() -> None:
     """Fetch what lungecuta needs beside its Python packages and is missing: the pinned
     ffmpeg build (checked by size and SHA-256), Playwright's headless Chromium for graphics,
-    and Beat This!'s checkpoint for beat maps. Each would otherwise be fetched on first use;
+    the pinned Gyroflow for lungecuta stabilize (checked the same way), and Beat This!'s
+    checkpoint for beat maps. Each would otherwise be fetched on first use;
     this fetches them ahead. Prints what was fetched, then what lungecuta doctor finds."""
     from ..runtime import checks, setup as fetch_missing
 

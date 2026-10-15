@@ -157,6 +157,34 @@ def proxy(keys: tuple[str, ...], comp: str | None, project_dir: Path | None) -> 
     print_json({"proxies": build_proxies(project, named)})
 
 
+@main.command("stabilize")
+@click.argument("key")
+@click.option("--mode", type=click.Choice(["stabilize", "rolling-shutter"]), default="stabilize", show_default=True,
+              help="stabilize: Gyroflow's stabilization; rolling-shutter: only the sensor readout's skew and "
+                   "wobble corrected, the camera's movement kept.")
+@click.option("--preset", help="Gyroflow preset settings as JSON, laid over the mode's, as Gyroflow's own "
+                               "project files hold them: '{\"stabilization\": {\"method\": \"Fixed camera\"}}'.")
+@click.option("--output", help="Gyroflow output parameters as JSON, laid over lossless H.264: "
+                               "'{\"codec\": \"H.265/HEVC\", \"use_gpu\": true, \"bitrate\": 200}'.")
+@click.option("--key", "into", help="The derived clip's media key (KEY.stab or KEY.rs by default).")
+@click.option("--no-proxy", "no_proxy", is_flag=True, help="Without its proxy (lungecuta proxy makes it later).")
+@project_option
+def stabilize_command(key: str, mode: str, preset: str | None, output: str | None, into: str | None,
+                      no_proxy: bool, project_dir: Path | None) -> None:
+    """Stabilize clip KEY, or correct only its rolling shutter, from the gyro, IBIS and lens
+    data the camera recorded (Sony and other cameras Gyroflow reads), with the pinned
+    Gyroflow; the result is a new clip in the project's cache, imported as derived media of
+    KEY: every frame of it, frame for frame, with KEY's colour and time decisions. Place it
+    as any clip. Lossless by default (about 9 MB a 4K frame); --output takes Gyroflow's
+    codecs. A clip Gyroflow cannot read fails with Gyroflow's log."""
+    from ..media import summary
+    from ..stabilize import stabilize
+
+    record = stabilize(project_of(project_dir), key, mode=mode, preset=json.loads(preset) if preset else None,
+                       output=json.loads(output) if output else None, into=into, proxy=not no_proxy)
+    print_json({"derived": summary(record) | {"from": key, "file": record.path.rel, "bytes": record.stat.size}})
+
+
 @main.command()
 @click.argument("key")
 @click.option(

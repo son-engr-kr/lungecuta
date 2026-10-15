@@ -94,7 +94,11 @@ The existing ingest scripts (stabilization, rolling-shutter correction, reframin
 clips. Their outputs have no XML next to them and copy the original's stream
 tags, which for S-Log3 are `unknown`. So detection runs on the camera original, and a
 derived file inherits the original's decision through the stage's manifest. A derived
-file whose original cannot be found is undecided, like any other.
+file whose original cannot be found is undecided, like any other. `lungecuta stabilize`
+is such a stage inside lungecuta: its record names the original (`derived_from`) and how
+the clip was made (`derivation`: Gyroflow's version, preset and output, and the original's
+hash then), and takes the original's colour and time decisions with that in their
+evidence, once the clip is checked to hold every frame at the original's rate and range.
 
 ## Decode
 
@@ -291,5 +295,5 @@ from each stage:
 | stage | how it connects |
 | --- | --- |
 | classification | its manifest (transcripts, categories) is imported as clip metadata and keywords |
-| gyro stabilization (Gyroflow), rolling-shutter correction | outputs imported as derived media of the original |
+| gyro stabilization (Gyroflow), rolling-shutter correction | `lungecuta stabilize` runs the pinned Gyroflow and imports its output as derived media of the original ([06-editing.md](06-editing.md#stabilization)) |
 | reframing | first as derived media; later its point tracker becomes an engine effect whose output is crop keyframes ([06-editing.md](06-editing.md)) |

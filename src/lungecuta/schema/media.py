@@ -226,6 +226,19 @@ class ImageRecord(_Record):
     captured: str | None = Field(description="EXIF DateTimeOriginal as the file gives it, camera clock, no zone")
 
 
+class Derivation(_Record):
+    """How a derived clip was made from its original (`derived_from`), so that it can be
+    made again: by Gyroflow (`lungecuta stabilize`), frame for frame, its colour and time
+    the original's decisions."""
+
+    by: Literal["gyroflow"]
+    version: str
+    mode: Literal["stabilize", "rolling-shutter"]
+    preset: dict[str, Any] = Field(description="the preset Gyroflow was given, its stabilization settings")
+    output: dict[str, Any] = Field(description="Gyroflow's output parameters, the codec and its options")
+    original_hash: Sha256 = Field(description="the original's hash when the clip was made")
+
+
 class MediaRecord(_Record):
     """`media/KEY.json`: one imported file, its decisions and the evidence for them. A file
     with a video stream has `time`, `color` and `decode` (and a proxy); a music file has
@@ -245,6 +258,7 @@ class MediaRecord(_Record):
     derived_from: MediaKey | None
     licence: Licence | None = None
     image: ImageRecord | None = None
+    derivation: Derivation | None = None
 
     @model_validator(mode="after")
     def _video_or_music(self) -> MediaRecord:

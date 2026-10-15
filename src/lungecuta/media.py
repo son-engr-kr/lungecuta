@@ -86,6 +86,9 @@ def original(project: Project, record: MediaRecord) -> Path:
     """The file a record describes, checked to be the one imported: by size and modification
     time, or else by its hash (docs/design/03-project-format.md#media)."""
     path = project.root_path(record.path.root) / record.path.rel
+    if record.derivation is not None:
+        assert path.is_file(), (f"{record.key}: its clip, made from {record.derived_from}, is gone with the cache; "
+                                f"delete media/{record.key}.json and run lungecuta stabilize {record.derived_from} again")
     assert path.is_file(), f"{record.key}: {path} is missing under root {record.path.root!r}"
     stat = path.stat()
     if (stat.st_size, stat.st_mtime_ns) != (record.stat.size, record.stat.mtime_ns):

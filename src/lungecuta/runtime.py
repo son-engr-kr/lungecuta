@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from . import tools
+from . import gyroflow, tools
 from .guide import PUT_ON_PATH, SERVER
 from .skill import current, install_skill, skill_files
 
@@ -72,6 +72,9 @@ def checks() -> list[dict[str, Any]]:
     place = chromium_place()
     out.append({"name": "chromium", "ok": chromium_ready(),
                 "detail": f"Playwright's headless shell, for graphics, in {place}", "fix": SETUP})
+    out.append({"name": "gyroflow", "ok": gyroflow.ready(),
+                "detail": f"Gyroflow {gyroflow.RELEASE.version}, for lungecuta stabilize, in {gyroflow.directory()}",
+                "fix": SETUP})
     checkpoint = checkpoint_file()
     out.append({"name": "beat model", "ok": checkpoint.is_file(),
                 "detail": f"Beat This! checkpoint {CHECKPOINT}, for beat maps, in {checkpoint}", "fix": SETUP})
@@ -90,7 +93,7 @@ def checks() -> list[dict[str, Any]]:
 
 
 def setup() -> dict[str, Any]:
-    """Fetch what is missing: the pinned ffmpeg, the headless Chromium, the beat model; and
+    """Fetch what is missing: the pinned ffmpeg, the headless Chromium, Gyroflow, the beat model; and
     write the skill for Claude Code and Codex. Installers' progress goes to stderr, never
     stdout, which carries the JSON (and, under lungecuta mcp, the protocol)."""
     from .music import CHECKPOINT, checkpoint_file, fetch_checkpoint
@@ -101,6 +104,8 @@ def setup() -> dict[str, Any]:
     if not chromium_ready():
         _playwright("install", "chromium-headless-shell", stdout=2)
         fetched.append("chromium headless shell")
+    if gyroflow.fetch():
+        fetched.append(f"Gyroflow {gyroflow.RELEASE.version}")
     if not checkpoint_file().is_file():
         fetch_checkpoint()
         fetched.append(f"Beat This! {CHECKPOINT}")

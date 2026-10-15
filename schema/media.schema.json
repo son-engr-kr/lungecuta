@@ -261,6 +261,57 @@
       "title": "DecoderCheck",
       "type": "object"
     },
+    "Derivation": {
+      "additionalProperties": false,
+      "description": "How a derived clip was made from its original (`derived_from`), so that it can be\nmade again: by Gyroflow (`lungecuta stabilize`), frame for frame, its colour and time\nthe original's decisions.",
+      "properties": {
+        "by": {
+          "const": "gyroflow",
+          "title": "By",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        },
+        "mode": {
+          "enum": [
+            "stabilize",
+            "rolling-shutter"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "preset": {
+          "additionalProperties": true,
+          "description": "the preset Gyroflow was given, its stabilization settings",
+          "title": "Preset",
+          "type": "object"
+        },
+        "output": {
+          "additionalProperties": true,
+          "description": "Gyroflow's output parameters, the codec and its options",
+          "title": "Output",
+          "type": "object"
+        },
+        "original_hash": {
+          "description": "the original's hash when the clip was made",
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Original Hash",
+          "type": "string"
+        }
+      },
+      "required": [
+        "by",
+        "version",
+        "mode",
+        "preset",
+        "output",
+        "original_hash"
+      ],
+      "title": "Derivation",
+      "type": "object"
+    },
     "FileStat": {
       "additionalProperties": false,
       "description": "What `lungecuta` compares on open to decide whether a file must be hashed again.",
@@ -1072,6 +1123,17 @@
       "anyOf": [
         {
           "$ref": "#/$defs/ImageRecord"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "derivation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Derivation"
         },
         {
           "type": "null"

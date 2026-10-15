@@ -95,6 +95,12 @@ when they ask how long the edit took.
 A large shoot (more clips than the edit will use) imports with `--no-proxy`, which skips
 each clip's proxy, the larger part of an import's time and disk; `lungecuta proxy --comp
 COMP` then makes the proxies of the clips the comp shows, which the editor previews from.
+A shaky clip, or one whose verticals lean in a pan (rolling shutter), is corrected from the
+gyro data the camera recorded: `lungecuta stabilize KEY` (Gyroflow's stabilization) or
+`lungecuta stabilize KEY --mode rolling-shutter` (the movement kept, only the skew taken
+out) makes a new clip, `KEY.stab` or `KEY.rs`, placed as any clip, frame for frame the
+same source times, with KEY's colour and sound. It is lossless, about 9 MB a 4K frame, so
+stabilize the clips the cut uses, not the shoot; Gyroflow's settings go in `--preset`.
 A clip shot with a shutter longer than a frame repeats each image for several frames:
 `lungecuta repeats KEY` lists the frames where a new image begins, a shot of it starts on one,
 and `lungecuta lint` then warns of one that does not.

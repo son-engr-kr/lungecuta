@@ -765,6 +765,40 @@ is an enlargement of one rasterisation. A font in the page's directory, not awai
 `window.ready`, or first shown by `renderAt` later, was loaded by the first capture in each
 case (served locally), so no capture showed a fallback font.
 
+## Gyroflow: `lungecuta stabilize KEY --mode rolling-shutter [--preset P] [--output O] --key K`, then `uv run python bench/gyroflow_check.py PROJECT KEY K FRAME...`
+
+The S-Log3 sample (ILCE-7CM2, 3840x2160 at 29.97p, H.264 4:2:2 10-bit, recorded with the
+camera's distortion compensation and with IBIS data), Gyroflow 1.6.3 as pinned, on the M5
+Pro (2026-10-15). Frames 0, 350 and 704 against the original: the mean signed difference
+of each plane in 10-bit codes, the share of the frame's 8-pixel border that is black, and
+the displacement of nine 256-pixel patches (rows, columns) by phase correlation.
+
+| preset over the rolling-shutter mode | output | border black | displacement | mean signed Y; Cb; Cr |
+| --- | --- | --- | --- | --- |
+| `frame_readout_time` 0, `adaptive_zoom_window` 0: no warp asked for | lossless H.264 | 0.25 to 0.44 | one shift over the whole frame, 0 to 6 px, different each frame | -1.0 to -1.6; -0.47 to -0.48; -0.53 to -0.55 |
+| the mode as first written (Gyroflow's dynamic zoom) | lossless H.264 | 0.003 to 0.004 | outwards from the middle, up to 16 px on frame 0 and 31 px on frame 704 | 0.07 to 1.85; -0.54 to -0.62; -0.32 to -0.45 |
+| `adaptive_zoom_window` -1 (static zoom, the mode's default now) | HEVC | 0.002 to 0.004 | outwards, 26 to 32 px at the corners' columns on every frame | (4:2:0, not compared) |
+| `adaptive_zoom_window` 0 | HEVC | 0.25 to 0.44 | 0 to 6 px | (4:2:0) |
+| `lens_correction_amount` 0 | HEVC | 0.002 to 0.004 | up to 127 px, the lens distortion added back | (4:2:0) |
+
+- Gyroflow is not transparent to code values: where nothing moved (frame 704 with no warp
+  asked for) luma comes back a code low on average and both chroma planes about half a
+  code low, on every frame, which looks like truncation where rounding was meant (the
+  cause is not verified). It is not code for code.
+- With no warp asked for, frames still move as a whole by up to 6 px, a different amount
+  each frame; the clip carries IBIS data, and Gyroflow removing the IBIS movement would do
+  this (not verified). So the rolling-shutter mode may give back some of what IBIS took out.
+- Gyroflow's dynamic zoom changes the crop frame to frame (16 px at the edge on frame 0,
+  31 on frame 704): the framing breathes. The static zoom holds one crop for the clip.
+- On a clip the camera already corrected for distortion, a lens correction of 0 warps the
+  picture by up to 127 px, adding the distortion back; 1.0, Gyroflow's default, is the one
+  that leaves the lens as recorded.
+- Asked for `P210LE` (4:2:2) with the HEVC encoder on the GPU, Gyroflow wrote 4:2:0.
+- Time and size for 705 frames: lossless H.264 93 s (7.6 fps) and 6.79 GB; HEVC on the GPU at
+  100 to 300 Mbps 29 s and 0.94 GB.
+- The sound (24-bit PCM) is the original's sample for sample over all 1129128 of its
+  samples; Gyroflow's file has 344 more at the end.
+
 ## Numbers cited from elsewhere (not re-measured here)
 
 | number | where it was measured |

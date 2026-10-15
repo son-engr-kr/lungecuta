@@ -36,7 +36,8 @@ to a folder (Documents, Desktop, an external drive): they click Allow.
 ## 1. The machine
 
 Run `lungecuta doctor`. For each check that fails, run its `fix` (`lungecuta setup`
-downloads the pinned ffmpeg, a headless Chromium for titles and the beat model, once),
+downloads the pinned ffmpeg, a headless Chromium for titles, Gyroflow for stabilizing and
+the beat model, once),
 then run doctor again. lungecuta runs on macOS on Apple Silicon only; if the platform
 check fails, tell the person and stop.
 
