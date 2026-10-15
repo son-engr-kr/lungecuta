@@ -194,6 +194,15 @@ graphics events as events are not written yet.
   reported rather than corrected (`tests/test_onsets.py`). The filterbank built that way
   has 139 bands where the paper says 138.
 
+
+`lungecuta levels KEY` measures one file rather than the mix: a song bar by bar, from its beat
+map's downbeats (the stretch before the first is its own row), or every N beats, and a
+clip's own sound or a sound every so many seconds, each row with its RMS and peak in dBFS,
+its BS.1770 loudness where it is at least the 400 ms gating block, and its SuperFlux
+onsets; a chart of the RMS goes with it, scaled to the range the rows cover. It is how an
+agent finds where a song builds and where it can be cut, and where in a clip a cheer is.
+A one-sample click counts no onset (SuperFlux looks at 2048-sample frames), so the onset
+count is of the music's kind of events, not of every transient.
 ## Preview
 
 The engine renders the mixdown for the visible span and the browser plays it; the

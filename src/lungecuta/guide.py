@@ -124,8 +124,11 @@ shot speaks, and `--from P --to P` over a run of shots; the person judges by ear
 
 ## What you cannot judge
 
-You cannot watch playback or hear. Report what you measured (a cut 12 ms after the
-beat, a title on screen for 0.4 s, a true peak of -1.0 dBTP) and leave whether a ramp
+You cannot watch playback or hear. Measure instead: `lungecuta levels SONG` gives a song's
+level bar by bar with a chart (where it builds, drops and goes quiet, so where to cut it),
+and `lungecuta levels CLIP --every 0.25s` a clip's own sound (where the cheer is). Report
+what you measured (a cut 12 ms after the beat, a title on screen for 0.4 s, a true peak
+of -1.0 dBTP) and leave whether a ramp
 feels right or a drop hits hard to the person. Where a number is not measured or
 published, say so instead of choosing one.
 

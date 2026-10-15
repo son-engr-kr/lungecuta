@@ -166,6 +166,22 @@ def scope(
 
 
 @main.command()
+@click.argument("key")
+@click.option("--every", help="The rows: b:N for every N beats of music, or seconds (0.5s); by default music's bars.")
+@click.option("--out", type=click.Path(dir_okay=False, path_type=Path),
+              help="The chart's PNG; by default under cache/lungecuta/sheet/ in the project.")
+@project_option
+def levels(key: str, every: str | None, out: Path | None, project_dir: Path | None) -> None:
+    """A media file's sound over time, measured, since an agent cannot hear it: music bar
+    by bar (or --every b:N), a clip's own sound or a sound --every so many seconds. Each
+    row has its RMS and peak in dBFS, its BS.1770 loudness (rows of 400 ms or more) and its
+    onsets, with a chart of the RMS. Where the song builds, drops and goes quiet."""
+    from ..levels import levels as measure
+
+    print_json(measure(project_of(project_dir), key, every, out=out))
+
+
+@main.command()
 @click.argument("keys", nargs=-1)
 @click.option("--columns", type=click.IntRange(min=1), default=COLUMNS, show_default=True, help="Tiles a row.")
 @click.option("--rows", type=click.IntRange(min=1), default=CLIP_ROWS, show_default=True, help="Rows a page.")
