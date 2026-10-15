@@ -799,6 +799,23 @@ the displacement of nine 256-pixel patches (rows, columns) by phase correlation.
 - The sound (24-bit PCM) is the original's sample for sample over all 1129128 of its
   samples; Gyroflow's file has 344 more at the end.
 
+## A lossy encode's true peak against the master's ceiling: `uv run python bench/aac_peak_ladder.py PROJECT COMP web-h264 OUT_DIR CEILING...`
+
+A real edit's comp (the user's, read in place; its music is not named here), 2026-10-15:
+its mix mastered to -14 LUFS under each ceiling, encoded as `web-h264` encodes its audio
+(AudioToolbox AAC at 256 kbps), decoded, and its true peak measured; the peak sat at the
+same sample every time, a transient of the song in a crescendo.
+
+| ceiling (dBTP) | -1.00 | -1.02 | -1.04 | -1.06 | -1.078 | -1.10 | -1.12 | -1.15 | -1.20 | -1.25 | -1.30 | -1.40 | -1.50 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| encoded true peak | -0.932 | -0.932 | -0.932 | -0.932 | -0.913 | -1.020 | -1.062 | -1.171 | -1.241 | -1.300 | -1.313 | -1.370 | -1.351 |
+
+The encoded peak stays still over 0.06 dB of ceiling and rises 0.02 dB where the ceiling
+falls (twice), and its excess over the ceiling runs from -0.05 to 0.17 dB, so the secant
+step the delivery search used found a slope of -0.24 and stopped. The search that only
+lowers the ceiling, by the excess each pass, ends on this comp at a ceiling of -1.175 with
+the delivered peak at -1.246 dBTP and the loudness at -14.0 LUFS (6.1 s for the audio).
+
 ## Numbers cited from elsewhere (not re-measured here)
 
 | number | where it was measured |

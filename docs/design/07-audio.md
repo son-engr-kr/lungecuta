@@ -50,9 +50,13 @@ Written ahead of M7 so that renders deliver at their preset's loudness; the numb
   distribution systems and data reduction rates"), so lossy audio is encoded on its own,
   decoded, measured, and mastered again under a lower ceiling until the decoded file is
   under the preset's ceiling; that stream is muxed as it is (D15). The decoded peak
-  moves by less than the ceiling (0.88 dB per dB on the Phase 0 check comp), so each new
-  ceiling is a secant step aimed 0.01 dB under the preset's ceiling, the precision the
-  render reports; a step aimed at the ceiling itself only approaches it from above.
+  follows the ceiling only on the whole (0.88 dB per dB on the Phase 0 check comp; on a
+  real edit's comp it stayed still while the ceiling fell 0.06 dB and then rose 0.02 dB as
+  it fell further, AAC's quantization of one transient), so a secant step through two
+  passes can point the wrong way; the first version of this search stopped there. Each
+  pass that fails lowers the ceiling by the decoded peak's excess over 0.01 dB under the
+  preset's ceiling, the precision the render reports, so the ceiling only falls, by more
+  than 0.01 dB a pass (`under_ceiling` in `src/lungecuta/mixdown.py`).
 - Silence stays silence: a mix with no loudness to measure is not normalized.
 - The editor plays the mix through the same chain, at the `web-h264` preset's targets
   unless the request names another preset.

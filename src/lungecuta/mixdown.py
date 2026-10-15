@@ -3,6 +3,7 @@ mastered at a preset's targets (`audio.py`), and encoded as the preset delivers 
 the ceiling held in the delivered file (docs/design/07-audio.md)."""
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -80,8 +81,27 @@ def mastered(project: Project, resolved: Resolved, preset: Preset) -> tuple[np.n
     return master(mix(project, resolved), MIX_RATE, target_lufs=preset.loudness, ceiling_dbtp=preset.true_peak)
 
 
-DELIVERY_PASSES = 6
+DELIVERY_PASSES = 12  # a bound on the search, which lowers the ceiling by more than PEAK_STEP each pass
 PEAK_STEP = 0.01  # dB: the precision the delivered true peak is reported at
+
+
+def under_ceiling(peak_at: Callable[[float], float], limit: float,
+                  passes: int = DELIVERY_PASSES) -> tuple[float, float]:
+    """The first ceiling, from `limit` down, at which `peak_at(ceiling)` (the true peak of
+    the master under that ceiling, encoded and decoded) is at or under `limit`, and that
+    peak. The encoded peak follows the ceiling only on the whole: AAC's quantization held it
+    still while the ceiling fell 0.06 dB and moved it up 0.02 dB as the ceiling fell further,
+    its excess over the ceiling ranging from -0.05 to 0.17 dB (`bench/aac_peak_ladder.py`,
+    bench/RESULTS.md), so no slope between two passes can be trusted. Each pass that fails lowers the ceiling by the peak's excess over one
+    reporting step under `limit`, more than PEAK_STEP, and the ceiling never rises."""
+    ceiling, aim = limit, limit - PEAK_STEP
+    for _ in range(passes):
+        peak = peak_at(ceiling)
+        if peak <= limit:
+            return ceiling, peak
+        ceiling -= peak - aim
+    raise AssertionError(f"the encoded audio stayed over {limit} dBTP after {passes} passes "
+                         f"(last {peak:.3f} under a ceiling of {ceiling + peak - aim:.3f})")
 
 
 def delivered_audio(project: Project, resolved: Resolved, preset: Preset, base: Path) -> tuple[Path, list[str], dict]:
@@ -91,35 +111,28 @@ def delivered_audio(project: Project, resolved: Resolved, preset: Preset, base: 
     A lossy codec raises the true peak (AAC at 256 kbps by 0.2 to 0.5 dB on the music
     sample, `bench/master_chain.py`), and the ceiling holds for the delivered file. So
     lossy audio is encoded on its own, decoded and measured, and mastered again under a
-    lower ceiling until the decoded file is under the preset's ceiling; then it is muxed as
-    it is. The decoded peak moves by less than the ceiling does (0.88 dB per dB on the
-    Phase 0 check comp), so each new ceiling is a secant step through the last two
-    passes, aimed one reporting step under the preset's ceiling, since a step aimed at the
-    ceiling itself only approaches it from above. 24-bit PCM is muxed from the master
-    directly."""
+    lower ceiling until the decoded file is under the preset's ceiling (`under_ceiling`);
+    then it is muxed as it is. 24-bit PCM is muxed from the master directly."""
     mixed = mix(project, resolved)
     wav = base.with_name(f".{base.stem}.mix.wav")
-    lossless = preset.audio[1].startswith("pcm_")
-    ceiling, aim, previous = preset.true_peak, preset.true_peak - PEAK_STEP, None
-    for _ in range(DELIVERY_PASSES):
-        signal, chain = master(mixed, MIX_RATE, target_lufs=preset.loudness, ceiling_dbtp=ceiling)
+    encoded = base.with_name(f".{base.stem}.audio.m4a")
+    signal, chain = master(mixed, MIX_RATE, target_lufs=preset.loudness, ceiling_dbtp=preset.true_peak)
+    if preset.audio[1].startswith("pcm_") or chain.get("silent"):
         wav.write_bytes(wav_bytes(signal, MIX_RATE))
-        if lossless or chain.get("silent"):
-            return wav, list(preset.audio), chain
-        encoded = base.with_name(f".{base.stem}.audio.m4a")
+        return wav, list(preset.audio), chain
+    chains = {preset.true_peak: chain}
+
+    def peak_at(ceiling: float) -> float:
+        mastered = signal if ceiling == preset.true_peak else None
+        if mastered is None:
+            mastered, chains[ceiling] = master(mixed, MIX_RATE, target_lufs=preset.loudness, ceiling_dbtp=ceiling)
+        wav.write_bytes(wav_bytes(mastered, MIX_RATE))
         run([tool("ffmpeg"), "-v", "error", "-y", "-i", str(wav), *preset.audio, str(encoded)])
         decoded = np.frombuffer(run([tool("ffmpeg"), "-v", "error", "-i", str(encoded), "-f", "f32le", "-"]).stdout,
                                 np.float32).reshape(-1, 2)
-        peak = true_peak_db(decoded, MIX_RATE)
-        if peak <= preset.true_peak:
-            wav.unlink()
-            return encoded, ["-c:a", "copy"], chain | {"ceiling_used": round(ceiling, 3),
-                                                       "delivered_true_peak": round(peak, 3)}
-        slope = 1.0
-        if previous is not None:
-            slope = (peak - previous[1]) / (ceiling - previous[0])
-            assert slope > 0, f"lowering the ceiling to {ceiling:.3f} did not lower the encoded peak ({peak:.3f})"
-        previous = (ceiling, peak)
-        ceiling += (aim - peak) / slope
-    raise AssertionError(f"the encoded audio stayed over {preset.true_peak} dBTP after {DELIVERY_PASSES} passes "
-                         f"(last {peak:.3f} at a ceiling of {ceiling:.3f})")
+        return true_peak_db(decoded, MIX_RATE)
+
+    ceiling, peak = under_ceiling(peak_at, preset.true_peak)
+    wav.unlink()
+    return encoded, ["-c:a", "copy"], chains[ceiling] | {"ceiling_used": round(ceiling, 3),
+                                                        "delivered_true_peak": round(peak, 3)}
