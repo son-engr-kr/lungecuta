@@ -71,7 +71,7 @@ clips are usable, and `lungecuta clips --project PROJECT` shows them all, a tile
 undecided: tell the person which clips and why (the evidence is in its record under
 `media/`), and leave them out. Never guess a colour space.
 
-Make the comp the cut goes in, at the footage's frame rate (`status` lists each clip's
+Make the comp the cut goes in, at the footage's frame rate (`status` gives the footage's
 `rate`):
 
 ```

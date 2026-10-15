@@ -1,6 +1,7 @@
 """`lungecuta status` (docs/design/09-agent-interface.md): what is in a project, for an agent that
-has just arrived. Its media (footage with its colour decision, music with its tempo and
-whether its licence is recorded), its comps (size, rate, length, layers by type, markers,
+has just arrived. Its media (footage grouped by size, rate, colour space, whether it is
+usable and has its proxy, each group with its keys and length, so a shoot of hundreds of
+clips stays short; music with its tempo and whether its licence is recorded; photos), its comps (size, rate, length, layers by type, markers,
 transitions), how many editor changes the agent has not seen yet (`lungecuta changes` would
 list them), and the renders in the cache with whether each still matches its comp and
 media. Nothing is changed: the journal cursor stays where it is.
@@ -15,6 +16,7 @@ from typing import Any
 from . import journal, music
 from .comp import load_comp, resolve
 from .files import content_hash
+from .ticks import parse_rate
 from .media import Project, load_record
 from .render import RENDER_DIR
 from .schema.media import ColorDecided, TimeDecided
@@ -39,9 +41,15 @@ def _media(project: Project) -> dict[str, list[dict[str, Any]]]:
             continue
         video = record.probe.video
         decided = isinstance(record.color, ColorDecided) and isinstance(record.time, TimeDecided)
-        footage.append({"key": record.key, "size": list(video.size), "rate": video.rate, "frames": video.frames,
-                        "space": record.color.space if isinstance(record.color, ColorDecided) else None,
-                        "usable": decided, "proxy": record.proxy is not None})
+        alike = {"size": list(video.size), "rate": video.rate,
+                 "space": record.color.space if isinstance(record.color, ColorDecided) else None,
+                 "usable": decided, "proxy": record.proxy is not None}
+        group = next((g for g in footage if all(g[k] == v for k, v in alike.items())), None)
+        if group is None:
+            group = alike | {"keys": [], "seconds": 0.0}
+            footage.append(group)
+        group["keys"].append(record.key)
+        group["seconds"] = round(group["seconds"] + video.frames / float(parse_rate(video.rate)), 3)
     return {"footage": footage, "music": tracks, "sounds": sounds, "photos": photos}
 
 

@@ -142,7 +142,7 @@ def test_a_clip_imported_without_its_proxy_gets_it_when_it_is_used(cut_project):
     put_comp(cut_project, comp)
     run = lambda *args: json.loads(CliRunner().invoke(main, [*args, "--project", str(cut_project)],
                                                       catch_exceptions=False).output)
-    assert next(f for f in run("status")["media"]["footage"] if f["key"] == "C0005")["proxy"] is False
+    assert next(g for g in run("status")["media"]["footage"] if "C0005" in g["keys"])["proxy"] is False
     assert run("proxy", "--comp", "main")["proxies"] == {"C0005": "built", "C0001": "present"}
     record = load_record(Project.load(cut_project), "C0005")
     assert record.proxy is not None and (cut_project / record.proxy.path).is_file()

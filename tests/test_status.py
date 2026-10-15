@@ -14,8 +14,9 @@ def run(*args):
 
 def test_status_lists_media_comps_and_renders(cut_project):
     printed = run("status", "--project", str(cut_project))
-    assert [clip["key"] for clip in printed["media"]["footage"]] == ["C0001"]
+    assert [group["keys"] for group in printed["media"]["footage"]] == [["C0001"]]
     assert printed["media"]["footage"][0]["usable"] and printed["media"]["footage"][0]["size"] == [128, 72]
+    assert printed["media"]["footage"][0]["seconds"] == round(70 * 1001 / 30000, 3)
     assert printed["media"]["music"][0]["key"] == "track" and printed["media"]["music"][0]["licence"] is False
     assert printed["media"]["music"][0]["tempo_bpm"] == 120
     (comp,) = printed["comps"]
