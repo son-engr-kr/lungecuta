@@ -22,9 +22,13 @@ from .ticks import TICKS_PER_SECOND, ticks_per_frame
 
 
 def _media(project: Project) -> dict[str, list[dict[str, Any]]]:
-    footage, tracks, sounds = [], [], []
+    footage, tracks, sounds, photos = [], [], [], []
     for path in sorted((project.directory / "media").glob("*.json")):
         record = load_record(project, path.stem)
+        if record.image is not None:
+            photos.append({"key": record.key, "size": list(record.image.size), "icc": record.image.icc,
+                           "captured": record.image.captured})
+            continue
         if record.beats is not None:
             tracks.append({"key": record.key, "beats": len(record.beats.times),
                            "tempo_bpm": music.tempo(record.beats), "licence": record.licence is not None})
@@ -38,7 +42,7 @@ def _media(project: Project) -> dict[str, list[dict[str, Any]]]:
         footage.append({"key": record.key, "size": list(video.size), "rate": video.rate, "frames": video.frames,
                         "space": record.color.space if isinstance(record.color, ColorDecided) else None,
                         "usable": decided})
-    return {"footage": footage, "music": tracks, "sounds": sounds}
+    return {"footage": footage, "music": tracks, "sounds": sounds, "photos": photos}
 
 
 def _comps(project: Project) -> list[dict[str, Any]]:

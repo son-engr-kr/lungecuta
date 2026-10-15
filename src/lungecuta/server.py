@@ -18,6 +18,7 @@ import math
 import struct
 import threading
 import traceback
+import urllib.parse
 import webbrowser
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -45,15 +46,28 @@ GRAPHICS_POLICY = "default-src 'self' 'unsafe-inline' data: blob:"
 
 
 class GraphicsHandler(http.server.SimpleHTTPRequestHandler):
-    """The project's graphics/ and the wrapper page, with a policy that keeps them local."""
+    """The project's graphics/, the wrapper page and the project's photos (by media key,
+    read where they lie), with a policy that keeps them local."""
 
-    def __init__(self, *args: Any, graphics: Path, **kwargs: Any):
-        self.graphics = graphics
-        super().__init__(*args, directory=str(graphics), **kwargs)
+    def __init__(self, *args: Any, project: Path, **kwargs: Any):
+        self.project = project
+        super().__init__(*args, directory=str(project / "graphics"), **kwargs)
 
     def translate_path(self, path: str) -> str:
-        if path.split("?", 1)[0] == "/__lungecuta_frame.html":
+        from .media import MEDIA_URL, load_record, original
+
+        path = path.split("?", 1)[0]
+        if path == "/__lungecuta_frame.html":
             return str(WEB_DIR / "frame.html")
+        if path.startswith(MEDIA_URL):
+            # only a photo's original is served here: any other key is not found
+            key = urllib.parse.unquote(path.removeprefix(MEDIA_URL))
+            if "/" not in key and (self.project / "media" / f"{key}.json").is_file():
+                project = Project.load(self.project)
+                record = load_record(project, key)
+                if record.image is not None:
+                    return str(original(project, record))
+            return str(self.project / "graphics" / ".missing")
         return super().translate_path(path)
 
     def end_headers(self) -> None:
@@ -66,8 +80,7 @@ class GraphicsHandler(http.server.SimpleHTTPRequestHandler):
 
 
 def serve_graphics(directory: Path) -> tuple[str, http.server.ThreadingHTTPServer]:
-    graphics = directory / "graphics"
-    handler = functools.partial(GraphicsHandler, graphics=graphics)
+    handler = functools.partial(GraphicsHandler, project=directory)
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     return f"http://127.0.0.1:{server.server_address[1]}", server
@@ -111,7 +124,7 @@ class Editor:
         for path in sorted((self.directory / "media").glob("*.json")):
             record = json.loads(path.read_text())
             media.append({"key": record["key"], "music": record.get("beats") is not None,
-                          "audio": bool(record["probe"]["audio"]),
+                          "audio": bool(record["probe"]["audio"]), "photo": record.get("image") is not None,
                           "color": (record.get("color") or {}).get("status"),
                           "frames": (record["probe"].get("video") or {}).get("frames")})
         return {"directory": str(self.directory), "comps": [Path(c).stem for c in project.file.comps],

@@ -16,10 +16,10 @@ import numpy as np
 
 from . import grade
 from .comp import Resolved, load_comp, resolve
-from .compose import captured, compose, overlay_pages, raw_layers
+from .compose import captured, compose, overlay_pages, photo_keys, raw_layers
 from .encode import PRESETS, TAGS, Preset, frame_bytes
 from .files import content_hash, json_text, write_atomic
-from .media import Project
+from .media import Project, load_record
 from .mixdown import delivered_audio
 from .parallel import in_order
 from .ticks import TICKS_PER_SECOND, format_rate, ticks_per_frame
@@ -66,7 +66,8 @@ def manifest(project: Project, resolved: Resolved, hashes: dict[str, Any], prese
                  "rate": format_rate(resolved.rate), "size": list(resolved.comp.size)},
         "precomps": hashes["precomps"],
         "media": sorted({(c.record.key, c.record.hash) for c in resolved.every_cut()}
-                        | {(s.record.key, s.record.wav.hash) for s in resolved.every_sound() if not s.footage}),
+                        | {(s.record.key, s.record.wav.hash) for s in resolved.every_sound() if not s.footage}
+                        | {(key, load_record(project, key).hash) for key in photo_keys(resolved)}),
         "luts": hashes["luts"],
         "looks": hashes["looks"],
         "color": settings.model_dump(),

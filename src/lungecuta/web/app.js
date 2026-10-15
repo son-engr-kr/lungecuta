@@ -64,16 +64,22 @@ async function boot() {
     select.appendChild(option);
   }
   select.onchange = () => loadComp(select.value);
-  // Media that can be placed: decided footage and music (an undecided clip cannot be).
+  // Media that can be placed: decided footage, music and photos (an undecided clip cannot be).
   const media = $("media");
   for (const item of state.project.media) {
-    if (!item.music && item.color !== "decided") continue;
+    if (!item.music && !item.photo && item.color !== "decided") continue;
     const option = document.createElement("option");
     option.value = item.key;
-    option.textContent = `${item.key}${item.music ? " (music)" : ""}`;
+    option.textContent = `${item.key}${item.music ? " (music)" : item.photo ? " (photo)" : ""}`;
     media.appendChild(option);
   }
-  $("place").onclick = () => media.value && edit("place", { media: media.value, at: `f:${state.frame}` });
+  $("place").onclick = () => {
+    if (!media.value) return;
+    // A photo has no length of its own: a beat (a second without a grid), its out edge then dragged.
+    const photo = state.project.media.find((m) => m.key === media.value)?.photo;
+    const length = photo ? (state.tl.beats.length ? "b:1" : "1s") : undefined;
+    edit("place", { media: media.value, at: `f:${state.frame}`, ...(length ? { length } : {}) });
+  };
   state.styles = await api("/api/styles");
   connect();
   if (state.project.comps.length) await loadComp(state.project.comps[0]);

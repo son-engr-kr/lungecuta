@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import re
 from fractions import Fraction
+from pathlib import Path
 from typing import Any
 
 from ..literals import (Field, Frames, Seconds, format_literal, parse_literal, resolve_position, resolve_source,
                         resolve_span, span_literal)
+from ..files import write_atomic
 from ..geometry import shown_size
 from ..media import Project, load_record
 from ..ticks import TICKS_PER_SECOND, first_frame_at_or_after, parse_rate, ticks_per_frame
@@ -171,8 +173,10 @@ def place(project: Project, name: str, media: str, at: str, size: str = "fit", l
     resolution is), to `fill` it (no edge showing, cropped), or left at its `own` size; the
     scale is written out, never implied. Every frame the layer shows must be in the media."""
     assert size in SIZES, f"{size!r} is not a size ({', '.join(SIZES)})"
-    edit = Edit.open(project, name, expect)
     record = load_record(project, media)
+    if record.image is not None:
+        return _photo(project, name, media, at, size, length, to, expect)
+    edit = Edit.open(project, name, expect)
     taken = {layer["id"] for layer in edit.data["layers"]}
     layer_id = media if media not in taken else next(f"{media}.{k}" for k in range(2, 1000) if f"{media}.{k}" not in taken)
     start = resolve_position(parse_literal(at, Field.POSITION), rate=edit.rate, grid=edit.grid)
@@ -226,15 +230,16 @@ def place(project: Project, name: str, media: str, at: str, size: str = "fit", l
 
 
 def graphic(project: Project, name: str, page: str, at: str, length: str | None = None,
-            params: dict[str, Any] | None = None, to: str | None = None, expect: str | None = None) -> dict[str, Any]:
+            params: dict[str, Any] | None = None, to: str | None = None, expect: str | None = None,
+            named: str | None = None) -> dict[str, Any]:
     """Put the web page `page` (`graphics/NAME.html`, 05-motion-graphics.md) on top of the
     comp at position `at` for `length` (a span, written as given) or up to position `to`,
     drawn in display space over everything, with `params` handed to the page. The layer is
-    named after the page (with `.2`, `.3` for more)."""
+    named after the page, or `named` (with `.2`, `.3` for more)."""
     assert (length is None) != (to is None), "a graphic runs for a length or up to a position, one of the two"
     edit = Edit.open(project, name, expect)
     assert (project.directory / page).is_file(), f"{page} is not in the project"
-    base = page.removeprefix("graphics/").removesuffix(".html")
+    base = named or page.removeprefix("graphics/").removesuffix(".html")
     taken = {layer["id"] for layer in edit.data["layers"]}
     layer_id = base if base not in taken else next(f"{base}.{k}" for k in range(2, 1000) if f"{base}.{k}" not in taken)
     start = resolve_position(parse_literal(at, Field.POSITION), rate=edit.rate, grid=edit.grid)
@@ -247,6 +252,24 @@ def graphic(project: Project, name: str, page: str, at: str, length: str | None 
                         + (f", with {', '.join(sorted(params))}" if params else ""))
     _resolves(project, edit)
     return edit.save()
+
+
+PHOTO_PAGE = "graphics/photo.html"  # lungecuta's page for a photo, written into a project that places one
+PHOTO_FITS = {"fit": "contain", "fill": "cover", "own": "none"}  # place's sizes as the page's CSS object-fit
+
+
+def _photo(project: Project, name: str, media: str, at: str, size: str, length: str | None, to: str | None,
+           expect: str | None) -> dict[str, Any]:
+    """A photo placed: a graphics layer of lungecuta's photo page showing it, read where it
+    lies, all of it seen (`fit`), filling the frame (`fill`) or at its own pixels (`own`).
+    A photo has no length of its own, so it needs one. The page is written into
+    `graphics/` the first time; one already there is the project's and is kept."""
+    assert length is not None or to is not None, f"{media} is a photo: give how long it shows (--for or --to)"
+    page = project.directory / PHOTO_PAGE
+    if not page.exists():
+        write_atomic(page, (Path(__file__).resolve().parents[1] / "web" / "photo.html").read_text())
+    return graphic(project, name, PHOTO_PAGE, at, length, {"media": media, "fit": PHOTO_FITS[size]}, to, expect,
+                   named=media)
 
 
 def _length(edit: Edit, length: str, start: int) -> str:

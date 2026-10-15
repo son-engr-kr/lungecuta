@@ -213,6 +213,19 @@ class Licence(_Record):
     note: str | None = None
 
 
+class ImageRecord(_Record):
+    """A photo (developed: JPEG, PNG or TIFF), shown as a graphics layer's page shows an
+    image, so its colour is the browser's: an embedded ICC profile is converted to the
+    sRGB the pages render in, and an untagged file is taken as sRGB, as browsers take it
+    (*proposed*, 05-motion-graphics.md, Photos)."""
+
+    format: Literal["jpeg", "png", "tiff"]
+    size: tuple[int, int] = Field(description="width and height as shown, after the file's EXIF orientation")
+    orientation: int = Field(ge=1, le=8, description="the EXIF orientation, 1 when the file has none")
+    icc: str | None = Field(description="the embedded ICC profile's description; none when untagged")
+    captured: str | None = Field(description="EXIF DateTimeOriginal as the file gives it, camera clock, no zone")
+
+
 class MediaRecord(_Record):
     """`media/KEY.json`: one imported file, its decisions and the evidence for them. A file
     with a video stream has `time`, `color` and `decode` (and a proxy); a music file has
@@ -231,6 +244,7 @@ class MediaRecord(_Record):
     beats: BeatMap | None
     derived_from: MediaKey | None
     licence: Licence | None = None
+    image: ImageRecord | None = None
 
     @model_validator(mode="after")
     def _video_or_music(self) -> MediaRecord:
@@ -242,5 +256,7 @@ class MediaRecord(_Record):
             assert all(part is None for part in video) and self.proxy is None, (
                 f"{self.key}: a file without video has no time, color, decode or proxy"
             )
-            assert self.wav is not None, f"{self.key}: a file without video needs its wav"  # music has beats too
+            # music and sounds have their WAV (music its beats too); a photo has neither
+            assert (self.wav is None) == (self.image is not None), f"{self.key}: a file without video needs its wav"
+            assert self.image is None or (self.beats is None and not self.probe.audio), f"{self.key}: a photo has no sound"
         return self

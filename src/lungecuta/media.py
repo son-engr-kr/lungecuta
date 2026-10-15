@@ -1,6 +1,7 @@
 """`lungecuta import`: media records, one file each under `media/` (docs/design/02-media.md#ingest)."""
 from __future__ import annotations
 
+import io
 import json
 from dataclasses import dataclass
 from fractions import Fraction
@@ -21,6 +22,7 @@ from .schema.media import (
     ColorDecided,
     ColorUndecided,
     FileStat,
+    ImageRecord,
     MediaPath,
     MediaRecord,
     Parity,
@@ -107,6 +109,17 @@ def import_file(project: Project, file: Path, *, root: str, key: str | None = No
     path = MediaPath(root=root, rel=file.relative_to(base).as_posix())
 
     stat = file.stat()
+    suffix = file.suffix.lower()
+    assert suffix not in RAW_SUFFIXES, (
+        f"{file.name} is a camera RAW; develop it to a JPEG, PNG or TIFF first (Pickapicka exports sRGB JPEGs)")
+    if suffix in IMAGE_FORMATS:
+        assert not sound, f"{file.name} is a photo, not a sound"
+        record = MediaRecord(key=key, path=path, hash=content_hash(file), stat=FileStat(size=stat.st_size,
+                             mtime_ns=stat.st_mtime_ns), probe=Probe(video=None, audio=[], data_streams=0, timecode=None,
+                             creation_time=None), derived_from=None, time=None, color=None, decode=None, proxy=None,
+                             wav=None, beats=None, image=read_image(file, IMAGE_FORMATS[suffix]))
+        write_new(record_path, json_text(record.model_dump(mode="json")))
+        return record
     probed = probe(file)
     video = probed.video
     common = dict(
@@ -143,6 +156,33 @@ def import_files(project: Project, files: list[Path], *, root: str, key: str | N
     jobs = ((project, file) for file in files)
     return list(in_order(lambda project, file: import_file(project, file, root=root, key=key, sound=sound), jobs,
                          workers=IMPORT_JOBS, ahead=IMPORT_JOBS))
+
+
+# Photos by their suffix: what Pillow reads them as. A camera RAW is developed first.
+IMAGE_FORMATS = {".jpg": "jpeg", ".jpeg": "jpeg", ".png": "png", ".tif": "tiff", ".tiff": "tiff"}
+RAW_SUFFIXES = {".arw", ".cr2", ".cr3", ".crw", ".nef", ".nrw", ".sr2", ".srf", ".raf", ".rw2", ".orf", ".pef",
+                ".srw", ".dng", ".raw", ".3fr", ".erf", ".kdc", ".mos", ".mrw", ".x3f"}  # Pickapicka's list
+_ORIENTATION, _DATE_TIME_ORIGINAL, _EXIF_IFD = 0x0112, 0x9003, 0x8769
+
+
+def read_image(file: Path, expected: str) -> ImageRecord:
+    """A photo's record from its own header, by Pillow: its format (which must be the one
+    its suffix says), its size as shown after its EXIF orientation, its ICC profile's
+    description and the time the camera says it was taken."""
+    from PIL import Image, ImageCms
+
+    with Image.open(file) as image:
+        assert image.format.lower() == expected, f"{file.name} is {image.format}, not {expected} as its suffix says"
+        exif = image.getexif()
+        orientation = int(exif.get(_ORIENTATION, 1))
+        width, height = image.size
+        icc = image.info.get("icc_profile")
+    description = None
+    if icc:
+        description = ImageCms.getProfileDescription(ImageCms.ImageCmsProfile(io.BytesIO(icc))).strip()
+    captured = exif.get_ifd(_EXIF_IFD).get(_DATE_TIME_ORIGINAL)
+    return ImageRecord(format=expected, size=(height, width) if orientation >= 5 else (width, height),
+                       orientation=orientation, icc=description, captured=captured)
 
 
 def _music(project: Project, file: Path, key: str, probed: Probe, common: dict[str, Any],
@@ -240,6 +280,17 @@ def music_wav(project: Project, record: MediaRecord) -> Path:
         )
     assert content_hash(path) == record.wav.hash, f"{record.key}: {path} has changed since import; import it again"
     return path
+
+
+MEDIA_URL = "/__lungecuta_media/"  # where a graphics page asks for a photo, by its media key
+
+
+def photo_file(project: Project, key: str) -> Path:
+    """The original of photo `key`, checked unchanged since import: what a graphics page
+    showing it is served."""
+    record = load_record(project, key)
+    assert record.image is not None, f"{key} is not a photo"
+    return original(project, record)
 
 
 def footage_wav(project: Project, record: MediaRecord) -> Path:

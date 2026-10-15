@@ -133,6 +133,31 @@ A text or shape layer can move between tiers because the project file describes 
 same way. skia-python has one active maintainer, so the wheels are pinned and the
 rasteriser stays behind a thin interface.
 
+## Photos
+
+A developed photo (JPEG, PNG or TIFF) is a display-referred picture, as a title is, so it
+enters as one: a graphics layer of lungecuta's photo page (`web/photo.html`, written into
+the project's `graphics/` the first time a photo is placed, and the project's own after
+that) with the photo's media key in its parameters (`src/lungecuta/ops/timing.py`). The
+photo is imported where it lies, like footage, its record holding its hash, its format,
+its size as shown, its EXIF orientation, its ICC profile's description and the time the
+camera gives (`media.py`, `schema/media.py`), and both graphics origins, the editor's and
+a render's, serve that original read-only at `/__lungecuta_media/KEY` and nothing else
+outside `graphics/`. *(proposed, as a whole)*
+
+- Its colour is Chromium's: an ICC profile is converted to the sRGB the pages render in
+  (`--force-color-profile=srgb`), and an untagged file is taken as sRGB, as browsers take
+  it. On top of the stack its codes are the deliverable's, code for code
+  (`tests/test_photos.py`); under footage it enters through the inverse output view, as
+  any page does.
+- Chromium turns it upright by its EXIF orientation (checked on a PNG turned a quarter).
+- `lungecuta op place COMP KEY --at P --for SPAN` places it, `--size fit` (all of it seen),
+  `fill` (cropped to fill the frame) or `own` (its own pixels), the page's CSS `object-fit`
+  `contain`, `cover` and `none`; it needs a length, having none of its own.
+- A camera RAW is refused at import: it is developed first (Pickapicka exports sRGB JPEGs
+  with the profile embedded and the pixels upright). Decoding RAW into the working space
+  as scene light, which would grade with the footage, is not written.
+
 ## Phase 0: graphics for Resolve
 
 `lungecuta graphic` renders a page to ProRes 4444 with alpha for Resolve, the past projects'

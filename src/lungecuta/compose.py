@@ -109,8 +109,21 @@ def overlay_pages(project: Project, resolved: Resolved) -> Iterator[dict]:
     render, by path."""
     with ExitStack() as stack:
         yield {path: (overlay, stack.enter_context(graphics.opened(project.directory / overlay.layer.page, size,
-                                                                    overlay.layer.params)))
+                                                                    overlay.layer.params, photos_of(project, overlay))))
                for path, overlay, size in _all_overlays(resolved)}
+
+
+def photo_keys(resolved: Resolved) -> set[str]:
+    """The photos the comp's graphics layers show, precomps' included."""
+    return {overlay.layer.params["media"] for _, overlay, _ in _all_overlays(resolved) if "media" in overlay.layer.params}
+
+
+def photos_of(project: Project, overlay) -> dict[str, Path]:
+    """The photo a graphics layer's page shows (its `media` parameter), checked unchanged."""
+    from .media import photo_file
+
+    key = overlay.layer.params.get("media")
+    return {} if key is None else {key: photo_file(project, key)}
 
 
 def _inline(project: Project, png: bytes, comp: tuple[int, int], threads: int | None) -> tuple[np.ndarray, np.ndarray]:

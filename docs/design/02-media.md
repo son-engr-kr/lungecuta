@@ -17,6 +17,10 @@ The result is a media record in the project, one file under `media/` (see
 relative to a media root, and holds the proxy, the decided colour interpretation and the
 evidence for it.
 
+Photos (JPEG, PNG, TIFF) are imported where they lie too, with a record of their own
+header and no decisions: they are shown as graphics pages show images
+([05-motion-graphics.md](05-motion-graphics.md#photos)).
+
 ## Colour-space detection
 
 The stream tags alone cannot be trusted, and on the footage this tool is for they are

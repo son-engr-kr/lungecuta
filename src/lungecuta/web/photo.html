@@ -1,0 +1,18 @@
+<!doctype html>
+<!-- Written by lungecuta op place for a photo. It shows params.media, an imported photo,
+     served from where it lies; params.fit is "contain" (all of it, on transparency),
+     "cover" (filling the frame, cropped) or "none" (its own pixels, centred). The browser
+     turns the photo upright by its EXIF orientation and converts an ICC profile to sRGB. -->
+<html><head><meta charset="utf-8"><style>
+html, body { margin: 0; width: 100%; height: 100%; background: transparent; overflow: hidden; }
+img { width: 100%; height: 100%; display: block; }
+</style></head><body><img id="photo" alt="">
+<script>
+const params = JSON.parse(new URLSearchParams(location.search).get("params") || "{}");
+const photo = document.getElementById("photo");
+photo.style.objectFit = params.fit || "contain";
+photo.src = "/__lungecuta_media/" + encodeURIComponent(params.media);
+window.renderAt = () => {};
+photo.decode().then(() => { window.ready = true; },
+                    () => { throw new Error(`photo ${params.media} did not load`); });
+</script></body></html>

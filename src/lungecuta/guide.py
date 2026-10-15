@@ -99,7 +99,9 @@ footage itself: `lungecuta sheet --media KEY --every f:15` labels each frame wit
 beat 8 for four beats; `--to b:4` ends a layer at a position instead, as the first shot
 from `0s` needs (no beat span starts before the first beat). A later layer is drawn over
 an earlier one, so shots that meet at cuts need no ordering. `lungecuta op graphic COMP
-graphics/title.html --at 0s --to b:4 --params '{{...}}'` puts a title page on top.
+graphics/title.html --at 0s --to b:4 --params '{{...}}'` puts a title page on top. A photo
+(a developed JPEG, PNG or TIFF, imported like a clip) is placed with `op place` too,
+`--for b:1`, and shows as it was developed.
 `lungecuta audio-check COMP` then gives every cut's offset to its beat.
 
 A speed ramp is a range at another speed: `lungecuta op speed COMP LAYER --from b:9 --to b:10

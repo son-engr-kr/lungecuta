@@ -320,6 +320,9 @@ describes.
   ([03-project-format.md](docs/design/03-project-format.md#from-time-to-frames-and-samples)).
 - The findings left open in
   [docs/research/design-review-2026-10-11.md](docs/research/design-review-2026-10-11.md).
+- Photos (JPEG, PNG, TIFF) as graphics layers of lungecuta's photo page, served where they
+  lie, their colour Chromium's (an ICC profile to sRGB, an untagged file taken as sRGB);
+  RAW refused until developed (*proposed*, `docs/design/05-motion-graphics.md#photos`).
 - A clip's own sound (`sound` on the footage layer, `lungecuta op sound`): a field of the
   footage layer rather than a linked audio layer, and played only at 100 % (*proposed*,
   `docs/design/07-audio.md#location-sound`).

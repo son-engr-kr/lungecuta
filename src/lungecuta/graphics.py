@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-from urllib.parse import urlencode
+from urllib.parse import unquote, urlencode
 
 from .encode import TAGS
 from .ticks import format_rate
@@ -42,14 +42,29 @@ TO_YCBCR = "scale=out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_ch
 
 
 class _Quiet(http.server.SimpleHTTPRequestHandler):
+    def __init__(self, *args: Any, photos: dict[str, Path], **kwargs: Any):
+        self.photos = photos
+        super().__init__(*args, **kwargs)
+
+    def translate_path(self, path: str) -> str:
+        """A page's own directory, and the photos it was given by media key (MEDIA_URL)."""
+        from .media import MEDIA_URL
+
+        path = path.split("?", 1)[0]
+        if path.startswith(MEDIA_URL):
+            key = unquote(path.removeprefix(MEDIA_URL))
+            return str(self.photos[key]) if key in self.photos else str(Path(self.directory) / ".missing")
+        return super().translate_path(path)
+
     def log_message(self, format: str, *args: Any) -> None:
         pass
 
 
 @contextmanager
-def serve(directory: Path) -> Iterator[str]:
-    """Serve `directory` on 127.0.0.1 at a free port; yields its origin."""
-    handler = functools.partial(_Quiet, directory=str(directory))
+def serve(directory: Path, photos: dict[str, Path] | None = None) -> Iterator[str]:
+    """Serve `directory` on 127.0.0.1 at a free port, and `photos` (files by media key) at
+    MEDIA_URL; yields its origin."""
+    handler = functools.partial(_Quiet, directory=str(directory), photos=photos or {})
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -61,15 +76,16 @@ def serve(directory: Path) -> Iterator[str]:
 
 
 @contextmanager
-def opened(page_file: Path, size: tuple[int, int], params: dict[str, Any] | None = None) -> Iterator[Any]:
+def opened(page_file: Path, size: tuple[int, int], params: dict[str, Any] | None = None,
+           photos: dict[str, Path] | None = None) -> Iterator[Any]:
     """A Chromium page of `size` showing `page_file`, ready to render; `params` reach the
-    page as JSON in its `params` query parameter."""
+    page as JSON in its `params` query parameter, and `photos` are served to it by key."""
     from playwright.sync_api import sync_playwright
 
     page_file = page_file.resolve()
     assert page_file.is_file(), f"{page_file} is not a file"
     width, height = size
-    with serve(page_file.parent) as origin, sync_playwright() as playwright:
+    with serve(page_file.parent, photos) as origin, sync_playwright() as playwright:
         browser = playwright.chromium.launch(args=CHROMIUM_ARGS)
         context = browser.new_context(viewport={"width": width, "height": height}, device_scale_factor=1)
         refused: list[str] = []
@@ -103,7 +119,8 @@ def frame_png(page: Any, t: float) -> bytes:
 
 
 def render(page_file: Path, out: Path, *, size: tuple[int, int], rate: Fraction, frames: int,
-           first_time: Fraction = Fraction(0), params: dict[str, Any] | None = None) -> dict[str, Any]:
+           first_time: Fraction = Fraction(0), params: dict[str, Any] | None = None,
+           photos: dict[str, Path] | None = None) -> dict[str, Any]:
     """Render `frames` frames of a page at `rate`, the first at page time `first_time`
     seconds, into a ProRes 4444 file with alpha."""
     assert frames >= 1, "render at least one frame"
@@ -116,7 +133,7 @@ def render(page_file: Path, out: Path, *, size: tuple[int, int], rate: Fraction,
         "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709", "-color_range", "tv",
         str(partial),
     ]
-    with opened(page_file, size, params) as page:
+    with opened(page_file, size, params, photos) as page:
         encoder = subprocess.Popen(command, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
         for index in range(frames):
             encoder.stdin.write(frame_png(page, float(first_time + Fraction(index) / rate)))

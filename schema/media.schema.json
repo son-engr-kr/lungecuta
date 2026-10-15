@@ -281,6 +281,76 @@
       "title": "FileStat",
       "type": "object"
     },
+    "ImageRecord": {
+      "additionalProperties": false,
+      "description": "A photo (developed: JPEG, PNG or TIFF), shown as a graphics layer's page shows an\nimage, so its colour is the browser's: an embedded ICC profile is converted to the\nsRGB the pages render in, and an untagged file is taken as sRGB, as browsers take it\n(*proposed*, 05-motion-graphics.md, Photos).",
+      "properties": {
+        "format": {
+          "enum": [
+            "jpeg",
+            "png",
+            "tiff"
+          ],
+          "title": "Format",
+          "type": "string"
+        },
+        "size": {
+          "description": "width and height as shown, after the file's EXIF orientation",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "title": "Size",
+          "type": "array"
+        },
+        "orientation": {
+          "description": "the EXIF orientation, 1 when the file has none",
+          "maximum": 8,
+          "minimum": 1,
+          "title": "Orientation",
+          "type": "integer"
+        },
+        "icc": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the embedded ICC profile's description; none when untagged",
+          "title": "Icc"
+        },
+        "captured": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "EXIF DateTimeOriginal as the file gives it, camera clock, no zone",
+          "title": "Captured"
+        }
+      },
+      "required": [
+        "format",
+        "size",
+        "orientation",
+        "icc",
+        "captured"
+      ],
+      "title": "ImageRecord",
+      "type": "object"
+    },
     "Licence": {
       "additionalProperties": false,
       "description": "Under what terms a file may be used, as checked by a person (09-agent-interface.md,\n\"music is cleared\": checked on the source's page, not a search filter).",
@@ -991,6 +1061,17 @@
       "anyOf": [
         {
           "$ref": "#/$defs/Licence"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "image": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ImageRecord"
         },
         {
           "type": "null"
