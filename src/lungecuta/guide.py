@@ -71,7 +71,7 @@ when they ask how long the edit took.
    selected layer and the range they marked with I and O. That is what "here", "this
    shot" and "this part" mean; `marked` gives the range as `--from` and `--to`.
 2. Prefer `lungecuta op OP COMP ...` (move, trim, slip, slide, roll, ripple-delete, split, snap,
-   place, graphic, key, unkey, move-key, set, remap, speed, style, unstyle, grade, look, unlook,
+   place, cut, graphic, key, unkey, move-key, set, remap, speed, style, unstyle, grade, look, unlook,
    masks, transition, untransition, sfx, sound, duck): the editor's own functions, written only if the
    file is still the one read, the change printed in editing terms. Edit the JSON for anything
    else, then run `lungecuta validate`.
@@ -100,7 +100,9 @@ length, the time it was recorded and whether it has sound), then in points from 
 footage itself: `lungecuta sheet --media KEY --every f:15` labels each frame with its seconds. Then one `place` per shot, on the beat grid:
 `lungecuta op place COMP KEY --at b:8 --for b:4 --source 2.5s` puts KEY from 2.5 s into it at
 beat 8 for four beats; `--to b:4` ends a layer at a position instead, as the first shot
-from `0s` needs (no beat span starts before the first beat). A later layer is drawn over
+from `0s` needs (no beat span starts before the first beat). A whole first cut is one
+`lungecuta op cut COMP --shots '[{{"media": KEY, "at": "b:8", "for": "b:4", "source": "2.5s"}}, ...]'`,
+each shot as `place` takes it, written at once or not at all. A later layer is drawn over
 an earlier one, so shots that meet at cuts need no ordering. `lungecuta op graphic COMP
 graphics/title.html --at 0s --to b:4 --params '{{...}}'` puts a title page on top. A photo
 (a developed JPEG, PNG or TIFF, imported like a clip) is placed with `op place` too,

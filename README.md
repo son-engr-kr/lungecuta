@@ -119,7 +119,7 @@ lungecuta verify FILE --comp COMP ...      the deliverable checked against its c
 lungecuta flash FILE                       WCAG 2.2's general flash threshold on a render
 lungecuta graphic PAGE ...                 a web page rendered to ProRes 4444 with alpha
 lungecuta patch-card DIR ... / lungecuta patches  a card of known colours, and reading an export back at it
-lungecuta op OP COMP ...                   an edit operation: place, graphic, sfx, move, trim, slip, slide,
+lungecuta op OP COMP ...                   an edit operation: place, cut, graphic, sfx, move, trim, slip, slide,
                                            roll, ripple-delete, split, snap, key, unkey, move-key, set,
                                            remap, speed, style, unstyle, look, unlook, grade, masks,
                                            transition, untransition, sound, duck

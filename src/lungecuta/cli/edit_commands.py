@@ -319,6 +319,22 @@ def op_remap(comp: str, layer: str, project_dir: Path | None) -> None:
     print_json(ops.remap(project_of(project_dir), comp, layer))
 
 
+@op.command("cut")
+@click.argument("comp")
+@click.option("--shots", help='The shots as JSON, in order: \'[{"media": "C0012", "at": "b:8", "for": "b:4", '
+              '"source": "2.5s"}, ...]\', each as lungecuta op place takes it (media, at, for or to, source, size).')
+@click.option("--file", "plan", type=click.Path(exists=True, dir_okay=False, path_type=Path),
+              help="The same list in a JSON file, instead of --shots.")
+@project_option
+def op_cut(comp: str, shots: str | None, plan: Path | None, project_dir: Path | None) -> None:
+    """Place a list of shots in one edit, each as lungecuta op place places it, in order, so
+    a later one goes on top: the comp is checked and written once, or not at all if any
+    shot fails. One call for a whole first cut, instead of one place a shot."""
+    assert (shots is None) != (plan is None), "give the shots with --shots or --file, one of the two"
+    listed = json.loads(shots if shots is not None else plan.read_text())
+    print_json(ops.cut(project_of(project_dir), comp, listed))
+
+
 @op.command("duck")
 @click.argument("comp")
 @click.argument("layer")

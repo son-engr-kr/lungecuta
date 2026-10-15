@@ -62,7 +62,7 @@ two. `set` sets a constant where there are no keys. `remap` enables time remappi
 After Effects does, keys at the in and out points holding the source shown there, the
 values written in seconds to five places and every frame of the layer checked to show
 what it showed before (or nothing is written). `grade` replaces a layer's grade after
-building it; `speed` plays a range at one speed ([Speed](#speed)); `style` and `unstyle` place and take off a style instance
+building it; `cut` places a list of shots, each as `place` does, in one edit, written once or not at all; `speed` plays a range at one speed ([Speed](#speed)); `style` and `unstyle` place and take off a style instance
 ([03-project-format.md](03-project-format.md#m2s-part-of-styles)).
 
 ### What the agent sees of the editor

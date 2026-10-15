@@ -371,3 +371,24 @@ def test_a_layer_placed_up_to_a_beat_from_before_the_grid_ends_on_its_frame(cut_
     assert layers(cut_project)["title"]["out"].startswith("f:")
     with pytest.raises(AssertionError, match="not both"):
         ops.place(Project.load(cut_project), "main", "C0001", "b:6", length="b:1", to="b:8")
+
+
+def test_a_cut_places_its_shots_in_one_edit_or_none_of_them(cut_project):
+    from lungecuta.journal import entries
+
+    shots = [{"media": "C0001", "at": "b:8", "for": "b:1", "source": "f:10"},
+             {"media": "C0001", "at": "b:9", "to": "b:11", "source": "f:20", "size": "own"}]
+    result = CliRunner().invoke(main, ["op", "cut", "main", "--shots", json.dumps(shots), "--project", str(cut_project)],
+                                catch_exceptions=False)
+    printed = json.loads(result.output)
+    assert printed["changes"] == ["C0001 placed at b:8 as C0001, b:1 long, from f:10",
+                                  "C0001 placed at b:9 as C0001.2, b:2 long, from f:20"]
+    placed = layers(cut_project)
+    assert placed["C0001.2"]["start"] == "b:9" and "transform" not in placed["C0001.2"]
+    before = (cut_project / "comps" / "main.json").read_text()
+    bad = shots[:1] + [{"media": "C0001", "at": "b:9", "for": "b:1", "source": "f:900"}]  # past the clip's end
+    with pytest.raises(AssertionError, match="cannot start at f:900"):
+        ops.cut(Project.load(cut_project), "main", bad)
+    assert (cut_project / "comps" / "main.json").read_text() == before  # the first shot was not written either
+    with pytest.raises(AssertionError, match="a shot has media and at"):
+        ops.cut(Project.load(cut_project), "main", [{"media": "C0001", "start": "b:1"}])
