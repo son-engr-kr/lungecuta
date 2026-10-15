@@ -305,6 +305,51 @@ def _photo(project: Project, edit: Edit, media: str, at: str, size: str, length:
     _graphic(project, edit, PHOTO_PAGE, at, length, {"media": media, "fit": PHOTO_FITS[size]}, to, media)
 
 
+CAPTIONS_PAGE = "graphics/captions.html"  # lungecuta's captions page, written into a project that places captions
+LINE_FIELDS = {"at", "to", "text", "class", "words"}
+
+
+def captions(project: Project, name: str, lines: list[dict[str, Any]], css: str,
+             expect: str | None = None) -> dict[str, Any]:
+    """Put captions on top of the comp: one graphics layer of lungecuta's captions page,
+    from the first line's `at` to the last line's `to` (comp positions), each line shown
+    from its `at` to its `to`, with `text` (or `words`, each with its own `at`, for word by
+    word) and an optional `class`; how they look is `css`, the page's stylesheet, given by
+    whoever places them. The page is written into `graphics/` the first time; one already
+    there is the project's and is kept."""
+    assert lines, "captions need a line"
+    assert css.strip(), "captions need their look: give --css (the stylesheet of the captions page)"
+    edit = Edit.open(project, name, expect)
+    at = lambda text: resolve_position(parse_literal(text, Field.POSITION), rate=edit.rate, grid=edit.grid)
+    for k, line in enumerate(lines):
+        assert set(line) <= LINE_FIELDS and {"at", "to"} <= set(line) and ("text" in line) != ("words" in line), (
+            f"line {k}: {sorted(line)}; a line has at, to, and text or words (and class)")
+        assert at(line["at"]) < at(line["to"]), f"line {k} ends at or before it starts ({line['at']} to {line['to']})"
+    first = min(range(len(lines)), key=lambda k: at(lines[k]["at"]))
+    last = max(range(len(lines)), key=lambda k: at(lines[k]["to"]))
+    start = at(lines[first]["at"])
+    seconds = lambda text: float(Fraction(at(text) - start, TICKS_PER_SECOND))
+    shown = []
+    for line in lines:
+        item = {"from": seconds(line["at"]), "to": seconds(line["to"])}
+        if "words" in line:
+            assert all(set(w) == {"at", "text"} for w in line["words"]), "each word has at and text"
+            item["words"] = [{"at": seconds(w["at"]), "text": w["text"]} for w in line["words"]]
+        else:
+            item["text"] = line["text"]
+        if "class" in line:
+            item["class"] = line["class"]
+        shown.append(item)
+    page = project.directory / CAPTIONS_PAGE
+    if not page.exists():
+        write_atomic(page, (Path(__file__).resolve().parents[1] / "web" / "captions.html").read_text())
+    _graphic(project, edit, CAPTIONS_PAGE, lines[first]["at"], None, {"lines": shown, "css": css},
+             lines[last]["to"], "captions")
+    edit.changes[-1] += f", {len(lines)} line{'s' if len(lines) != 1 else ''}"
+    _resolves(project, edit)
+    return edit.save()
+
+
 def _length(edit: Edit, length: str, start: int) -> str:
     """A layer's out point given as its length from `start`: written as given."""
     span = resolve_span(parse_literal(length, Field.LAYER), anchor=start, rate=edit.rate, grid=edit.grid)

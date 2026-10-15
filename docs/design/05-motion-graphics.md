@@ -165,6 +165,26 @@ size, so a layer without a transform covers the comp as it always did, code for 
 - FCPXML does not carry a graphics layer's transform, masks or motion blur yet, and
   refuses one that has them.
 
+## Captions
+
+Captions are a page too, lungecuta's captions page (`web/captions.html`, written into the
+project's `graphics/` the first time and the project's own after that), placed by
+`lungecuta op captions COMP --lines JSON --css CSS` as one layer from the first line's
+start to the last line's end (`src/lungecuta/ops/timing.py`). Each line has comp positions
+`at` and `to`, and `text`, or `words` each with its own `at` for word by word, and an
+optional `class`; the operation turns the positions into seconds of layer time.
+
+The page holds structure and nothing of a look: the lines shown at t are `div.line`
+children of `#captions`, in order, each word a `span.word` that takes the class `said` at
+its time. How they look (font, size, colour, place, a box, how a line comes in) is the
+stylesheet given with them, the person's to decide; the operation refuses captions
+without one. A line animates from t through the CSS variables the page sets on it, `--in`
+(seconds since it came), `--out` (seconds until it goes) and `--progress` (0 to 1), and
+each word through its own `--in`, read with `calc()`; CSS transitions and animations run
+on the clock and are refused at capture. Before the page says it is ready, every line is
+laid out once, unseen, so each font a line uses has loaded before the first frame. Being a
+graphics layer, captions take a transform, masks and motion blur like any other.
+
 ## Photos
 
 A developed photo (JPEG, PNG or TIFF) is a display-referred picture, as a title is, so it

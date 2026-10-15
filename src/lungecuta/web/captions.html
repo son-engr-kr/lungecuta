@@ -1,0 +1,56 @@
+<!doctype html>
+<!-- Written by lungecuta op captions; this copy is the project's to change. It shows
+     params.lines, each {from, to, text} in seconds of layer time (with optional "class",
+     and "words" [{at, text}] for word by word), as one div.line each in #captions, in
+     order, while from <= t < to. How they look is params.css, the person's: nothing here
+     but the structure. Each shown line carries CSS variables a stylesheet can animate by,
+     computed from t: --in (seconds since it came), --out (seconds until it goes) and
+     --progress (0 to 1); each word span.word the class "said" once its time has come, and
+     its own --in. -->
+<html><head><meta charset="utf-8"><style>
+html, body { margin: 0; width: 100%; height: 100%; background: transparent; overflow: hidden; }
+#captions { position: absolute; inset: 0; display: flex; flex-direction: column; }
+</style><style id="look"></style></head><body><div id="captions"></div>
+<script>
+const params = JSON.parse(new URLSearchParams(location.search).get("params") || "{}");
+document.getElementById("look").textContent = params.css || "";
+const box = document.getElementById("captions");
+const lines = (params.lines || []).map((line, index) => {
+  const el = document.createElement("div");
+  el.className = ["line", line.class].filter(Boolean).join(" ");
+  el.dataset.index = index;
+  if (line.words) {
+    for (const word of line.words) {
+      const span = document.createElement("span");
+      span.className = "word";
+      span.textContent = word.text;
+      el.append(span, " ");
+    }
+  } else {
+    el.textContent = line.text;
+  }
+  return { line, el, words: [...el.querySelectorAll(".word")] };
+});
+window.renderAt = (t) => {
+  const shown = lines.filter(({ line }) => line.from <= t && t < line.to);
+  box.replaceChildren(...shown.map(({ el }) => el));
+  for (const { line, el, words } of shown) {
+    el.style.setProperty("--in", t - line.from);
+    el.style.setProperty("--out", line.to - t);
+    el.style.setProperty("--progress", (t - line.from) / (line.to - line.from));
+    words.forEach((span, k) => {
+      span.classList.toggle("said", t >= line.words[k].at);
+      span.style.setProperty("--in", t - line.words[k].at);
+    });
+  }
+};
+// Every line laid out once, unseen, so that each font it uses has loaded before the first frame.
+box.style.visibility = "hidden";
+box.replaceChildren(...lines.map(({ el }) => el));
+void box.offsetHeight;  // the layout that asks for the fonts
+document.fonts.ready.then(() => {
+  box.replaceChildren();
+  box.style.visibility = "";
+  window.ready = true;
+});
+</script></body></html>

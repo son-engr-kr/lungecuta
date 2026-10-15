@@ -71,7 +71,7 @@ when they ask how long the edit took.
    selected layer and the range they marked with I and O. That is what "here", "this
    shot" and "this part" mean; `marked` gives the range as `--from` and `--to`.
 2. Prefer `lungecuta op OP COMP ...` (move, trim, slip, slide, roll, ripple-delete, split, snap,
-   place, cut, graphic, key, unkey, move-key, set, remap, speed, style, unstyle, grade, look, unlook,
+   place, cut, graphic, captions, key, unkey, move-key, set, remap, speed, style, unstyle, grade, look, unlook,
    masks, transition, untransition, sfx, sound, duck): the editor's own functions, written only if the
    file is still the one read, the change printed in editing terms. Edit the JSON for anything
    else, then run `lungecuta validate`.
@@ -148,6 +148,12 @@ frame; moved by a transform on an element with `will-change: transform`, it move
 0.255 px every frame. Leave `will-change` off text that grows or shrinks: it is then an
 enlargement of one rendering, and softer. Several pages may be on screen at once. Look at a
 title with `lungecuta still COMP --at P` where it comes in, holds and goes.
+
+Captions (subtitles, lyrics, a line someone says) are `lungecuta op captions COMP --lines
+JSON --css CSS`: each line from a comp position to another, as text or word by word, on
+lungecuta's captions page; their look is the stylesheet, which the person decides (ask, or
+follow what they showed you), and its CSS variables `--in`, `--out` and `--progress`
+animate a line from t. `--help` shows the page's structure.
 
 A graphics layer, a photo's included, takes keys, masks and motion blur as footage does:
 `lungecuta op key COMP LAYER scale --at P --value 1.08` (and `position`, `rotation`,

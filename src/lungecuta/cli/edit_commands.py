@@ -190,6 +190,41 @@ def op_graphic(comp: str, page: str, at: str, length: str | None, to: str | None
     print_json(ops.graphic(project_of(project_dir), comp, page, at, length, given, to))
 
 
+@op.command("captions")
+@click.argument("comp")
+@click.option("--lines", help='The lines as JSON, in comp positions: \'[{"at": "b:8", "to": "b:12", "text": "Here we '
+                              'go"}, {"at": "12.5s", "to": "14s", "words": [{"at": "12.5s", "text": "one"}, '
+                              '{"at": "13s", "text": "two"}], "class": "loud"}]\'.')
+@click.option("--file", "lines_file", type=click.Path(exists=True, dir_okay=False, path_type=Path),
+              help="The lines as a JSON file, instead of --lines.")
+@click.option("--css", help="How the captions look: the page's stylesheet, as CSS.")
+@click.option("--css-file", type=click.Path(exists=True, dir_okay=False, path_type=Path),
+              help="The stylesheet as a file, instead of --css.")
+@project_option
+def op_captions(comp: str, lines: str | None, lines_file: Path | None, css: str | None, css_file: Path | None,
+                project_dir: Path | None) -> None:
+    """Put captions on top of the comp: one layer of lungecuta's captions page
+    (graphics/captions.html, the project's own copy once written), each line shown from its
+    at to its to, as one div.line in #captions; a line given as words shows each word as a
+    span.word that takes the class "said" at its own time. How they look is the
+    stylesheet, yours to write: fonts (system fonts, or files in graphics/ by @font-face),
+    size, colour, position, a box behind the text. Each shown line has the CSS variables
+    --in (seconds since it came), --out (seconds until it goes) and --progress (0 to 1), and
+    each word its --in, to animate by with calc() (CSS transitions and animations run on the
+    clock and are refused). For example:
+
+    \b
+    #captions { justify-content: flex-end; align-items: center; padding-bottom: 7vh; }
+    .line { font: 600 5vh "Apple SD Gothic Neo", sans-serif; color: #fff;
+            text-shadow: 0 0.2vh 0.6vh rgba(0,0,0,.6); opacity: min(1, calc(var(--in) / 0.15)); }
+    """
+    assert (lines is None) != (lines_file is None), "give the lines with --lines or --file"
+    assert (css is None) != (css_file is None), "give the look with --css or --css-file"
+    given = json.loads(lines if lines is not None else lines_file.read_text())
+    assert isinstance(given, list), "the lines are a JSON list"
+    print_json(ops.captions(project_of(project_dir), comp, given, css if css is not None else css_file.read_text()))
+
+
 @op.command("snap")
 @click.argument("comp")
 @click.argument("layer")
