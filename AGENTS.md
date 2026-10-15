@@ -327,6 +327,8 @@ describes.
 - A clip's own sound (`sound` on the footage layer, `lungecuta op sound`): a field of the
   footage layer rather than a linked audio layer, and played only at 100 % (*proposed*,
   `docs/design/07-audio.md#location-sound`).
+- A shot of a clip that repeats its images starts on a new image (lint's `new_image`, for
+  clips `lungecuta repeats` has measured; *proposed*, `docs/design/06-editing.md#repeated-images`).
 - `lungecuta op speed` (the speed graph's constant segment): the rest of the layer keeps its
   speeds and its in and out points stay, so the change does not ripple the comp
   (*proposed*, `docs/design/06-editing.md#speed`).

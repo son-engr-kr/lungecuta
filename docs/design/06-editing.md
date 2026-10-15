@@ -144,6 +144,21 @@ two neighbours and the resulting warp is applied to the linear working-space dat
 trusted. Fast motion with occlusion is where every interpolator fails, and the comparison
 set must contain it.
 
+### Repeated images
+
+A shutter longer than a frame (1/5 s at 23.98p) makes the camera write one image for
+several frames, a new one coming on a fixed period, which plays as a stepped, smeared
+motion people shoot it for. A shot of such a clip that starts partway into an image shows
+it for fewer frames than the rest, and the step stumbles at the cut, so it starts on a
+frame where a new image begins (*proposed*). `lungecuta repeats KEY` finds them: each
+frame's difference from the one before at 160x90 grey, and the period (2 to 24 frames)
+and phase whose frames all differ more than every other frame does; the two sets not
+overlapping is the test, with no threshold of difference, since an ordinary still shot
+changes less from frame to frame than a dim new image (`bench/RESULTS.md`, "Repeated
+images": seven slow clips of a real shoot separated by 2.8 to 54, twelve ordinary ones by
+at most 0.59). `lungecuta lint` warns of a shot that starts into an image, for clips already
+measured, and names the new-image frames either side (`src/lungecuta/repeats.py`).
+
 ## Motion blur
 
 Footage is shot sharp on purpose (45 to 90 degree shutter, the user's shooting

@@ -704,6 +704,26 @@ Checked, not timed, and not checked for numerical correctness: on this machine
 runs a hand-written Metal kernel on MPS tensors, and `F.grid_sample` on a 5-D input runs
 on MPS.
 
+## Repeated images: `uv run python bench/repeats.py CLIP...`
+
+Nineteen clips of a real 23.98p shoot from the ILCE-7CM2 (the user's; read in place,
+2026-10-14), seven of them at a shutter longer than a frame (1/4, 1/5 and 1/10 s, from the
+clips' own metadata by a private script) and twelve at 1/50 s or faster. Each frame's
+mean absolute difference from the one before at 160x90 grey; for each clip the period
+and phase whose frames all differ more than every other frame does, and by what factor
+(smallest change on the period over largest off it).
+
+| clips | separation | period found |
+| --- | --- | --- |
+| seven at 1/4 to 1/10 s | 2.81 to 54.50 (1/10 s at night lowest; 1/4 s highest) | 6 at 1/4 s, 5 at 1/5 s, 3 at 1/10 s, every clip |
+| twelve at 1/50 s and faster | 0.05 to 0.59 | none |
+
+So a separation above 1, the two sets not overlapping, tells them apart with room on
+both sides. An absolute threshold of one code does not: repeated frames differed by up to
+0.28, new images in a dim slow clip by as little as 0.96, and frames of an ordinary still
+shot by as little as 0.23, so a first version with that threshold counted 200 frames of
+an ordinary clip as repeats and missed new images in two slow ones.
+
 ## Numbers cited from elsewhere (not re-measured here)
 
 | number | where it was measured |

@@ -166,6 +166,20 @@ def scope(
 
 
 @main.command()
+@click.argument("keys", nargs=-1, required=True)
+@project_option
+def repeats(keys: tuple[str, ...], project_dir: Path | None) -> None:
+    """Whether each clip repeats its images, as a shutter longer than a frame makes it do
+    (1/5 s at 23.98p writes one image for five frames): how many frames an image lasts and
+    the frames where one begins. A shot of such a clip starts on one of those, and lungecuta
+    lint then checks that it does. Measured once a clip and kept in the cache."""
+    from ..repeats import new_images
+
+    project = project_of(project_dir)
+    print_json({"clips": [new_images(project, key) for key in keys]})
+
+
+@main.command()
 @click.argument("key")
 @click.option("--every", help="The rows: b:N for every N beats of music, or seconds (0.5s); by default music's bars.")
 @click.option("--out", type=click.Path(dir_okay=False, path_type=Path),

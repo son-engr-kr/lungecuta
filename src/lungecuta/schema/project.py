@@ -40,6 +40,8 @@ class LintSettings(BaseModel):
     sfx_vary: bool = Field(default=True, description="the same sound is not on two consecutive sound layers")
     no_black: bool = Field(default=True, description="no comp frame has nothing on screen, a gap between cuts or a "
                            "frame before the first, as when a cut on the first beat lands a frame in")
+    new_image: bool = Field(default=True, description="a shot of a clip that repeats its images (measured by lungecuta "
+                            "repeats) starts on a frame where a new image begins")
 
 
 class ProjectFile(BaseModel):

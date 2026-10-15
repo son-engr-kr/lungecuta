@@ -95,6 +95,9 @@ when they ask how long the edit took.
 A large shoot (more clips than the edit will use) imports with `--no-proxy`, which skips
 each clip's proxy, the larger part of an import's time and disk; `lungecuta proxy --comp
 COMP` then makes the proxies of the clips the comp shows, which the editor previews from.
+A clip shot with a shutter longer than a frame repeats each image for several frames:
+`lungecuta repeats KEY` lists the frames where a new image begins, a shot of it starts on one,
+and `lungecuta lint` then warns of one that does not.
 Choose the clips from `lungecuta clips` (a tile a clip, its middle frame, labelled with its
 length, the time it was recorded and whether it has sound), then in points from the
 footage itself: `lungecuta sheet --media KEY --every f:15` labels each frame with its seconds. Then one `place` per shot, on the beat grid:

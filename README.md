@@ -105,6 +105,7 @@ lungecuta detect FILE                      the colour-space decision without imp
 lungecuta new-comp NAME --music KEY ...    a new comp (size, rate, end), its music at 0s giving the beat grid
 lungecuta clips                            the imported footage at a glance, a tile a clip
 lungecuta levels KEY [--every b:1|0.5s]    a song's level bar by bar, or a clip's sound, with a chart
+lungecuta repeats KEY...                   where a clip shot slower than a frame begins each new image
 lungecuta proxy KEY... / --comp COMP       the proxies the editor previews from, for clips imported with
                                            --no-proxy or whose proxy the cache lost
 lungecuta still COMP --at b:16             a comp's frame as the render delivers it, PNG and numbers

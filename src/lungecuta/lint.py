@@ -4,7 +4,8 @@ a machine can check, as warnings, each with its threshold in `project.json`'s `l
 Checked so far: graphics layers on screen long enough to read, no source frame shown by
 two layers, a licence record on every music file and sound a comp uses, no sound on two
 consecutive sound layers ("SFX vary"), and no frame with nothing on screen (a gap between
-cuts, or the frame before a first cut on a beat that falls just after the comp's start). Flashes are checked on a render, by
+cuts, or the frame before a first cut on a beat that falls just after the comp's start), and shots of a clip that repeats its
+images starting on a new image (for clips `lungecuta repeats` has measured). Flashes are checked on a render, by
 `lungecuta flash FILE` (`flash.py`), since any layer can make one. Not checked yet, and listed in
 every report so their absence is not mistaken for a pass: the dead gap before a hit (it
 needs the crescendo found), sources for on-screen numbers and font licences (no text
@@ -85,4 +86,30 @@ def lint(project: Project, name: str) -> dict[str, Any]:
                 warnings.append({"rule": "sfx_vary", "layers": [before.layer.id, after.layer.id],
                                  "message": f"{before.layer.id} and {after.layer.id}, one after the other, are both "
                                             f"{after.record.key}"})
+    if settings.new_image:
+        warnings += _new_images(project, resolved)
     return {"comp": name, "warnings": warnings, "settings": settings.model_dump(), "not_checked": NOT_CHECKED}
+
+
+def _new_images(project: Project, resolved) -> list[dict[str, Any]]:
+    """Shots of clips measured to repeat their images that start partway into one. Only
+    clips `lungecuta repeats` has measured are checked, so lint stays as quick as it was."""
+    from .repeats import measured
+
+    out = []
+    for cut in resolved.cuts:
+        found = measured(project, cut.record.key)
+        if found is None or not found["repeats"] or cut.remap is not None or cut.speed_track is not None or cut.speed != 1:
+            continue
+        source = cut.source_frame(cut.first)
+        new = found["new"]
+        if source in new:
+            continue
+        before = max((f for f in new if f < source), default=None)
+        after = min((f for f in new if f > source), default=None)
+        into = "" if before is None else f", {source - before} frames into an image"
+        choices = " or ".join(f"f:{f}" for f in (after, before) if f is not None)
+        out.append({"rule": "new_image", "layers": [cut.layer.id],
+                    "message": f"{cut.layer.id} starts on source frame {source} of {cut.record.key}{into} that lasts "
+                               f"{found['every']} frames; start it on a new image: {choices}"})
+    return out

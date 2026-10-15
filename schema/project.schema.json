@@ -76,6 +76,12 @@
           "description": "no comp frame has nothing on screen, a gap between cuts or a frame before the first, as when a cut on the first beat lands a frame in",
           "title": "No Black",
           "type": "boolean"
+        },
+        "new_image": {
+          "default": true,
+          "description": "a shot of a clip that repeats its images (measured by lungecuta repeats) starts on a frame where a new image begins",
+          "title": "New Image",
+          "type": "boolean"
         }
       },
       "title": "LintSettings",
