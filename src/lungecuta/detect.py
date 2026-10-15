@@ -15,14 +15,19 @@ from .schema.media import ColorDecided, ColorUndecided, Probe, TimeDecided, Time
 from .sony import SonyXml, read_sidecar
 from .ticks import format_rate, parse_rate
 
-# (CaptureGammaEquation, CaptureColorPrimaries) -> OCIO colour space. Seen: the S-Log3 sample.
+# (CaptureGammaEquation, CaptureColorPrimaries) -> OCIO colour space. Seen: the S-Log3 sample;
+# rec709 on three clips of a 23.98p shoot from the same body (2026-10-12), whose streams are
+# tagged BT.709 throughout and limited range: the camera's Rec.709 curve, so its inverse
+# brings them into scene light as the S-Log3 clips are (04-color.md, Input camera spaces).
 SONY_COLOR_SPACES = {
     ("s-log3-cine", "s-gamut3-cine"): "S-Log3 S-Gamut3.Cine",
+    ("rec709", "rec709"): "Camera Rec.709",
 }
 # CodingEquations -> YCbCr matrix. Seen: the S-Log3 sample.
 SONY_MATRICES = {"rec709": "bt709"}
-# captureFps and formatFps -> rate. Seen: the S-Log3 sample (29.97p), a 60p HLG clip (59.94p).
-SONY_RATES = {"29.97p": "30000/1001", "59.94p": "60000/1001"}
+# captureFps and formatFps -> rate. Seen: the S-Log3 sample (29.97p), a 60p HLG clip (59.94p),
+# a shoot of 176 clips at 23.98p (both fields, 2026-10-12, its streams 24000/1001).
+SONY_RATES = {"23.98p": "24000/1001", "29.97p": "30000/1001", "59.94p": "60000/1001"}
 # The stream's own range tag: range belongs to the file, not to the curve (D5).
 RANGES = {"pc": "full", "tv": "limited"}
 

@@ -352,6 +352,8 @@ Each is labelled where it is cited; collected here so none is mistaken for a fac
 - whether the Osmo Pocket 4P's D-Log mode is the published 2017 D-Log / D-Gamut (check a grey scale against codes 95, 408, 586)
 - D-Log M LUT input normalization, and how much of it is a look
 - what Sony means by `hlg-slog3ootf`
+- which Sony gammas write `rec709` in the XML (ITU709 alone, or Standard and Still too), so
+  how close a `Camera Rec.709` clip is to the BT.709 curve
 - data levels and matrix per camera body (needs the chart and lens-cap shots)
 - VideoToolbox correctness on a real XAVC HS original
 - how OCIO's tone-zone ranges (`GradingToneTransform`) map onto DaVinci Intermediate (the primary grade's mapping is settled, `04-color.md`)

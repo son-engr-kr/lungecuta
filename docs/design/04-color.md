@@ -44,7 +44,7 @@ media colour space --input transform--> DaVinci Wide Gamut
 | Apple Log | OCIO `Apple Log` | Apple Log Profile white paper (2023) | files signal it through CoreVideo attachments, not the usual tags |
 | Apple Log 2 | OCIO `Apple Log 2` | Apple documentation; OCIO and Academy sources for the gamut | Apple's own Log 2 paper not read (needs a login) |
 | HLG camera footage | **none yet; such clips import as undecided** | BT.2100 | the user's Sony HLG clips are tagged `hlg-slog3ootf` in their XML. OCIO's config offers HLG only as a display. What Sony means by `slog3ootf`, and whether to treat the footage as display-referred HLG or to invert the OOTF into scene light, has to be established from Sony documentation before a mapping row is added. Deferred by the user (2026-10-13): the footage being edited is S-Log3 |
-| Rec.709 camera footage (phones in SDR) | OCIO `Camera Rec.709` | BT.709 | |
+| Rec.709 camera footage (phones in SDR; Sony bodies with a `rec709` gamma) | OCIO `Camera Rec.709` | BT.709 | the Sony case is a mapping row since 2026-10-14, from three clips of a real shoot (02-media.md); not through the inverse output view as D-Log M is, taking it as the camera's curve on scene light rather than a rendering for a display. Which of Sony's gammas write `rec709` (ITU709, or also Standard and Still, which are looks) is not checked, so how close the clips are to the BT.709 curve is unverified |
 | screen recordings, UI captures | display-referred ([01-architecture.md](01-architecture.md#where-display-referred-layers-enter)) | | their code values must come out as captured |
 
 Every row marked "no file yet" in [02-media.md](02-media.md#colour-space-detection) is

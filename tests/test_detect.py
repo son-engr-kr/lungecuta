@@ -115,10 +115,24 @@ def test_a_sidecar_rate_that_disagrees_with_the_stream_is_undecided(tmp_path):
 
 
 def test_an_unknown_sony_rate_has_no_row(tmp_path):
-    detection = detect(*clip(tmp_path, xml=SLOG3, capture="23.98p", written="23.98p"))
-    assert detection.time.reason == "no mapping for sony-xml rates 23.98p / 23.98p"
+    detection = detect(*clip(tmp_path, xml=SLOG3, capture="119.88p", written="119.88p"))  # no file seen yet
+    assert detection.time.reason == "no mapping for sony-xml rates 119.88p / 119.88p"
 
 
 def test_an_unsupported_rate_is_an_error_at_import(tmp_path):
     with pytest.raises(AssertionError, match="not supported"):
         detect(*clip(tmp_path, xml=SLOG3, rate="15"))
+
+
+def test_a_23_98p_clip_is_decided_at_24000_over_1001(tmp_path):
+    path, probe = clip(tmp_path, xml=SLOG3, rate="24000/1001", capture="23.98p", written="23.98p")
+    found = detect(path, probe)
+    assert found.time.status == "decided" and found.time.rate == "24000/1001" and found.decided
+
+
+def test_the_camera_s_rec709_curve_goes_in_through_its_inverse(tmp_path):
+    tags = dict(color_range="tv", color_space="bt709", color_transfer="bt709", color_primaries="bt709")
+    path, probe = clip(tmp_path, xml=dict(gamma="rec709", primaries="rec709", coding="rec709"), tags=tags)
+    found = detect(path, probe)
+    assert (found.color.status, found.color.space, found.color.matrix, found.color.range) == (
+        "decided", "Camera Rec.709", "bt709", "limited")

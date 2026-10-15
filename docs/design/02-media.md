@@ -57,6 +57,7 @@ name the camera writes.
 | --- | --- | --- |
 | Sony `s-log3-cine` + `s-gamut3-cine` | `S-Log3 S-Gamut3.Cine` (OCIO studio config) | seen on disk |
 | Sony `s-log3` + `s-gamut3` | `S-Log3 S-Gamut3` | expected, no file yet |
+| Sony `rec709` + `rec709` | `Camera Rec.709` (OCIO studio config): the inverse of the camera's Rec.709 curve, into scene light like the log clips ([04-color.md](04-color.md#input-camera-spaces)) | seen on disk: three clips of a 23.98p shoot from the same body (2026-10-12), their streams tagged BT.709 throughout, limited range |
 | Sony `hlg-slog3ootf` + `rec2020` | **none yet: the clip stays undecided** | seen on disk. OCIO's config has HLG only as a display, not as a scene-referred input, and what Sony means by `slog3ootf` is unknown, so no mapping row exists and the import correctly reports the clip as undecided ([04-color.md](04-color.md#input-camera-spaces)) |
 | Sony S-Log2 | not in the OCIO config; defined from Sony's published formula | no file yet |
 | DJI D-Log | `D-Log D-Gamut` (OCIO studio config), per body once a grey-scale shot confirms the white paper's code values | no file yet |
@@ -68,7 +69,8 @@ name the camera writes.
 
 The Sony XML also carries the clip's rates and timecode. Checked on the S-Log3 sample and
 on two HLG samples (2026-10-11): `<VideoFrame captureFps="29.97p" formatFps="29.97p">`
-(`59.94p` for both on the 60p HLG clip), `<RecordingMode type="normal">`, and an
+(`59.94p` for both on the 60p HLG clip; `23.98p` for both on every clip of a 23.98p shoot,
+2026-10-14, whose streams are 24000/1001), `<RecordingMode type="normal">`, and an
 `LtcChangeTable` whose first entry agrees with the timecode tag ffprobe reads from the
 data stream (00:00:21:15 on the S-Log3 sample). They go into the media record's `time`
 entry:
