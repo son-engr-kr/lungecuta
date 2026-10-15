@@ -96,7 +96,8 @@ def original(project: Project, record: MediaRecord) -> Path:
     return path
 
 
-def import_file(project: Project, file: Path, *, root: str, key: str | None = None, sound: bool = False) -> MediaRecord:
+def import_file(project: Project, file: Path, *, root: str, key: str | None = None, sound: bool = False,
+                proxy: bool = True) -> MediaRecord:
     file = file.resolve()
     assert file.is_file(), f"{file} is not a file"
     key = key or file.stem
@@ -132,9 +133,9 @@ def import_file(project: Project, file: Path, *, root: str, key: str | None = No
         assert not sound, f"{file.name} has video; only a file of sound alone imports as a sound"
         detection = detect(file, probed)
         decode = decoder_check(file, pix_fmt=video.pix_fmt, size=video.size, frames=video.frames)
-        proxy = _proxy(project, file, key, detection.color, video)
         record = MediaRecord(
-            **common, time=detection.time, color=detection.color, decode=decode, proxy=proxy, wav=None, beats=None,
+            **common, time=detection.time, color=detection.color, decode=decode, wav=None, beats=None,
+            proxy=_proxy(project, file, key, detection.color, video) if proxy else None,
         )
     write_new(record_path, json_text(record.model_dump(mode="json")))
     return record
@@ -146,16 +147,35 @@ IMPORT_JOBS = 2
 
 
 def import_files(project: Project, files: list[Path], *, root: str, key: str | None = None,
-                 sound: bool = False) -> list[MediaRecord]:
+                 sound: bool = False, proxy: bool = True) -> list[MediaRecord]:
     """`import_file` for each of `files`, IMPORT_JOBS at once, the records in the files'
-    order. Keys are checked to differ before any work starts."""
+    order. Keys are checked to differ before any work starts. Without `proxy`, footage is
+    imported without its proxy, which `build_proxies` makes later for the clips used."""
     keys = [key or file.stem for file in files]
     assert key is None or len(files) == 1, "a key names one file"
     repeated = sorted({k for k in keys if keys.count(k) > 1})
     assert not repeated, f"files share the keys {repeated}; import them separately with --key"
     jobs = ((project, file) for file in files)
-    return list(in_order(lambda project, file: import_file(project, file, root=root, key=key, sound=sound), jobs,
-                         workers=IMPORT_JOBS, ahead=IMPORT_JOBS))
+    return list(in_order(lambda project, file: import_file(project, file, root=root, key=key, sound=sound, proxy=proxy),
+                         jobs, workers=IMPORT_JOBS, ahead=IMPORT_JOBS))
+
+
+def build_proxies(project: Project, keys: list[str]) -> dict[str, str]:
+    """The proxy, with its parity test, of each clip in `keys` that has none or whose file
+    the cache has lost; IMPORT_JOBS at once. Per key: built, or present."""
+    def one(project: Project, key: str) -> tuple[str, str]:
+        path = project.directory / "media" / f"{key}.json"
+        before = content_hash(path)
+        record = load_record(project, key)
+        assert record.probe.video is not None and record.image is None, f"{key} is not footage"
+        if record.proxy is not None and (project.directory / record.proxy.path).is_file():
+            return key, "present"
+        proxy = _proxy(project, original(project, record), key, record.color, record.probe.video)
+        assert proxy is not None, f"{key}: its stream states no range, so no proxy of it could be decoded correctly"
+        replace_if_unchanged(path, before, json_text(record.model_copy(update={"proxy": proxy}).model_dump(mode="json")))
+        return key, "built"
+
+    return dict(in_order(one, ((project, key) for key in keys), workers=IMPORT_JOBS, ahead=IMPORT_JOBS))
 
 
 # Photos by their suffix: what Pillow reads them as. A camera RAW is developed first.
@@ -244,6 +264,9 @@ def _proxy(
 
 def summary(record: MediaRecord) -> dict[str, Any]:
     """What `lungecuta import` prints for one file; the record itself is in `media/KEY.json`."""
+    if record.image is not None:
+        return {"key": record.key, "photo": record.image.format, "size": list(record.image.size),
+                "icc": record.image.icc}
     if record.beats is not None:
         return {
             "key": record.key,
@@ -262,6 +285,7 @@ def summary(record: MediaRecord) -> dict[str, Any]:
         "space": record.color.space if isinstance(record.color, ColorDecided) else None,
         "time": record.time.status,
         "decoder": record.decode.decoder,
+        "proxy": record.proxy is not None,
         "proxy_parity": record.proxy.parity.codes.model_dump() if record.proxy and record.proxy.parity.codes else None,
     }
 

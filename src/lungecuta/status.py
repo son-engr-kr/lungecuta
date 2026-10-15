@@ -41,7 +41,7 @@ def _media(project: Project) -> dict[str, list[dict[str, Any]]]:
         decided = isinstance(record.color, ColorDecided) and isinstance(record.time, TimeDecided)
         footage.append({"key": record.key, "size": list(video.size), "rate": video.rate, "frames": video.frames,
                         "space": record.color.space if isinstance(record.color, ColorDecided) else None,
-                        "usable": decided})
+                        "usable": decided, "proxy": record.proxy is not None})
     return {"footage": footage, "music": tracks, "sounds": sounds, "photos": photos}
 
 

@@ -24,9 +24,11 @@ SPACE = "S-Log3 S-Gamut3.Cine"
 SIZE = (128, 72)
 
 
-def make_clip(path: Path, rotation: int | None = None, *, hflip: bool = False, frames: int = 3) -> Path:
+def make_clip(path: Path, rotation: int | None = None, *, hflip: bool = False, frames: int = 3,
+              limited: bool = False) -> Path:
     """Frames of ffmpeg's moving test pattern as lossless all-intra H.264, 10-bit 4:2:2 with
-    its chroma sited left, like the camera's (ProRes does not carry chroma siting)."""
+    its chroma sited left, like the camera's (ProRes does not carry chroma siting); with
+    `limited`, its stream states limited range, as a camera's does."""
     plain = path.with_name(f"plain{frames}-{path.name}")
     if not plain.exists():
         run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", f"testsrc2=size={SIZE[0]}x{SIZE[1]}:rate=30000/1001",
@@ -34,7 +36,7 @@ def make_clip(path: Path, rotation: int | None = None, *, hflip: bool = False, f
              "-chroma_sample_location", "left", str(plain)])
     tags = [] if rotation is None else ["-display_rotation", str(rotation)]
     run(["ffmpeg", "-v", "error", *tags, *(["-display_hflip"] if hflip else []), "-i", str(plain),
-         "-c", "copy", str(path)])
+         "-c", "copy", *(["-bsf:v", "h264_metadata=video_full_range_flag=0"] if limited else []), str(path)])
     return path
 
 

@@ -126,3 +126,38 @@ def test_files_import_several_at_once_in_order_and_keys_are_checked_first(projec
     again = make_clip(footage / "b" / "C0001.mov", frames=4)
     with pytest.raises(AssertionError, match=r"share the keys \['C0001'\]"):
         import_files(Project.load(project), [footage / "C0001.mov", again], root="footage")
+
+
+def test_a_clip_imported_without_its_proxy_gets_it_when_it_is_used(cut_project):
+    from click.testing import CliRunner
+
+    from clips import make_clip, put_comp, write_record
+    from lungecuta.cli import main
+    from lungecuta.media import load_record
+
+    write_record(cut_project, make_clip(cut_project / "footage" / "C0005.mov", frames=12, limited=True))  # no proxy
+    comp = json.loads((cut_project / "comps" / "main.json").read_text())
+    comp["layers"].append({"id": "late", "type": "footage", "media": "C0005", "start": "b:8", "out": "f:6",
+                           "source_start": "f:0"})
+    put_comp(cut_project, comp)
+    run = lambda *args: json.loads(CliRunner().invoke(main, [*args, "--project", str(cut_project)],
+                                                      catch_exceptions=False).output)
+    assert next(f for f in run("status")["media"]["footage"] if f["key"] == "C0005")["proxy"] is False
+    assert run("proxy", "--comp", "main")["proxies"] == {"C0005": "built", "C0001": "present"}
+    record = load_record(Project.load(cut_project), "C0005")
+    assert record.proxy is not None and (cut_project / record.proxy.path).is_file()
+    assert record.proxy.parity.codes is not None  # its parity test ran, the colour being decided
+    assert run("proxy", "C0005")["proxies"] == {"C0005": "present"}
+
+
+def test_a_photo_imports_through_the_command(cut_project):
+    from click.testing import CliRunner
+    from PIL import Image
+
+    from lungecuta.cli import main
+
+    (cut_project / "photos").mkdir()
+    Image.new("RGB", (40, 30), (10, 20, 30)).save(cut_project / "photos" / "P010.jpg")
+    result = CliRunner().invoke(main, ["import", str(cut_project / "photos" / "P010.jpg"), "--root", "project",
+                                       "--project", str(cut_project)], catch_exceptions=False)
+    assert json.loads(result.output)["imported"] == [{"key": "P010", "photo": "jpeg", "size": [40, 30], "icc": None}]

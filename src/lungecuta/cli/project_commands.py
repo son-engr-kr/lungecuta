@@ -124,14 +124,37 @@ def relink(name: str, place: Path, project_dir: Path | None) -> None:
 @click.option("--root", "root_name", required=True, help="The media root the files lie under.")
 @click.option("--key", help="The media key, for a single file whose stem is taken already.")
 @click.option("--sound", is_flag=True, help="Files of sound alone are sounds (effects, voices): their WAV, no beat map.")
+@click.option("--no-proxy", "no_proxy", is_flag=True,
+              help="Footage without its proxy, for a large shoot: lungecuta proxy makes it for the clips used.")
 @project_option
-def import_(files: tuple[Path, ...], root_name: str, key: str | None, sound: bool, project_dir: Path | None) -> None:
+def import_(files: tuple[Path, ...], root_name: str, key: str | None, sound: bool, no_proxy: bool,
+            project_dir: Path | None) -> None:
     """Import FILES as media records under media/: probe, rates and timecode, colour
     decision with evidence, decoder check, proxy with its parity test; music decoded to
     a 48 kHz WAV with its beat map, or with --sound without one."""
     assert key is None or len(files) == 1, "--key names one file"
-    records = import_files(project_of(project_dir), list(files), root=root_name, key=key, sound=sound)
+    records = import_files(project_of(project_dir), list(files), root=root_name, key=key, sound=sound,
+                           proxy=not no_proxy)
     print_json({"imported": [summary(record) for record in records]})
+
+
+@main.command()
+@click.argument("keys", nargs=-1)
+@click.option("--comp", help="Every clip this comp shows, its precomps' included.")
+@project_option
+def proxy(keys: tuple[str, ...], comp: str | None, project_dir: Path | None) -> None:
+    """Make the proxy, with its parity test, of each clip named (KEYS, or every clip --comp
+    shows) that has none: imported with --no-proxy, or its file lost with the cache. The
+    editor previews from proxies; renders and stills read the originals."""
+    from ..comp import load_comp, resolve
+    from ..media import build_proxies
+
+    project = project_of(project_dir)
+    assert keys or comp, "name the clips, or a comp with --comp"
+    named = list(keys)
+    if comp is not None:
+        named += sorted({cut.record.key for cut in resolve(project, load_comp(project, comp)).every_cut()} - set(named))
+    print_json({"proxies": build_proxies(project, named)})
 
 
 @main.command()

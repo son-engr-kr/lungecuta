@@ -104,6 +104,8 @@ lungecuta import FILES --root NAME         media records: colour and time decisi
 lungecuta detect FILE                      the colour-space decision without importing
 lungecuta new-comp NAME --music KEY ...    a new comp (size, rate, end), its music at 0s giving the beat grid
 lungecuta clips                            the imported footage at a glance, a tile a clip
+lungecuta proxy KEY... / --comp COMP       the proxies the editor previews from, for clips imported with
+                                           --no-proxy or whose proxy the cache lost
 lungecuta still COMP --at b:16             a comp's frame as the render delivers it, PNG and numbers
 lungecuta sheet COMP --every b:1           a contact sheet of a comp, each tile labelled with its beat and layers
 lungecuta scope COMP --at b:16             waveform, parade, vectorscope and their numbers

@@ -46,7 +46,7 @@ class ProxyReader:
     """One proxy file kept open, read frame by frame by index (PyAV)."""
 
     def __init__(self, path: Path, rate: Fraction):
-        assert path.is_file(), f"{path} is missing; import the clip again to rebuild its proxy"
+        assert path.is_file(), f"{path} is missing; lungecuta proxy makes it again"
         self.container = av.open(str(path))
         self.stream = self.container.streams.video[0]
         self.rate = rate
@@ -145,7 +145,7 @@ class Preview:
     def _reader(self, cut: Cut) -> ProxyReader:
         key = cut.record.key
         if key not in self.readers:
-            assert cut.record.proxy is not None, f"{key} has no proxy"
+            assert cut.record.proxy is not None, f"{key} has no proxy; lungecuta proxy --comp {self.name} makes it"
             self.readers[key] = ProxyReader(self.project.directory / cut.record.proxy.path, cut.media_rate)
         return self.readers[key]
 

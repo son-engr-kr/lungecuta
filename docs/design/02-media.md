@@ -175,6 +175,12 @@ file whose original cannot be found is undecided, like any other.
 
 ## Proxies
 
+- **A proxy can wait until its clip is used.** At 534 MB for 23.5 s, a shoot of 27
+  minutes would need about 29 GB of proxies, and the proxy and its parity test are most
+  of an import's time (`bench/RESULTS.md`, "What a footage import costs"), while the
+  editor previews only the clips a comp shows. `lungecuta import --no-proxy` skips it, and
+  `lungecuta proxy KEY...` or `--comp COMP` makes it later, with the same parity test, for
+  the clips named or shown; stills, sheets and renders read the originals and need none.
 - **The format is chosen by the parity test below, not by size or speed**, and the test
   was run on both samples before anything was fixed (`bench/proxy_parity.py`,
   `bench/RESULTS.md`, "Proxy parity"). No ProRes profile passed: at 540 lines the codec's
