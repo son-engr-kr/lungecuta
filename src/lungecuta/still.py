@@ -118,6 +118,8 @@ def still(
 ) -> dict[str, Any]:
     """Write the PNG of one frame of media `key` and return the numbers `lungecuta still` prints."""
     record = load_record(project, key)
+    if record.image is not None:
+        return photo_still(project, record, height=height, out=out)
     video = record.probe.video
     assert video is not None, f"{key} has no video stream"
     index = source_frame(at, rate=parse_rate(video.rate), frames=video.frames)
@@ -139,3 +141,31 @@ def still(
         "view": settings.view,
         "codes": code_numbers(frame),
     }
+
+
+def photo_still(project: Project, record: MediaRecord, *, height: int | None = None, out: Path | None = None) -> dict[str, Any]:
+    """A photo as its page shows it: turned upright by its EXIF orientation and converted
+    from its ICC profile to sRGB (an untagged file taken as sRGB), at `height` lines or its
+    own size. Pillow does what Chromium does here, so the codes are close to the page's
+    but not checked to be identical."""
+    import io
+
+    from PIL import Image, ImageCms, ImageOps
+
+    from .images import png8
+
+    with Image.open(original(project, record)) as image:
+        upright = ImageOps.exif_transpose(image).convert("RGB")
+        icc = image.info.get("icc_profile")
+    if icc:
+        srgb = ImageCms.createProfile("sRGB")
+        upright = ImageCms.profileToProfile(upright, ImageCms.ImageCmsProfile(io.BytesIO(icc)), srgb, outputMode="RGB")
+    if height is not None and height != upright.height:
+        upright = upright.resize((round(upright.width * height / upright.height), height), Image.Resampling.BOX)
+    pixels = np.asarray(upright)
+    if out is None:
+        out = project.directory / STILL_DIR / f"{record.key}_{pixels.shape[1]}x{pixels.shape[0]}.png"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    write_atomic(out, png8(pixels))
+    return {"png": str(out), "media": record.key, "photo": record.image.format, "size": [pixels.shape[1], pixels.shape[0]],
+            "icc": record.image.icc, "codes": code_numbers(pixels.astype(np.float32) / 255)}

@@ -22,8 +22,8 @@ def validate(project: Project) -> dict[str, Any]:
         original(project, record)
         if record.wav is not None:
             music_wav(project, record)
-        elif not (isinstance(record.color, ColorDecided) and isinstance(record.time, TimeDecided)):
-            undecided.append(key)
+        elif record.image is None and not (isinstance(record.color, ColorDecided) and isinstance(record.time, TimeDecided)):
+            undecided.append(key)  # a photo has nothing to decide: it shows as a page shows it
     comps = []
     for path in project.file.comps:
         resolved = resolve(project, load_comp(project, Path(path).stem))

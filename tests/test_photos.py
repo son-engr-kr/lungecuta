@@ -115,3 +115,15 @@ def test_a_render_lists_its_photos_and_a_changed_photo_is_refused(cut_project):
     from lungecuta.media import photo_file
     with pytest.raises(AssertionError, match="has changed since it was imported"):
         photo_file(Project.load(cut_project), "P001")
+
+
+def test_a_photo_is_looked_at_with_still_and_is_nothing_to_decide(cut_project):
+    exif = Image.Exif()
+    exif[0x0112] = 6
+    photo_project(cut_project, "P004.png", exif=exif.tobytes())
+    run = lambda *args: json.loads(CliRunner().invoke(main, [*args, "--project", str(cut_project)],
+                                                      catch_exceptions=False).output)
+    printed = run("still", "--media", "P004", "--at", "0s")
+    shown = np.asarray(Image.open(printed["png"]).convert("RGB"))
+    assert printed["size"] == [72, 128] and np.array_equal(shown, np.rot90(patches(), k=-1))  # upright
+    assert "P004" not in run("validate")["undecided"]

@@ -106,7 +106,8 @@ each shot as `place` takes it, written at once or not at all. A later layer is d
 an earlier one, so shots that meet at cuts need no ordering. `lungecuta op graphic COMP
 graphics/title.html --at 0s --to b:4 --params '{{...}}'` puts a title page on top. A photo
 (a developed JPEG, PNG or TIFF, imported like a clip) is placed with `op place` too,
-`--for b:1`, and shows as it was developed.
+`--for b:1`, and shows as it was developed; `lungecuta still --media PHOTO --at 0s --height 540`
+shows it upright and in sRGB, as the page will.
 `lungecuta audio-check COMP` then gives every cut's offset to its beat.
 
 A speed ramp is a range at another speed: `lungecuta op speed COMP LAYER --from b:9 --to b:10
