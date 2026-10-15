@@ -53,8 +53,8 @@ the Phase 0 media tests need samples of your own (see Conventions).
   over its shutter (`motion_blur.shutter_deg`). Not written yet: flow retiming and the
   vector blur of motion inside footage, parallel nodes, FCPXML transforms. Graphics under
   footage render through the inverse output view; the editor does not draw them yet.
-- **M3 has started**: `lungecuta serve` opens the editor (`server.py`, `preview.py`,
-  `journal.py`, `web/`): the viewer on proxies through PyAV, the timeline with the beat
+- **M3 has started**: `lungecuta serve` opens the editor (`server.py`, `editor.py`,
+  `preview.py`, `journal.py`, `web/`): the viewer on proxies through PyAV, the timeline with the beat
   grid, layers packed into tracks, markers, audio waveforms and a range marked with I and O (which the agent sees),
   playback against the audio output clock, move, trim, split and ripple delete by drag and
   keys through `lungecuta op`'s functions, the journal with undo, redo and
