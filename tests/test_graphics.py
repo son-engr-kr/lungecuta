@@ -54,6 +54,37 @@ def test_a_page_that_throws_stops_the_render(tmp_path):
         render(page, tmp_path / "out.mov", size=(64, 36), rate=Fraction(25), frames=1)
 
 
+MOVING = """<!doctype html><html><head><style>html,body{margin:0;background:transparent}
+#b{position:absolute;top:0;left:0;width:8px;height:8px;background:#fff}STYLE</style></head><body><div id="b"></div><script>
+const b = document.getElementById("b");
+SCRIPT
+window.ready = true;
+</script></body></html>"""
+
+
+@pytest.mark.parametrize("style, script, named", [
+    ("#b{animation:go 1s linear infinite}@keyframes go{to{left:40px}}", "window.renderAt = (t) => {};", "go"),
+    ("#b{transition:left .5s}", "window.renderAt = (t) => { b.style.left = `${t * 40}px`; };", "transition of left"),
+    ("", "const a = b.animate([{left: '0px'}, {left: '40px'}], 1000);\nwindow.renderAt = (t) => {};", "an animation"),
+])
+def test_an_animation_running_on_the_clock_is_refused(tmp_path, style, script, named):
+    page = tmp_path / "page.html"
+    page.write_text(MOVING.replace("STYLE", style).replace("SCRIPT", script))
+    with pytest.raises(AssertionError, match=f"{named} runs on the clock, not on renderAt"):
+        render(page, tmp_path / "out.mov", size=(64, 36), rate=Fraction(25), frames=2)
+
+
+def test_a_web_animation_seeked_by_render_at_is_drawn_at_t(tmp_path):
+    page = tmp_path / "page.html"
+    page.write_text(MOVING.replace("STYLE", "").replace("SCRIPT", (
+        "const a = b.animate([{left: '0px'}, {left: '40px'}], 1000); a.pause();\n"
+        "window.renderAt = (t) => { a.currentTime = t * 1000; };")))
+    out = tmp_path / "out.mov"
+    render(page, out, size=(64, 36), rate=Fraction(25), frames=3)
+    frames = np.frombuffer(decode(out, "rgba"), np.uint8).reshape(3, 36, 64, 4)
+    assert [int(np.flatnonzero(frames[n, 4, :, 3] > 128)[0]) for n in range(3)] == [0, 2, 3]  # 40 px a second at 25 fps
+
+
 def test_the_card_holds_every_patch_inside_the_frame():
     spec = card((1920, 1080))
     assert len(spec["patches"]) == len(patch_list()) == 27

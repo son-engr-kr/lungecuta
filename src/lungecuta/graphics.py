@@ -125,9 +125,23 @@ def opened(browser: Any, page_file: Path, size: tuple[int, int], params: dict[st
         context.close()
 
 
+# renderAt, then what still moves on the clock: CSS animations and transitions, and Web
+# Animations left playing (one paused and seeked by renderAt is `paused`). getAnimations
+# flushes styles first, so a transition that renderAt's change of style starts is listed.
+_RENDER = """async t => {
+  await window.renderAt(t);
+  return document.getAnimations().filter(a => a.playState === "running")
+    .map(a => a.animationName || (a.transitionProperty && `transition of ${a.transitionProperty}`) || a.id || "an animation");
+}"""
+
+
 def frame_png(page: Any, t: float) -> bytes:
-    """Frame `t` (seconds) as a PNG with a transparent background."""
-    page.evaluate("t => window.renderAt(t)", t)
+    """Frame `t` (seconds) as a PNG with a transparent background. A page with an animation
+    running on the clock is refused: its capture would show the moment it was taken."""
+    running = page.evaluate(_RENDER, t)
+    assert not running, (f"{page.url.split('?')[0].rsplit('/', 1)[-1]} at {t:.3f} s: {', '.join(running)} runs on "
+                         "the clock, not on renderAt(t), so a frame would show whenever it was captured; draw it from "
+                         "t in renderAt (a Web Animation: pause() it and set its currentTime from t)")
     return page.screenshot(type="png", omit_background=True)
 
 

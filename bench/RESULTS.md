@@ -724,6 +724,47 @@ both sides. An absolute threshold of one code does not: repeated frames differed
 shot by as little as 0.23, so a first version with that threshold counted 200 frames of
 an ordinary clip as repeats and missed new images in two slow ones.
 
+## Graphics in motion: `uv run python bench/graphics_motion.py OUT_DIR`
+
+Through lungecuta's own capture (one Chromium, a context a page, `renderAt(t)` then a
+screenshot), 320x96 pages at 24 fps, 48 frames, Chromium 153.0.8010.12 headless shell, on
+the M5 Pro at a load of 8 to 16 from other work (2026-10-15).
+
+Stale frames: a block at x = 8 + 4 n on frame n, four pages open at once in one browser and
+captured in turn as a render captures its layers.
+
+| drawn by | wrong captures, in order | wrong captures, shuffled |
+| --- | --- | --- |
+| DOM `left` | 0 of 48 | 0 of 48 |
+| CSS transform | 0 of 48 | 0 of 48 |
+| Canvas2D | 0 of 48 | 0 of 48 |
+| WebGL2 | 0 of 48 | 0 of 48 |
+
+Slow movement: a word in 40 px semibold moved 0.25 px a frame; the step of its
+alpha-weighted centre from frame to frame.
+
+| moved by | step, min to max (px) | moved over 47 steps (px; 11.75 asked) |
+| --- | --- | --- |
+| DOM `left` | 0.026 to 0.417 | 11.583 |
+| CSS transform | 0.026 to 0.417 | 11.583 |
+| Canvas2D `fillText` | 0.026 to 0.417 | 11.583 |
+| CSS transform, `will-change: transform` | 0.245 to 0.255 | 11.749 |
+
+Slow zoom: the same word scaled from 1 to 1.2 by a CSS transform; the step of its
+alpha-weighted spread (0.207 px a frame asked), and the mean absolute difference of the
+last frame's alpha from the word drawn at 1.2 still.
+
+| scaled | step, min to max (px) | last frame against the still |
+| --- | --- | --- |
+| CSS transform | 0.059 to 0.400 | 0 (identical) |
+| CSS transform, `will-change: transform` | 0.158 to 0.277 | 0.0115 (softer) |
+
+So text the browser rasterises at each frame is placed on a grid of positions and moves
+unevenly when it moves slowly; a composited layer (`will-change`) moves evenly but, scaled,
+is an enlargement of one rasterisation. A font in the page's directory, not awaited before
+`window.ready`, or first shown by `renderAt` later, was loaded by the first capture in each
+case (served locally), so no capture showed a fallback font.
+
 ## Numbers cited from elsewhere (not re-measured here)
 
 | number | where it was measured |

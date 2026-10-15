@@ -126,6 +126,23 @@ plays it, so split off a slowed part first. Music and effects are audio layers o
 `lungecuta op duck COMP MUSIC --under LAYER --by -12 --ramp 0.25s` lowers the music while that
 shot speaks, and `--from P --to P` over a run of shots; the person judges by ear how far.
 
+## Titles and graphics
+
+A graphics layer is a web page in `graphics/` that sets `window.ready = true` once it has
+loaded what it needs and draws layer time t, in seconds, completely in
+`window.renderAt(t)` (it may return a promise). Every frame is drawn by seeking to its time
+and capturing, so everything that moves is computed from t: no CSS animations or
+transitions, no timers, `Date.now()` or unseeded randomness, and a Web Animation is paused
+and its `currentTime` set from t. A capture refuses a page with an animation running on
+the clock. The page is served its own directory and nothing else, with no network, so its
+fonts and images go in `graphics/` (fonts installed on the Mac work as they are). Measured
+in the pinned Chromium, text moved by layout, a transform or Canvas2D's `fillText` lands on
+a grid of positions, so a slow drift (a quarter pixel a frame) moved from 0.03 to 0.42 px a
+frame; moved by a transform on an element with `will-change: transform`, it moved 0.245 to
+0.255 px every frame. Leave `will-change` off text that grows or shrinks: it is then an
+enlargement of one rendering, and softer. Several pages may be on screen at once. Look at a
+title with `lungecuta still COMP --at P` where it comes in, holds and goes.
+
 ## What you cannot judge
 
 You cannot watch playback or hear. Measure instead: `lungecuta levels SONG` gives a song's

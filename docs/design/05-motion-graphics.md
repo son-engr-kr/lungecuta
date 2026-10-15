@@ -171,7 +171,18 @@ decode, every patch of the patch card returns its 8-bit code within 0.35
 (`tests/test_graphics.py`). A comp's `graphics` layers use the same capture: `lungecuta render`
 draws each over the frame after the output view, on display-encoded values with straight
 alpha, as the spike measured within a code of the live page; `lungecuta fcpxml` renders each to
-ProRes 4444 over its visible frames and places it on a lane above the cuts. The card
+ProRes 4444 over its visible frames and places it on a lane above the cuts. A render opens
+every graphics layer's page, precomps' included, in one Chromium, each in a context of its
+own (its own origin, viewport and request gate), since Playwright's sync API runs one
+instance to a thread: a browser a page failed as soon as a comp had two graphics layers.
+With four pages open in one browser and captured in turn, drawn by DOM layout, a CSS
+transform, Canvas2D and WebGL, none of 48 captures in order or shuffled showed another
+frame than the one asked (`bench/graphics_motion.py`, `bench/RESULTS.md`).
+
+A capture refuses a page with an animation running on the clock (a CSS animation or
+transition, a Web Animation left playing; `document.getAnimations()` after `renderAt`):
+its frame would show whenever it happened to be captured. A Web Animation that `renderAt`
+pauses and seeks is drawn at t. The card
 answers a Phase 0 question: does Resolve send a
 Rec.709 graphic in a DWG/DI timeline through the output tone mapping
 ([10-roadmap.md](10-roadmap.md#phase-0-the-baseline-days)).
@@ -183,7 +194,13 @@ From the past projects' render scripts:
 - after `render`, wait for `gl.finish()` and two `requestAnimationFrame`s before
   capturing, or the previous frame is captured;
 - one browser per worker, because a second tab is a background tab and its rAF and image
-  decoding stall;
+  decoding stall (not reproduced with a context a page in one browser, above; a page
+  whose drawing waits on rAF is not measured);
+- text the browser rasterises each frame (DOM layout, a transform, Canvas2D `fillText`) is
+  placed on a grid of positions, so a word moved a quarter pixel a frame stepped 0.03 to
+  0.42 px; moved as a composited layer (`will-change: transform`) it stepped 0.245 to
+  0.255 px, but a composited layer scaled up is an enlargement and softer
+  (`bench/graphics_motion.py`);
 - random ports for the local server;
 - fonts awaited per weight and per script before the first frame;
 - 0.26 to 0.33 s per 1080p frame by screenshot in those projects; the pooled capture
