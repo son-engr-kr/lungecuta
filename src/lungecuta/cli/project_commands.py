@@ -12,7 +12,7 @@ from .. import journal, ops
 from ..beats import reanalyse
 from ..detect import detect as detect_clip
 from ..files import json_text, write_atomic
-from ..media import import_files, relink as relink_root, set_root, summary
+from ..media import decide as decide_colour, import_files, relink as relink_root, set_root, summary
 from ..probe import probe
 from ..guide import PUT_ON_PATH, SERVER
 from ..project import find_project, init_project
@@ -137,6 +137,33 @@ def import_(files: tuple[Path, ...], root_name: str, key: str | None, sound: boo
     records = import_files(project_of(project_dir), list(files), root=root_name, key=key, sound=sound,
                            proxy=not no_proxy)
     print_json({"imported": [summary(record) for record in records]})
+
+
+@main.command("decide")
+@click.argument("key")
+@click.option("--colour", "space", required=True,
+              help="The colour space the person says the clip is in: an OpenColorIO colour space of the project's "
+                   "config (`Camera Rec.709` for a phone's or a camera's SDR video, a log space by its name), or "
+                   "`display` for display-referred video such as a screen recording, whose codes are the "
+                   "deliverable's.")
+@click.option("--note", required=True, help="What the person decided it from, kept in the record (\"a screen "
+              "recording of the app\", \"the phone's standard video\").")
+@click.option("--matrix", type=click.Choice(["bt709"]), help="The YCbCr matrix, when the stream does not state it.")
+@click.option("--range", "range_", type=click.Choice(["full", "limited"]),
+              help="The range, when the stream does not state it or states it wrongly.")
+@project_option
+def decide_command(key: str, space: str, note: str, matrix: str | None, range_: str | None,
+                   project_dir: Path | None) -> None:
+    """Decide the colour space of clip KEY, imported as undecided, on the person's word.
+
+    Run it only with the space the person gives: a clip whose evidence named no colour
+    space is never given one by guess. The record keeps the note, the date and the
+    evidence it was undecided with, and the proxy's parity test runs with the decision.
+    A clip decided from its own evidence (a camera's sidecar or tags) is not decided
+    again. A clip also undecided in time stays unusable until that is decided.
+    """
+    record = decide_colour(project_of(project_dir), key, space, note=note, matrix=matrix, range_=range_)
+    print_json({**summary(record), "evidence": record.color.evidence})
 
 
 @main.command()

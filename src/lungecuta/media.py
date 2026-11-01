@@ -230,9 +230,10 @@ def _music(project: Project, file: Path, key: str, probed: Probe, common: dict[s
 def _proxy(
     project: Project, file: Path, key: str, decision: ColorDecided | ColorUndecided, video: VideoProbe
 ) -> ProxyRecord | None:
-    """Build the proxy in the original's own range and run its parity test; a proxy that
-    fails the test is deleted and the import stops."""
-    source_range = RANGES.get(video.tags.color_range)
+    """Build the proxy in the original's own range (the decision's, or the stream's while the
+    clip is undecided) and run its parity test; a proxy that fails the test is deleted and
+    the import stops."""
+    source_range = decision.range if isinstance(decision, ColorDecided) else RANGES.get(video.tags.color_range)
     if source_range is None:
         return None  # without a stated range the proxy could not be decoded correctly
     chosen = PROFILES[PROXY_PROFILE]
@@ -245,33 +246,89 @@ def _proxy(
         source_chroma_location=video.chroma_location, source_range=source_range, profile=PROXY_PROFILE,
         proxy_range=source_range, frames=video.frames, rate=parse_rate(video.rate),
     )
-    indices = parity_frames(video.frames)
-    if isinstance(decision, ColorDecided):
-        common = dict(
-            indices=indices, rate=parse_rate(video.rate), coded_size=video.size, size=size,
-            source_pix_fmt=video.pix_fmt, source_chroma_location=video.chroma_location,
-            proxy_pix_fmt=chosen.decoded_pix_fmt, matrix=decision.matrix, source_range=source_range, proxy_range=source_range,
-            config=project.file.color.config,
-        )
-        codes, di = parity(file, target, spaces=[None, decision.space], **common)
-        if not passes(codes):
-            target.unlink()
-            raise AssertionError(
-                f"proxy of {file.name} rejected: in R'G'B' codes p99 {codes.p99} (limit {PARITY_P99}), "
-                f"bias {codes.bias} (limit {PARITY_BIAS} per channel)"
-            )
-        result = Parity(frames=indices, codes=codes, di=di, reason=None)
-        matrix = decision.matrix
-    else:
-        result = Parity(
-            frames=indices, codes=None, di=None,
-            reason="the colour space is undecided, so the matrix to decode with is not known",
-        )
-        matrix = None
     return ProxyRecord(
         path=relative.as_posix(), profile=PROXY_PROFILE, pix_fmt=chosen.pix_fmt, size=size,
-        matrix=matrix, range=source_range, parity=result,
+        matrix=decision.matrix if isinstance(decision, ColorDecided) else None, range=source_range,
+        parity=_parity(project, file, target, decision, video, size, PROXY_PROFILE),
     )
+
+
+def _parity(project: Project, file: Path, target: Path, decision: ColorDecided | ColorUndecided,
+            video: VideoProbe, size: tuple[int, int], profile: str) -> Parity:
+    """The proxy's parity test, once the colour is decided (the matrix to decode with is
+    the decision's); a proxy that fails it is deleted and the caller stops."""
+    indices = parity_frames(video.frames)
+    if not isinstance(decision, ColorDecided):
+        return Parity(frames=indices, codes=None, di=None,
+                      reason="the colour space is undecided, so the matrix to decode with is not known")
+    settings = project.file.color
+    codes, di = parity(
+        file, target, indices=indices, rate=parse_rate(video.rate), coded_size=video.size, size=size,
+        source_pix_fmt=video.pix_fmt, source_chroma_location=video.chroma_location,
+        proxy_pix_fmt=PROFILES[profile].decoded_pix_fmt, matrix=decision.matrix, source_range=decision.range,
+        proxy_range=decision.range, config=settings.config, spaces=[None, decision.space],
+        view=(settings.display, settings.view),
+    )
+    if not passes(codes):
+        target.unlink()
+        raise AssertionError(
+            f"proxy of {file.name} rejected: in R'G'B' codes p99 {codes.p99} (limit {PARITY_P99}), "
+            f"bias {codes.bias} (limit {PARITY_BIAS} per channel)"
+        )
+    return Parity(frames=indices, codes=codes, di=di, reason=None)
+
+
+def decide(project: Project, key: str, space: str, *, note: str, matrix: str | None = None,
+           range_: str | None = None) -> MediaRecord:
+    """A person's decision of an undecided clip's colour space (docs/design/02-media.md,
+    Colour-space detection): `space` an OCIO colour space of the project's config, or
+    `display` for display-referred video. The matrix and range are the stream's own tags
+    unless given; a stream that states neither needs them given. The record keeps the note
+    the person gave, the date, and the evidence and reason the clip was undecided for; its
+    proxy's parity test runs with the decision, or a proxy the cache has lost is left for
+    `lungecuta proxy` to make again. A clip decided from its own evidence is not decided
+    again here."""
+    from datetime import date
+
+    from . import color
+    from .detect import STREAM_MATRICES
+
+    record_path = project.directory / "media" / f"{key}.json"
+    assert record_path.is_file(), f"no media record {key!r} in {project.directory / 'media'}"
+    read_hash = content_hash(record_path)
+    record = load_record(project, key)
+    video = record.probe.video
+    assert video is not None and record.image is None, f"{key} is not footage"
+    undecided = record.color
+    assert isinstance(undecided, ColorUndecided), (
+        f"{key} is decided already ({undecided.space}, from {undecided.evidence.get('source')}); a decision from the "
+        "file's own evidence is not overridden")
+    assert note.strip(), "say what the person decided the colour space from (--note)"
+    settings = project.file.color
+    assert space == color.DISPLAY or color.config(settings.config).getColorSpace(space) is not None, (
+        f"{space!r} is neither a colour space of the project's config nor {color.DISPLAY!r} (display-referred video)")
+    file = original(project, record)
+    tags = video.tags
+    chosen_matrix = matrix or STREAM_MATRICES.get(tags.color_space)
+    chosen_range = range_ or RANGES.get(tags.color_range)
+    assert chosen_matrix is not None, (
+        f"{key}'s stream does not state a matrix lungecuta decodes ({tags.color_space}); give --matrix")
+    assert chosen_range is not None, f"{key}'s stream does not state its range ({tags.color_range}); give --range"
+    decided = ColorDecided(status="decided", space=space, matrix=chosen_matrix, range=chosen_range, evidence={
+        "source": "person", "note": note.strip(), "decided": date.today().isoformat(),
+        "matrix_from": "given" if matrix else "stream tag", "range_from": "given" if range_ else "stream tag",
+        "stream_tags": tags.model_dump(), "undecided": {"reason": undecided.reason, "evidence": undecided.evidence},
+    })
+    proxy = record.proxy
+    if proxy is not None:
+        target = project.directory / proxy.path
+        proxy = proxy.model_copy(update={
+            "matrix": chosen_matrix, "range": chosen_range,
+            "parity": _parity(project, file, target, decided, video, proxy.size, proxy.profile),
+        }) if target.is_file() else None
+    updated = MediaRecord.model_validate(record.model_copy(update={"color": decided, "proxy": proxy}).model_dump())
+    replace_if_unchanged(record_path, read_hash, json_text(updated.model_dump(mode="json")))
+    return updated
 
 
 def summary(record: MediaRecord) -> dict[str, Any]:

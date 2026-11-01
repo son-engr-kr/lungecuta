@@ -48,6 +48,24 @@ Detection walks a fixed chain and stops at the first source that answers:
    the reason ([03-project-format.md](03-project-format.md#media)), `lungecuta detect` exits
    non-zero, and the clip cannot be placed on a timeline until someone decides it.
    Rec.709 is never assumed.
+5. **The person decides an undecided clip**, with `lungecuta decide KEY --colour SPACE
+   --note TEXT` (`media.py`): `SPACE` a colour space of the project's config (`Camera
+   Rec.709` for a phone's standard video, a log space by name) or `display` for
+   display-referred video such as a screen recording, whose codes are the deliverable's
+   and which enters the working space through the output view run backwards
+   ([01-architecture.md](01-architecture.md#where-display-referred-layers-enter)). The
+   note says what the person decided it from; it is required, since nothing in the file
+   does. The matrix and range are the stream's tags unless given with `--matrix` and
+   `--range`, and a stream that states neither needs them given. The record's evidence is
+   `{"source": "person", "note", "decided": DATE, "matrix_from", "range_from",
+   "stream_tags", "undecided": {"reason", "evidence"}}`, the evidence the clip was
+   undecided with kept; the proxy's parity test then runs with the decision (a stream
+   that stated no range had no proxy made at import; `lungecuta proxy` makes it now). A
+   clip decided from its own evidence is not decided again, and the agent runs the
+   command only on the person's word. Values a display cannot show, outside [0, 1] (as
+   subsampled chroma makes at saturated edges, or codes past the range's ends), come out
+   of a `display` clip at the display's edge (`tests/test_decide.py`, on a 4:2:2 test
+   pattern).
 
 The mapping from evidence to an OpenColorIO colour space is a table in code with one row
 per observed combination. Evidence that matches no row makes the clip undecided; it is

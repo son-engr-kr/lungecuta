@@ -104,7 +104,8 @@ class LensRun(_Record):
 class ColorDecided(_Record):
     status: Literal["decided"]
     space: str = Field(description="an OpenColorIO colour space of the project's config, or one lungecuta adds to "
-                                   "it from the camera maker's published definition (camera_spaces.py)")
+                                   "it from the camera maker's published definition (camera_spaces.py), or `display` "
+                                   "for display-referred video, decided by a person (lungecuta decide)")
     matrix: Literal["bt709"]
     range: Literal["full", "limited"]
     evidence: dict[str, Any]

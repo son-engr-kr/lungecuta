@@ -99,6 +99,10 @@ the Phase 0 media tests need samples of your own (see Conventions).
   stream into the record's `lenses` (a D-Log clip can zoom onto the 60 mm camera and back),
   and `lungecuta lint` warns of a shot across a change (`one_lens`). `lungecuta import`
   refuses DJI's `.LRF` preview copies and macOS's `._` files (`bench/dji_files.py`).
+- **An undecided clip is decided by the person**: `lungecuta decide KEY --colour SPACE --note
+  TEXT` (`media.py`) records their word (a config space, or `display` for display-referred
+  video such as a screen recording) with the evidence it was undecided with, and runs the
+  proxy's parity test with it (`tests/test_decide.py`).
 - **The time an edit takes is logged**: every lungecuta command run in a project, with its
   time, duration, parameters and outcome (`activity.py`, `cache/lungecuta/commands.jsonl`), and
   `lungecuta stages` turns that and the editor's journal into minutes by stage, for Phase 0's

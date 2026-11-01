@@ -200,12 +200,20 @@ def parity(
     proxy_range: str,
     config: str,
     spaces: list[str | None],
+    view: tuple[str, str] | None = None,
 ) -> list[ParityNumbers]:
     """The parity test on the frames `indices`, once for each of `spaces`: in DaVinci
     Intermediate for a space that names the clip's colour space, in the file's own R'G'B'
-    codes for None. Each frame is read once for all of them."""
-    processors = [color.cpu_processor(config, space, color.DAVINCI_INTERMEDIATE) if space else None
-                  for space in spaces]
+    codes for None. Display-referred video (`color.DISPLAY`) enters DaVinci Intermediate
+    through the project's output view run backwards, so `view` gives its display and
+    view. Each frame is read once for all of them."""
+    def into_intermediate(space: str):
+        if space == color.DISPLAY:
+            assert view is not None, "display-referred video is measured through the project's display and view"
+            return color.inverse_view_processor(config, color.DAVINCI_INTERMEDIATE, *view)
+        return color.cpu_processor(config, space, color.DAVINCI_INTERMEDIATE)
+
+    processors = [into_intermediate(space) if space else None for space in spaces]
     differences = [[] for _ in spaces]
     blocks = [[] for _ in spaces]
     def frames(index: int) -> tuple[np.ndarray, np.ndarray]:

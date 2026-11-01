@@ -128,7 +128,7 @@
           "type": "string"
         },
         "space": {
-          "description": "an OpenColorIO colour space of the project's config, or one lungecuta adds to it from the camera maker's published definition (camera_spaces.py)",
+          "description": "an OpenColorIO colour space of the project's config, or one lungecuta adds to it from the camera maker's published definition (camera_spaces.py), or `display` for display-referred video, decided by a person (lungecuta decide)",
           "title": "Space",
           "type": "string"
         },

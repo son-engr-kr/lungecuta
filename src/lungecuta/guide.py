@@ -191,7 +191,9 @@ published, say so instead of choosing one.
 ## Rules
 
 - A clip imported as undecided in colour or time stays unusable until the person
-  decides it; never guess its colour space.
+  decides it; never guess its colour space. Ask them what the clip is, and on their word
+  record it: `lungecuta decide KEY --colour SPACE --note "what they said"` (`display` for a
+  screen recording, `Camera Rec.709` for a phone's standard video).
 - Footage and music are read where they are and never copied into the project.
 - Nothing in the project runs as Python: graphics are web pages, run in a sandboxed
   browser with no network.

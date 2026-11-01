@@ -72,7 +72,9 @@ clips, add `--no-proxy`, and run `lungecuta proxy --comp main --project PROJECT`
 is placed and before opening the editor. `status` then says which
 clips are usable, and `lungecuta clips --project PROJECT` shows them all, a tile a clip. A clip whose colour space could not be identified is imported as
 undecided: tell the person which clips and why (the evidence is in its record under
-`media/`), and leave them out. Never guess a colour space.
+`media/`), and leave them out. Never guess a colour space; when the person says what a
+clip is (a screen recording, a phone's standard video), `lungecuta decide KEY --colour
+SPACE --note "what they said" --project PROJECT` records it.
 
 Make the comp the cut goes in, at the footage's frame rate (`status` gives the footage's
 `rate`):

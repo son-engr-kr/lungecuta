@@ -333,6 +333,10 @@ reason, and has no `space`:
 
 - Media keys default to the file stem (`C0001`); a second file with the same
   stem is an error until one of them is given an explicit key.
+- **A clip the person decided** (`lungecuta decide`) has evidence `{ "source": "person",
+  "note", "decided", "matrix_from", "range_from", "stream_tags", "undecided" }`, the last
+  the reason and evidence it was imported undecided with, and `space` a colour space of the
+  config or `display` ([02-media.md](02-media.md#colour-space-detection)).
 - **A DJI clip** is decided from the MP4's own tags, with evidence
   `{ "source": "dji-mp4", "encoder", "CameraModel", "ColorGammaSxS", "LensType",
   "ExposureIndexAsa", "WhiteBalanceKelvin", "WhiteBalanceTintCc", "stream_tags",
