@@ -114,8 +114,30 @@ def processor(project, ops: list) -> ocio.CPUProcessor | None:
         if isinstance(op, Lut):
             assert (project.directory / op.path).is_file(), f"{op.path} is missing"
     stamp = tuple((op.path, (project.directory / op.path).stat().st_mtime_ns) for op in ops if isinstance(op, Lut))
+    _forget_rewritten_luts(settings.config, project.directory, stamp)
     ops_json = json.dumps([op.model_dump(mode="json", by_alias=True) for op in ops], sort_keys=True)
     return _processor(settings.config, settings.linear, settings.working, str(project.directory), ops_json, stamp)
+
+
+# Each LUT file's modification time when a grade last read it, by its absolute path.
+_LUTS_READ: dict[str, int] = {}
+
+
+def _forget_rewritten_luts(config_name: str, directory: Path, stamp: tuple) -> None:
+    """OCIO keeps a LUT file's contents by its path, and a processor by its transforms'
+    description, which names the path but not the contents: a LUT rewritten in place would
+    be applied as it was (tests/test_grade.py). When a file's modification time is not the
+    one last read, both caches are cleared, so the next processor reads it again; only
+    then, since reading a 65-point cube again on every change of a grade would slow the
+    editor."""
+    rewritten = False
+    for relative, mtime in stamp:
+        path = str(directory / relative)
+        rewritten |= _LUTS_READ.get(path, mtime) != mtime
+        _LUTS_READ[path] = mtime
+    if rewritten:
+        ocio.ClearAllCaches()
+        color.config(config_name).clearProcessorCache()
 
 
 def nodes(grade) -> list[Node]:

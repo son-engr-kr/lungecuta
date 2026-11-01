@@ -115,7 +115,7 @@ properties for live edits from the UI. lungecuta uses them rather than writing i
 | custom curves: master, R, G, B | `GradingRGBCurveTransform` | LOG |
 | hue vs hue, hue vs sat, hue vs lum, lum vs sat, sat vs sat, lum vs lum, sat vs lum | `GradingHueCurveTransform` | its own hue model |
 | ASC CDL | `CDLTransform` | per the CDL specification (Rec.709 weights for saturation, by definition) |
-| LUT | `FileTransform` | tetrahedral interpolation; the LUT reference must name its input and output spaces, because a `.cube` declares neither |
+| LUT | `FileTransform` | tetrahedral interpolation; the LUT reference must name its input and output spaces, because a `.cube` declares neither. OCIO keeps a LUT file's contents by its path and a processor by a description that names the path, so a LUT rewritten in place would be applied as it was: when a file's modification time is not the one last read, both caches are cleared first (`grade.py`, `tests/test_grade.py`) |
 | colour space transform | any OCIO processor | |
 
 OCIO's LOG-style defaults (contrast pivot, tone zone ranges) are designed around a log

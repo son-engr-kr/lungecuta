@@ -83,6 +83,22 @@ def test_a_lut_runs_between_its_declared_spaces(cut_project):
     assert np.allclose(out, ramp() * 0.5, atol=1e-5)
 
 
+def test_a_lut_edited_in_place_is_read_again(cut_project):
+    import os
+
+    project = Project.load(cut_project)
+    (cut_project / "luts").mkdir(exist_ok=True)
+    lut = cut_project / "luts" / "gain.cube"
+    working = project.file.color.working
+    ops = OPS.validate_python([{"op": "lut", "path": "luts/gain.cube", "space": working, "out": working}])
+    lut.write_text("LUT_1D_SIZE 2\n0 0 0\n0.5 0.5 0.5\n")
+    assert np.allclose(grade.apply(project, ops, ramp()), ramp() * 0.5, atol=1e-5)
+    lut.write_text("LUT_1D_SIZE 2\n0 0 0\n0.25 0.25 0.25\n")  # the same path, another LUT
+    stat = lut.stat()
+    os.utime(lut, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1_000_000))  # a later time, whatever the clock's grain
+    assert np.allclose(grade.apply(project, ops, ramp()), ramp() * 0.25, atol=1e-5)
+
+
 def test_grade_ops_are_checked():
     with pytest.raises(ValidationError):
         OPS.validate_python([{"op": "primary", "lift": 0.1}])  # not a field: an error, not ignored
