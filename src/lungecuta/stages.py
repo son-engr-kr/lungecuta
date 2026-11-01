@@ -24,6 +24,7 @@ _BY_COMMAND = {
     "licence": "material", "new-comp": "cutting", "framing": "cutting", "op graphic": "graphics",
     "graphic": "graphics", "patch-card": "graphics", "patches": "graphics", "op grade": "grading",
     "op look": "grading", "op unlook": "grading", "op sfx": "audio", "op sound": "audio", "audio-check": "audio",
+    "voice": "audio",
     "render": "rendering", "verify": "rendering", "flash": "rendering", "fcpxml": "rendering",
 }
 _AUDIO_PROPS = {"gain", "fade_in", "fade_out"}

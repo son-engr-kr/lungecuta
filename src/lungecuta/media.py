@@ -89,6 +89,9 @@ def original(project: Project, record: MediaRecord) -> Path:
     if record.derivation is not None:
         assert path.is_file(), (f"{record.key}: its clip, made from {record.derived_from}, is gone with the cache; "
                                 f"delete media/{record.key}.json and run lungecuta stabilize {record.derived_from} again")
+    if record.speech is not None:
+        assert path.is_file(), (f"{record.key}: its voice-over file is gone with the cache; "
+                                f"lungecuta voice --again {record.key} makes it again from its record")
     assert path.is_file(), f"{record.key}: {path} is missing under root {record.path.root!r}"
     stat = path.stat()
     if (stat.st_size, stat.st_mtime_ns) != (record.stat.size, record.stat.mtime_ns):

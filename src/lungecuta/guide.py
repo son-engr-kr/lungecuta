@@ -132,6 +132,18 @@ plays it, so split off a slowed part first. Music and effects are audio layers o
 `lungecuta op duck COMP MUSIC --under LAYER --by -12 --ramp 0.25s` lowers the music while that
 shot speaks, and `--from P --to P` over a run of shots; the person judges by ear how far.
 
+A voice-over is said on this machine: `lungecuta voice --voice af_heart --lines
+'[{{"key": "vo01", "text": "This is [Kokoro](/kˈOkəɹO/)."}}, ...]'` makes each line a sound
+whose record holds its phonemes and where each word is spoken (English voices only; the
+person chooses the voice and `--speed`). A word misaki cannot read is refused: give its
+pronunciation in the brackets, and a `caption` for a line whose captions should read
+otherwise. `lungecuta op place COMP vo01 --at b:8 --anchor speech` puts its first word on
+beat 8, the model's breath of silence before it playing earlier;
+`lungecuta op captions COMP --voices vo01,vo02 --by sentence --css CSS` captions what the
+layers say, word by word where the comp plays it; `lungecuta op duck` lowers the music
+under them. A line's file is in the cache: `lungecuta voice --again vo01` makes a lost one
+again, identical.
+
 ## Titles and graphics
 
 A graphics layer is a web page in `graphics/` that sets `window.ready = true` once it has

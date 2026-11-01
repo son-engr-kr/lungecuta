@@ -32,7 +32,7 @@ from ..schema.comp import (
     StyleTime,
     Transform,
 )
-from ..schema.media import ColorDecided, MediaRecord, TimeDecided
+from ..schema.media import ColorDecided, MediaRecord, SpokenToken, TimeDecided
 from ..ticks import (
     TICKS_PER_SECOND,
     first_frame_at_or_after,
@@ -67,6 +67,14 @@ def anchor_samples(wav: Path, kind: str, digest: str) -> int:
     magnitude = np.abs(signal).mean(axis=1)[:round(SEARCH_SECONDS * rate)]
     envelope = np.convolve(magnitude, np.ones(window) / window, mode="same")
     return int(np.argmax(np.diff(envelope)))
+
+
+def speech_ticks(sample: int, rate: int) -> int:
+    """A sample of a voice-over line's file (at the model's rate, 24 kHz) in ticks, which
+    hold it exactly."""
+    ticks, remainder = divmod(sample * TICKS_PER_SECOND, rate)
+    assert remainder == 0, f"{rate} Hz does not divide the tick"
+    return ticks
 
 
 STYLE_NEUTRAL = {"speed": 1.0, "scale": 1.0, "opacity": 1.0, "rotation": 0.0, "shutter_deg": 0.0}
@@ -237,8 +245,7 @@ def _sound(project: Project, layer: AudioLayer, rate: Fraction, grid: BeatGrid |
     record = _audio_record(project, layer)
     start, visible_in, visible_out = _placed(layer, rate, grid)
     if layer.anchor != "start":  # `start` is where the anchor lands: the sound begins that much before
-        assert record.beats is None, f"layer {layer.id}: music is placed by its start, not a {layer.anchor}"
-        offset = anchor_samples(music_wav(project, record), layer.anchor, record.wav.hash) * ticks_per_sample(MIX_RATE)
+        offset = _anchor_offset(project, layer, record)
         start, visible_in, visible_out = start - offset, max(0, visible_in - offset), visible_out - offset
         assert visible_in < visible_out, f"layer {layer.id} plays nothing after its pre-roll is cut"
     source = _music_source(layer)
@@ -254,6 +261,36 @@ def _sound(project: Project, layer: AudioLayer, rate: Fraction, grid: BeatGrid |
         f"{source_first / MIX_RATE:.3f} s, which has {record.wav.samples / MIX_RATE:.3f} s"
     )
     return _levels(layer, record, start, visible_in, visible_out, first, end, source_first, rate, grid)
+
+
+def _anchor_offset(project: Project, layer: AudioLayer, record: MediaRecord) -> int:
+    """How far into its sound a layer's anchor is, in ticks: the sound begins that much
+    before the layer's `start`."""
+    if layer.anchor == "start":
+        return 0
+    assert record.beats is None, f"layer {layer.id}: music is placed by its start, not a {layer.anchor}"
+    if layer.anchor == "speech":
+        assert record.speech is not None, f"layer {layer.id}: {layer.media} is not a voice-over line"
+        return speech_ticks(record.speech.spoken[0], record.speech.rate)
+    return anchor_samples(music_wav(project, record), layer.anchor, record.wav.hash) * ticks_per_sample(MIX_RATE)
+
+
+def spoken_tokens(project: Project, layer: AudioLayer, rate: Fraction,
+                  grid: BeatGrid | None) -> list[tuple[SpokenToken, int, int]]:
+    """The tokens of voice-over layer `layer` it plays, each with the comp positions (ticks)
+    where it begins and ends, placed as `_sound` places the layer's sound: a token from its
+    start inside the visible range, its end cut at the visible out point."""
+    record = _audio_record(project, layer)
+    assert record.speech is not None, f"layer {layer.id}: {layer.media} is not a voice-over line"
+    changed = [effect.type for effect in layer.effects if effect.type in ("repitch", "reverse")]
+    assert not changed, f"layer {layer.id}: its words are not where the line says once it is {changed[0]}d"
+    speech = record.speech
+    start, visible_in, visible_out = _placed(layer, rate, grid)
+    offset = _anchor_offset(project, layer, record)
+    start, visible_in, visible_out = start - offset, max(0, visible_in - offset), visible_out - offset
+    at = lambda sample: start + speech_ticks(sample, speech.rate) - _music_source(layer)
+    return [(token, at(token.start), min(at(token.end), visible_out)) for token in speech.tokens
+            if visible_in <= at(token.start) < visible_out]
 
 
 def _levels(layer: AudioLayer, record: MediaRecord, start: int, visible_in: int, visible_out: int, first: int,

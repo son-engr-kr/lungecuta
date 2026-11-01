@@ -816,6 +816,34 @@ step the delivery search used found a slope of -0.24 and stopped. The search tha
 lowers the ceiling, by the excess each pass, ends on this comp at a ceiling of -1.175 with
 the delivered peak at -1.246 dBTP and the loudness at -14.0 LUFS (6.1 s for the audio).
 
+## Voice-over lines: `uv run --with kokoro-onnx==0.6.1 python bench/voice_check.py LINES`
+
+A past project's English narration (private: 23 lines, 423 words, 38 to 163 phonemes a
+line, its one brand name given in misaki's markup), said by `af_heart` at speed 0.85 as
+that project said it; Kokoro-82M v1.0 from kokoro-onnx's `model-files-v1.1` as pinned,
+onnxruntime 1.31.0 on the CPU, misaki 0.9.4, on the M5 Pro (2026-10-21).
+
+| check | lines |
+| --- | --- |
+| every word read by misaki with no fallback | 23 of 23 (none unread) |
+| waveform exactly 600 samples a frame of the durations | 23 of 23 |
+| the same seed and threads: the same samples and durations | 23 of 23 |
+| seed 1 against seed 0: the same durations, other samples | 23 of 23 |
+| samples identical to the 15-thread default with 4 threads; 8 threads | 23 of 23; 23 of 23 |
+| the same with 1 thread; 2 threads | 1 of 23; 1 of 23 |
+| samples identical to kokoro-onnx 0.6.1's (the same phonemes, voice, speed and seeded session; `trim=False`, pauses 0) | 23 of 23 |
+
+- 163.9 s of speech made in 29.7 s at 15 threads, a session built for each line included:
+  5.5 times real time.
+- The voice style row lungecuta takes (n phonemes, row n - 1, as hexgrad's pipeline) is
+  the one kokoro-onnx 0.6.1 takes, so the identity above holds the whole path from
+  phonemes to samples, not only the graph.
+- onnxruntime's telemetry cache (`~/Library/Application Support/Microsoft/DeveloperTools/.onnxruntime`)
+  was not touched by the run, with `ORT_DISABLE_TELEMETRY=1` set as lungecuta sets it. An
+  earlier inspection run of onnxruntime 1.31.0 without it wrote to that cache.
+- Why one or two threads give other samples, while four, eight and fifteen agree, is not
+  known; nor whether four or more agree on another machine.
+
 ## Numbers cited from elsewhere (not re-measured here)
 
 | number | where it was measured |

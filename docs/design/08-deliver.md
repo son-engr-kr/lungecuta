@@ -145,6 +145,14 @@ chain, FastAPI (MIT), Starlette and uvicorn (BSD-3-Clause), Playwright (Apache-2
 (BSD-3-Clause; its wheels bundle FFmpeg libraries, under a licence not checked here),
 pyloudnorm (MIT) and SciPy (BSD-3-Clause); for `lungecuta mcp`, the MCP Python SDK `mcp` and
 `mcp-types` (MIT) with what they bring (anyio, jsonschema, PyJWT: MIT; httpx2, Starlette,
-sse-starlette: BSD-3-Clause; OpenTelemetry API, python-multipart: Apache-2.0). The labels on sheets and scopes use the Aileron
+sse-starlette: BSD-3-Clause; OpenTelemetry API, python-multipart: Apache-2.0); for `lungecuta voice`,
+onnxruntime (MIT), misaki (Apache-2.0), spaCy, thinc and their helpers and the
+`en_core_web_sm` 3.8.0 model (MIT; blis BSD), num2words (LGPL-2.1, a Python module
+imported, as soxr is loaded) and what they bring (requests: Apache-2.0; tqdm: MPL-2.0 and
+MIT; certifi: MPL-2.0, both file-level); misaki's `en` extra is not taken, since it brings
+phonemizer and espeak-ng (GPL-3.0), and neither is installed. Kokoro-82M's weights are
+Apache-2.0 (its model card); the ONNX graph and voice file come from kokoro-onnx's
+release (its code MIT; the release states no licence of its own for the files, which are
+the weights exported). The labels on sheets and scopes use the Aileron
 Regular subset that Pillow bundles, which its author releases under CC0 ("Aileron is No
 Rights Reserved", dotcolon.net, checked 2026-10-13).

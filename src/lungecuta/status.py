@@ -36,8 +36,11 @@ def _media(project: Project) -> dict[str, list[dict[str, Any]]]:
                            "tempo_bpm": music.tempo(record.beats), "licence": record.licence is not None})
             continue
         if record.wav is not None:
-            sounds.append({"key": record.key, "seconds": round(record.wav.samples / record.wav.rate, 3),
-                           "licence": record.licence is not None})
+            sound = {"key": record.key, "seconds": round(record.wav.samples / record.wav.rate, 3),
+                     "licence": record.licence is not None}
+            if record.speech is not None:
+                sound |= {"voice": record.speech.voice, "text": record.speech.text}
+            sounds.append(sound)
             continue
         video = record.probe.video
         decided = isinstance(record.color, ColorDecided) and isinstance(record.time, TimeDecided)

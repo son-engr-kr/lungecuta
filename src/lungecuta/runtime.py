@@ -1,9 +1,10 @@
 """What lungecuta needs beside its Python packages, checked by `lungecuta doctor` and fetched
 by `lungecuta setup`: the pinned ffmpeg build (`tools.py`), Playwright's headless Chromium,
-which renders graphics, Beat This!'s checkpoint, which makes beat maps, the lungecuta skill
+which renders graphics, Beat This!'s checkpoint, which makes beat maps, Gyroflow, which
+stabilizes, Kokoro's files, which say voice-over lines (`voice.py`), the lungecuta skill
 for Claude Code and Codex (`skill.py`), and the lungecuta command on the PATH, which a
-project's MCP configuration starts. Each of the first three is also fetched on first use;
-setup fetches them ahead, so that a first import or render does not stop to download."""
+project's MCP configuration starts. The programs and models are also fetched on first
+use; setup fetches them ahead, so that a first import or render does not stop to download."""
 from __future__ import annotations
 
 import os
@@ -15,7 +16,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from . import gyroflow, tools
+from . import gyroflow, tools, voice
 from .guide import PUT_ON_PATH, SERVER
 from .skill import current, install_skill, skill_files
 
@@ -78,6 +79,9 @@ def checks() -> list[dict[str, Any]]:
     checkpoint = checkpoint_file()
     out.append({"name": "beat model", "ok": checkpoint.is_file(),
                 "detail": f"Beat This! checkpoint {CHECKPOINT}, for beat maps, in {checkpoint}", "fix": SETUP})
+    out.append({"name": "voice model", "ok": voice.ready(),
+                "detail": f"{voice.MODEL_NAME} ({', '.join(f.name for f in voice.FILES)}), for lungecuta voice, "
+                          f"in {voice.directory()}", "fix": SETUP})
     installed = current(Path.home())
     out.append({"name": "skill", "ok": all(installed.values()),
                 "detail": "the lungecuta skill, for starting a project: " + ", ".join(
@@ -93,8 +97,9 @@ def checks() -> list[dict[str, Any]]:
 
 
 def setup() -> dict[str, Any]:
-    """Fetch what is missing: the pinned ffmpeg, the headless Chromium, Gyroflow, the beat model; and
-    write the skill for Claude Code and Codex. Installers' progress goes to stderr, never
+    """Fetch what is missing: the pinned ffmpeg, the headless Chromium, Gyroflow, the beat model,
+    the voice model; and write the skill for Claude Code and Codex. Installers' progress goes
+    to stderr, never
     stdout, which carries the JSON (and, under lungecuta mcp, the protocol)."""
     from .music import CHECKPOINT, checkpoint_file, fetch_checkpoint
 
@@ -109,4 +114,6 @@ def setup() -> dict[str, Any]:
     if not checkpoint_file().is_file():
         fetch_checkpoint()
         fetched.append(f"Beat This! {CHECKPOINT}")
+    if voice.fetch():
+        fetched.append(voice.MODEL_NAME)
     return {"fetched": fetched, "skill": install_skill(Path.home())}

@@ -53,6 +53,24 @@ def inverse_view_processor(config_name: str, target: str, display: str, view: st
     return cfg.getProcessor(transform).getDefaultCPUProcessor()
 
 
+# A clip decided as display-referred video (`lungecuta decide KEY --colour display`): its codes
+# are the deliverable's, so it enters the working space through the inverse of the output
+# view, as a graphics layer in display space does under footage (01-architecture.md, Where
+# display-referred layers enter). Not an OCIO colour space of the config.
+DISPLAY = "display"
+
+
+def input_processor(settings, space: str, target: str | None = None) -> ocio.CPUProcessor:
+    """A clip's input transform, from its decided `space` into `target` (the project's
+    working space by default): the colour space's own conversion, or for display-referred
+    video the project's output view run backwards. `settings` is the project's colour
+    settings (`ColorSettings`)."""
+    target = target or settings.working
+    if space == DISPLAY:
+        return inverse_view_processor(settings.config, target, settings.display, settings.view)
+    return cpu_processor(settings.config, space, target)
+
+
 def apply(processor: ocio.CPUProcessor, image: np.ndarray, threads: int | None = None) -> None:
     """Transform a float32 HxWx3 image in place."""
     assert image.dtype == np.float32 and image.ndim == 3 and image.shape[2] == 3, "expected float32 HxWx3"

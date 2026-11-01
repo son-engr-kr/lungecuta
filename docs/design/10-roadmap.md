@@ -186,7 +186,7 @@ several places each in one edit.
 ## M9: expressions, privacy, generated sound
 
 The sandboxed expression runtime; face and plate anonymization with the final-frame audit;
-synth voices and TTS.
+synth voices and TTS. TTS is written ahead (`lungecuta voice`, D16).
 
 **Exit:** a piece with people in public rendered with no face found by `lungecuta face-audit`
 outside the allowed list, its sheet checked by the user.

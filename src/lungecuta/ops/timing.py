@@ -7,12 +7,12 @@ from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
-from ..literals import (Field, Frames, Seconds, format_literal, parse_literal, resolve_position, resolve_source,
-                        resolve_span, span_literal)
+from ..literals import (TICKS_PER_SECONDS_STEP, Field, Frames, Seconds, format_literal, parse_literal,
+                        resolve_position, resolve_source, resolve_span, span_literal)
 from ..files import write_atomic
 from ..geometry import shown_size
 from ..media import Project, load_record
-from ..ticks import TICKS_PER_SECOND, first_frame_at_or_after, parse_rate, ticks_per_frame
+from ..ticks import TICKS_PER_SECOND, first_frame_at_or_after, parse_rate, round_half_up, ticks_per_frame
 from .edit import Edit, _delta, _resolves, span_text
 
 
@@ -162,7 +162,8 @@ SIZES = ("fit", "fill", "own")
 
 
 def place(project: Project, name: str, media: str, at: str, size: str = "fit", length: str | None = None,
-          source: str | None = None, to: str | None = None, expect: str | None = None) -> dict[str, Any]:
+          source: str | None = None, to: str | None = None, expect: str | None = None,
+          anchor: str | None = None) -> dict[str, Any]:
     """Put media on the comp at position `at`, on top of the stack: from `source` (a source
     time: `f:` at the media's rate or seconds for footage, seconds for sound; its first
     frame or sample when absent), for `length` (a span from `at`, written as given), or up
@@ -172,15 +173,17 @@ def place(project: Project, name: str, media: str, at: str, size: str = "fit", l
     size is scaled to `fit` the comp (all of it seen, as Resolve's default for a mismatched
     resolution is), to `fill` it (no edge showing, cropped), or left at its `own` size; the
     scale is written out, never implied. Every frame the layer shows must be in the media.
-    A photo goes in as a graphics layer of lungecuta's photo page (`_photo`)."""
+    A photo goes in as a graphics layer of lungecuta's photo page (`_photo`). A sound's
+    `anchor` is the point of it that lands on `at` (07-audio.md, SFX placement and
+    Voice-over)."""
     edit = Edit.open(project, name, expect)
-    _place(project, edit, media, at, size, length, source, to)
+    _place(project, edit, media, at, size, length, source, to, anchor)
     _resolves(project, edit)  # every frame it shows is in the media
     return edit.save()
 
 
 # What `cut` takes for each shot, by the names `lungecuta op place` gives its options
-SHOT_FIELDS = {"media", "at", "for", "to", "source", "size"}
+SHOT_FIELDS = {"media", "at", "for", "to", "source", "size", "anchor"}
 
 
 def cut(project: Project, name: str, shots: list[dict[str, Any]], expect: str | None = None) -> dict[str, Any]:
@@ -193,16 +196,17 @@ def cut(project: Project, name: str, shots: list[dict[str, Any]], expect: str | 
         assert set(shot) <= SHOT_FIELDS and {"media", "at"} <= set(shot), (
             f"shot {k}: {sorted(shot)}; a shot has media and at, and for or to, source and size ({sorted(SHOT_FIELDS)})")
         _place(project, edit, shot["media"], shot["at"], shot.get("size", "fit"), shot.get("for"), shot.get("source"),
-               shot.get("to"))
+               shot.get("to"), shot.get("anchor"))
     _resolves(project, edit)
     return edit.save()
 
 
 def _place(project: Project, edit: Edit, media: str, at: str, size: str, length: str | None, source: str | None,
-           to: str | None) -> None:
+           to: str | None, anchor: str | None = None) -> None:
     """`place` on an open edit."""
     assert size in SIZES, f"{size!r} is not a size ({', '.join(SIZES)})"
     record = load_record(project, media)
+    assert anchor is None or record.wav is not None, f"{media} is not a sound: only a sound has an anchor"
     if record.image is not None:
         assert source is None, f"{media} is a photo: it has no source in point"
         return _photo(project, edit, media, at, size, length, to)
@@ -239,6 +243,8 @@ def _place(project: Project, edit: Edit, media: str, at: str, size: str, length:
         out = _length(edit, length, start)
     kind = "audio" if sound else "footage"
     layer = {"id": layer_id, "type": kind, "media": media, "start": at, "source_start": source, "out": out}
+    if anchor is not None and anchor != "start":
+        layer["anchor"] = anchor
     if kind == "footage" and size != "own":
         shown = shown_size(record.probe.video.size, record.probe.video.rotation)
         comp_w, comp_h = edit.data["size"]
@@ -252,6 +258,7 @@ def _place(project: Project, edit: Edit, media: str, at: str, size: str, length:
     edit.data["layers"].insert(index, layer)
     edit.changes.append(f"{media} placed at {at} as {layer_id}, {out} long"
                         + (f", from {source}" if offset else "")
+                        + (f", by its {anchor}" if "anchor" in layer else "")
                         + (f", scaled {layer['transform']['scale']} to {size} the comp" if "transform" in layer else ""))
 
 
@@ -309,17 +316,24 @@ CAPTIONS_PAGE = "graphics/captions.html"  # lungecuta's captions page, written i
 LINE_FIELDS = {"at", "to", "text", "class", "words"}
 
 
-def captions(project: Project, name: str, lines: list[dict[str, Any]], css: str,
-             expect: str | None = None) -> dict[str, Any]:
+def captions(project: Project, name: str, lines: list[dict[str, Any]] | None, css: str,
+             expect: str | None = None, voices: list[str] | None = None, by: str = "line") -> dict[str, Any]:
     """Put captions on top of the comp: one graphics layer of lungecuta's captions page,
     from the first line's `at` to the last line's `to` (comp positions), each line shown
     from its `at` to its `to`, with `text` (or `words`, each with its own `at`, for word by
     word) and an optional `class`; how they look is `css`, the page's stylesheet, given by
-    whoever places them. The page is written into `graphics/` the first time; one already
-    there is the project's and is kept."""
-    assert lines, "captions need a line"
+    whoever places them. In place of `lines`, `voices` names voice-over layers whose words
+    become the lines (`_voice_lines`), one a voice-over line or, `by` sentence, one a
+    sentence. The page is written into `graphics/` the first time; one already there is
+    the project's and is kept."""
+    assert (lines is None) != (voices is None), "captions take lines or voice-over layers, one of the two"
     assert css.strip(), "captions need their look: give --css (the stylesheet of the captions page)"
     edit = Edit.open(project, name, expect)
+    if voices is not None:
+        assert by in CAPTION_UNITS, f"{by!r} is not a caption unit ({', '.join(CAPTION_UNITS)})"
+        assert voices, "give the voice-over layers to caption"
+        lines = _voice_lines(edit, voices, by)
+    assert lines, "captions need a line"
     at = lambda text: resolve_position(parse_literal(text, Field.POSITION), rate=edit.rate, grid=edit.grid)
     for k, line in enumerate(lines):
         assert set(line) <= LINE_FIELDS and {"at", "to"} <= set(line) and ("text" in line) != ("words" in line), (
@@ -348,6 +362,51 @@ def captions(project: Project, name: str, lines: list[dict[str, Any]], css: str,
     edit.changes[-1] += f", {len(lines)} line{'s' if len(lines) != 1 else ''}"
     _resolves(project, edit)
     return edit.save()
+
+
+CAPTION_UNITS = ("line", "sentence")
+SENTENCE_ENDS = (".", "!", "?")  # the marks that end an English sentence
+
+
+def _voice_lines(edit: Edit, layers: list[str], by: str) -> list[dict[str, Any]]:
+    """Caption lines, in comp positions, of what voice-over `layers` say where the comp
+    plays it (07-audio.md, Voice-over). A line runs from its first word's start to its last
+    word's end. A word is the text between spaces, its marks with it, and is said where
+    its first token begins. A voice-over line made with a `caption` shows that text whole,
+    from its first word to its last."""
+    from ..comp.resolve import spoken_tokens
+    from ..schema.comp import AudioLayer
+
+    def at(ticks: int) -> str:  # to the nearest 10 us, the finest seconds literal
+        return format_literal(Seconds(round_half_up(Fraction(ticks, TICKS_PER_SECONDS_STEP)) * TICKS_PER_SECONDS_STEP))
+
+    lines = []
+    for layer_id in layers:
+        layer = next((other for other in edit.comp.layers if other.id == layer_id), None)
+        assert isinstance(layer, AudioLayer), f"comp {edit.name} has no audio layer {layer_id!r}"
+        placed = spoken_tokens(edit.project, layer, edit.rate, edit.grid)
+        said = [(start, end) for token, start, end in placed if token.word and end > start]
+        assert said, f"layer {layer_id} plays none of its words"
+        caption = load_record(edit.project, layer.media).speech.caption
+        if caption is not None:
+            lines.append({"at": at(said[0][0]), "to": at(said[-1][1]), "text": caption})
+            continue
+        words: list[list[tuple[Any, int, int]]] = [[]]
+        for token, start, end in placed:
+            words[-1].append((token, start, end))
+            if token.space:
+                words.append([])
+        sentences: list[list[list[tuple[Any, int, int]]]] = [[]]
+        for word in (w for w in words if w):
+            sentences[-1].append(word)
+            if by == "sentence" and "".join(token.text for token, _, _ in word).endswith(SENTENCE_ENDS):
+                sentences.append([])
+        for sentence in (s for s in sentences if any(t.word and e > b for w in s for t, b, e in w)):
+            spoken = [(b, e) for w in sentence for t, b, e in w if t.word and e > b]
+            lines.append({"at": at(spoken[0][0]), "to": at(spoken[-1][1]),
+                          "words": [{"at": at(word[0][1]), "text": "".join(t.text for t, _, _ in word)}
+                                    for word in sentence]})
+    return lines
 
 
 def _length(edit: Edit, length: str, start: int) -> str:

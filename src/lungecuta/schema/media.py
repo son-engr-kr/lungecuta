@@ -239,10 +239,66 @@ class Derivation(_Record):
     original_hash: Sha256 = Field(description="the original's hash when the clip was made")
 
 
+class SpokenToken(_Record):
+    """One token of a spoken line as misaki splits the text (a word, a number, a mark of
+    punctuation), and where the model speaks it: from its first phoneme's first sample to
+    its last phoneme's end, by the model's own durations (07-audio.md, Voice-over)."""
+
+    text: str = Field(description="as written, the pronunciation markup taken off")
+    phonemes: str
+    space: bool = Field(description="whether the text has a space after it")
+    start: int = Field(ge=0, description="the sample of the voice's file where it begins")
+    end: int = Field(ge=0, description="the sample where it ends; equal to start for a token with no phonemes")
+
+    @property
+    def word(self) -> bool:
+        """A word or a number, not a mark: its text holds a letter or a digit."""
+        return any(c.isalnum() for c in self.text)
+
+
+class Speech(_Record):
+    """How `lungecuta voice` made a voice-over line (07-audio.md, Voice-over), so that it can
+    be made again and its words placed: the model and its files by hash, the text as given
+    (with misaki's markup), the phonemes spoken, and every token's place in the file."""
+
+    by: Literal["kokoro"]
+    model: str = Field(description="the model's name and version")
+    model_hash: Sha256
+    voices_hash: Sha256
+    onnxruntime: str = Field(description="the version that ran it, on the CPU")
+    misaki: str = Field(description="the version that turned the text into phonemes")
+    voice: str
+    speed: float = Field(gt=0, description="the model's speed: durations divided by it")
+    seed: int = Field(description="onnxruntime's seed, for the vocoder's random phase and noise")
+    threads: int = Field(gt=0, description="onnxruntime's threads, which change the samples (bench/RESULTS.md)")
+    text: str
+    caption: str | None = Field(description="what captions show instead of the text, when the line gave one")
+    phonemes: str
+    rate: int = Field(gt=0, description="the model's sample rate, the file's")
+    samples: int = Field(gt=0)
+    tokens: list[SpokenToken]
+
+    @model_validator(mode="after")
+    def _in_order(self) -> Speech:
+        assert any(token.word and token.end > token.start for token in self.tokens), "a spoken line says a word"
+        for a, b in zip(self.tokens, self.tokens[1:]):
+            assert a.start <= a.end <= b.start, f"tokens {a.text!r} and {b.text!r} are out of order"
+        assert self.tokens[-1].end <= self.samples, "the last token ends after the file"
+        return self
+
+    @property
+    def spoken(self) -> tuple[int, int]:
+        """From the first word's start to the last word's end, in samples: the line's
+        speech without the model's silence before it and the pause of its last mark."""
+        said = [token for token in self.tokens if token.word and token.end > token.start]
+        return said[0].start, said[-1].end
+
+
 class MediaRecord(_Record):
     """`media/KEY.json`: one imported file, its decisions and the evidence for them. A file
     with a video stream has `time`, `color` and `decode` (and a proxy); a music file has
-    `wav` and `beats` instead."""
+    `wav` and `beats` instead; a voice-over line made by `lungecuta voice` is a sound with
+    `speech`."""
 
     key: MediaKey
     path: MediaPath
@@ -259,6 +315,7 @@ class MediaRecord(_Record):
     licence: Licence | None = None
     image: ImageRecord | None = None
     derivation: Derivation | None = None
+    speech: Speech | None = None
 
     @model_validator(mode="after")
     def _video_or_music(self) -> MediaRecord:

@@ -185,6 +185,48 @@ def stabilize_command(key: str, mode: str, preset: str | None, output: str | Non
     print_json({"derived": summary(record) | {"from": key, "file": record.path.rel, "bytes": record.stat.size}})
 
 
+@main.command("voice")
+@click.option("--lines", help='The lines as JSON: \'[{"key": "vo01", "text": "This is [Kokoro](/kˈOkəɹO/)."}, '
+                              '{"key": "vo02", "text": "It costs $5.", "voice": "bf_emma", "speed": 0.9, '
+                              '"caption": "It costs five dollars."}]\'.')
+@click.option("--file", "lines_file", type=click.Path(exists=True, dir_okay=False, path_type=Path),
+              help="The lines as a JSON file, instead of --lines.")
+@click.option("--voice", help="The voice of every line that names none: one of the model's English voices "
+                              "(af_heart, am_michael, bf_emma, bm_george ...; a* American, b* British).")
+@click.option("--speed", type=float, default=1.0, show_default=True,
+              help="The model's speed for every line that gives none: its durations divided by it.")
+@click.option("--seed", type=int, default=0, show_default=True,
+              help="onnxruntime's seed: another gives another take with the same timing.")
+@click.option("--threads", type=int, help="onnxruntime's threads; by default the core count. Recorded, since one or "
+                                          "two threads give other samples than four or more.")
+@click.option("--again", "again_keys", help="Instead of lines: make the files of these voice-over lines again "
+                                            "(keys separated by commas) where the cache lost them, from their records.")
+@project_option
+def voice_command(lines: str | None, lines_file: Path | None, voice: str | None, speed: float, seed: int,
+                  threads: int | None, again_keys: str | None, project_dir: Path | None) -> None:
+    """Say voice-over lines with Kokoro-82M v1.0 (Apache-2.0) on this machine, each imported
+    as a sound (KEY) whose record holds its words and where each is spoken. Text is read by
+    misaki without a fallback: a word it cannot read is refused, and the line gives its
+    pronunciation as [word](/phonemes/), captions showing the word. English voices only (the
+    model has no Korean). A line is at most 510 phonemes. The file keeps the model's
+    silence before and after the words; place a line on its first word with
+    `lungecuta op place COMP KEY --at P --anchor speech`, and caption it with
+    `lungecuta op captions COMP --voices LAYER,...`. The model (354 MB) is fetched on first use."""
+    from ..voice import Line, again, speak, summary
+
+    project = project_of(project_dir)
+    if again_keys is not None:
+        assert lines is None and lines_file is None, "--again makes recorded lines again; give no new lines with it"
+        print_json({"made": again(project, [k.strip() for k in again_keys.split(",")])})
+        return
+    assert (lines is None) != (lines_file is None), "give the lines with --lines or --file"
+    given = json.loads(lines if lines is not None else lines_file.read_text())
+    assert isinstance(given, list), "the lines are a JSON list"
+    records = speak(project, [Line.model_validate(line) for line in given], voice=voice, speed=speed, seed=seed,
+                    threads=threads)
+    print_json({"said": [summary(record) for record in records]})
+
+
 @main.command()
 @click.argument("key")
 @click.option(

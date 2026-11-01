@@ -438,7 +438,7 @@ def compose(project: Project, resolved: Resolved, index: int, raws: list[tuple[C
     footage = {}
     for cut, sources in raws:
         video = cut.record.probe.video
-        into = color.cpu_processor(settings.config, cut.record.color.space, settings.working)
+        into = color.input_processor(settings, cut.record.color.space)
         working = []
         for data, weight in sources:
             decoded = frame_rgb(data, video.size, pix_fmt=video.pix_fmt, chroma_location=video.chroma_location,

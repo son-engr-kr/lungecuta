@@ -155,7 +155,7 @@ class Preview:
         canvas = canvas or self.size
         settings = self.project.file.color
         record = cut.record
-        into = color.cpu_processor(settings.config, record.color.space, settings.working)
+        into = color.input_processor(settings, record.color.space)
         working = []
         for source, weight in cut.samples(index):
             planes = self._reader(cut).planes(source)

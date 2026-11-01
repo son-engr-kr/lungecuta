@@ -132,11 +132,12 @@
         },
         "anchor": {
           "default": "start",
-          "description": "the point of the sound that lands on `start`: its first sample, its loudest, or the steepest rise of its 2 ms envelope (07-audio.md, SFX placement); pre-roll before the comp's start is cut",
+          "description": "the point of the sound that lands on `start`: its first sample, its loudest, the steepest rise of its 2 ms envelope (07-audio.md, SFX placement), or for a voice-over line where its first word begins (07-audio.md, Voice-over); pre-roll before the comp's start is cut",
           "enum": [
             "start",
             "peak",
-            "rise"
+            "rise",
+            "speech"
           ],
           "title": "Anchor",
           "type": "string"

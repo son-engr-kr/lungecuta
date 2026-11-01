@@ -87,7 +87,7 @@ def open_clip(project: Project, record: MediaRecord) -> Clip:
         path=original(project, record),
         video=video,
         decision=decision,
-        into=color.cpu_processor(settings.config, decision.space, settings.working),
+        into=color.input_processor(settings, decision.space),
         view=color.view_processor(settings.config, settings.working, settings.display, settings.view),
     )
 

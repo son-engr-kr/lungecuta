@@ -719,6 +719,162 @@
       "title": "ProxyRecord",
       "type": "object"
     },
+    "Speech": {
+      "additionalProperties": false,
+      "description": "How `lungecuta voice` made a voice-over line (07-audio.md, Voice-over), so that it can\nbe made again and its words placed: the model and its files by hash, the text as given\n(with misaki's markup), the phonemes spoken, and every token's place in the file.",
+      "properties": {
+        "by": {
+          "const": "kokoro",
+          "title": "By",
+          "type": "string"
+        },
+        "model": {
+          "description": "the model's name and version",
+          "title": "Model",
+          "type": "string"
+        },
+        "model_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Model Hash",
+          "type": "string"
+        },
+        "voices_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Voices Hash",
+          "type": "string"
+        },
+        "onnxruntime": {
+          "description": "the version that ran it, on the CPU",
+          "title": "Onnxruntime",
+          "type": "string"
+        },
+        "misaki": {
+          "description": "the version that turned the text into phonemes",
+          "title": "Misaki",
+          "type": "string"
+        },
+        "voice": {
+          "title": "Voice",
+          "type": "string"
+        },
+        "speed": {
+          "description": "the model's speed: durations divided by it",
+          "exclusiveMinimum": 0,
+          "title": "Speed",
+          "type": "number"
+        },
+        "seed": {
+          "description": "onnxruntime's seed, for the vocoder's random phase and noise",
+          "title": "Seed",
+          "type": "integer"
+        },
+        "threads": {
+          "description": "onnxruntime's threads, which change the samples (bench/RESULTS.md)",
+          "exclusiveMinimum": 0,
+          "title": "Threads",
+          "type": "integer"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "caption": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "what captions show instead of the text, when the line gave one",
+          "title": "Caption"
+        },
+        "phonemes": {
+          "title": "Phonemes",
+          "type": "string"
+        },
+        "rate": {
+          "description": "the model's sample rate, the file's",
+          "exclusiveMinimum": 0,
+          "title": "Rate",
+          "type": "integer"
+        },
+        "samples": {
+          "exclusiveMinimum": 0,
+          "title": "Samples",
+          "type": "integer"
+        },
+        "tokens": {
+          "items": {
+            "$ref": "#/$defs/SpokenToken"
+          },
+          "title": "Tokens",
+          "type": "array"
+        }
+      },
+      "required": [
+        "by",
+        "model",
+        "model_hash",
+        "voices_hash",
+        "onnxruntime",
+        "misaki",
+        "voice",
+        "speed",
+        "seed",
+        "threads",
+        "text",
+        "caption",
+        "phonemes",
+        "rate",
+        "samples",
+        "tokens"
+      ],
+      "title": "Speech",
+      "type": "object"
+    },
+    "SpokenToken": {
+      "additionalProperties": false,
+      "description": "One token of a spoken line as misaki splits the text (a word, a number, a mark of\npunctuation), and where the model speaks it: from its first phoneme's first sample to\nits last phoneme's end, by the model's own durations (07-audio.md, Voice-over).",
+      "properties": {
+        "text": {
+          "description": "as written, the pronunciation markup taken off",
+          "title": "Text",
+          "type": "string"
+        },
+        "phonemes": {
+          "title": "Phonemes",
+          "type": "string"
+        },
+        "space": {
+          "description": "whether the text has a space after it",
+          "title": "Space",
+          "type": "boolean"
+        },
+        "start": {
+          "description": "the sample of the voice's file where it begins",
+          "minimum": 0,
+          "title": "Start",
+          "type": "integer"
+        },
+        "end": {
+          "description": "the sample where it ends; equal to start for a token with no phonemes",
+          "minimum": 0,
+          "title": "End",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "text",
+        "phonemes",
+        "space",
+        "start",
+        "end"
+      ],
+      "title": "SpokenToken",
+      "type": "object"
+    },
     "StreamTags": {
       "additionalProperties": false,
       "description": "The stream's colour tags as ffprobe names them; `unknown` where the stream has none.",
@@ -985,7 +1141,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "`media/KEY.json`: one imported file, its decisions and the evidence for them. A file\nwith a video stream has `time`, `color` and `decode` (and a proxy); a music file has\n`wav` and `beats` instead.",
+  "description": "`media/KEY.json`: one imported file, its decisions and the evidence for them. A file\nwith a video stream has `time`, `color` and `decode` (and a proxy); a music file has\n`wav` and `beats` instead; a voice-over line made by `lungecuta voice` is a sound with\n`speech`.",
   "properties": {
     "key": {
       "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
@@ -1134,6 +1290,17 @@
       "anyOf": [
         {
           "$ref": "#/$defs/Derivation"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "speech": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Speech"
         },
         {
           "type": "null"

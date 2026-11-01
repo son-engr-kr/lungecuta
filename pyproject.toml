@@ -12,15 +12,20 @@ dependencies = [
     "av>=19.0.1",
     "beat-this>=1.1.0",
     "click>=8.5.0",
+    "en-core-web-sm",
     "fastapi>=0.143.0",
     "mcp>=2.3.0",
+    "misaki>=0.9.4",
+    "num2words>=0.5.14",
     "numpy>=2.5.4",
+    "onnxruntime>=1.31.0",
     "opencolorio>=2.6.0",
     "pillow>=12.3.0",
     "playwright>=1.63.0",
     "pydantic>=2.14.1",
     "pyloudnorm>=0.2.0",
     "scipy>=1.18.1",
+    "spacy>=3.8.16",
     "uvicorn[standard]>=0.54.0",
 ]
 
@@ -49,3 +54,6 @@ markers = [
     "media: reads sample media from the directory named by LUNGECUTA_SAMPLES",
     "network: fetches a published document (Apple's FCPXML DTD)",
 ]
+
+[tool.uv.sources]
+en-core-web-sm = { url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" }

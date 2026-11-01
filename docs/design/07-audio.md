@@ -173,6 +173,84 @@ graphics events as events are not written yet.
   way).
 - **TTS** as a generated voice-over layer (kokoro-onnx was used before), seeded so the
   same line always renders the same audio, with its duration known before placement.
+  Written as `lungecuta voice`, below.
+
+## Voice-over
+
+As built (`src/lungecuta/voice.py`, D16): `lungecuta voice` says each line of a list with
+Kokoro-82M v1.0 on this machine and imports it as a sound, so it is placed, mixed,
+levelled, ducked under and checked as any sound is. A past project made its narration
+the same way, with kokoro-onnx; what it found is kept, and what would have brought GPL
+code into lungecuta's process is not.
+
+- **Text to phonemes.** misaki 0.9.4 (`en.G2P(trf=False)`, American or British by the
+  voice's first letter) with no fallback. misaki's fallback for a word outside its
+  lexicon is espeak-ng, loaded in-process (GPL-3.0), and kokoro-onnx loads espeak-ng
+  whatever it is given, so neither is used: a word misaki cannot read is refused, before
+  any line is said, and the line gives the pronunciation in misaki's markup,
+  `[Kokoro](/kˈOkəɹO/)` (misaki's own example), the word itself still what captions show. Every word of
+  a past project's 23-line narration was read without the fallback, its one brand name
+  given in the markup (423 words, `bench/RESULTS.md`). A line is one run of text with single spaces,
+  since misaki reads a run of spaces or a line break as a word it cannot read. A number
+  misaki cannot read is printed by it to stdout, which carries lungecuta's JSON, so its
+  output goes to stderr.
+- **One line, one pass.** A line is said in one run of the model, never cut into batches
+  and joined, and a line over the model's 510 phonemes (512 positions less a pad at each
+  end, hexgrad's kokoro/model.py) is refused: split it. hexgrad's VOICES.md puts the
+  voices' best at 100 to 200 tokens and warns of rushing past 400 and of weakness under 10
+  to 20; that is the caller's to weigh, not enforced.
+- **Nothing trimmed or inserted.** The file is the model's waveform as it comes, float32
+  at 24 kHz with the silence the model leaves before the first word and after the last.
+  kokoro-onnx trims at 60 dB under the loudest frame and lengthens pauses at punctuation
+  to 0.25 s and 0.1 s by default; hexgrad's own pipeline does neither, and neither is done
+  here (*proposed*).
+- **Where each word is.** The model gives every input (the pads, each phoneme, each
+  space) a duration in frames, and the waveform is exactly 600 samples a frame (measured
+  on every line, `bench/voice_check.py`), so a token of misaki's runs from its first
+  phoneme's first sample to its last phoneme's end. The record keeps every token (text,
+  phonemes, whether a space follows, start and end in samples). A word is a token with a
+  letter or a digit in it; a mark of punctuation is a token too, whose duration is the
+  model's pause. These are the model's alignment of its input, not onsets measured in
+  the sound: hexgrad's `join_timestamps` derives word times from the same durations
+  (with an offset of 3 frames at the start it leaves as a TODO, not taken here).
+- **The same line, the same samples.** The vocoder draws a random phase and noise (two
+  random nodes with no seed in the graph, as `torch.rand` and `torch.randn_like` in
+  hexgrad's istftnet.py), which onnxruntime seeds from its global seed when a session is
+  built and advances on every run, so each line is said in a session of its own after
+  `onnxruntime.set_seed(seed)`. The thread count changes the samples too: on this machine
+  four, eight and fifteen threads gave the same samples on all 23 lines measured, one and
+  two threads other samples on 22 of them (`bench/RESULTS.md`), so the record keeps the
+  threads (by default the core count) with the seed. On those lines lungecuta's samples
+  are kokoro-onnx 0.6.1's, sample for sample. Another seed is another take with the same durations.
+- **Voices.** The 28 English voices of the model (`a*` American, `b*` British); which one,
+  and the speed (the model's durations divided by it, 1 by default as in hexgrad's
+  pipeline), are the caller's. The model has no Korean voice, and its other languages
+  need G2Ps lungecuta does not have.
+- **The record.** `speech` on the sound's record (03-project-format.md, media): the
+  model, its two files by hash, the onnxruntime and misaki versions, voice, speed, seed,
+  threads, the text as given, an optional `caption`, the phonemes, the rate, the sample
+  count and the tokens. The file lies in the project's cache, named by its key and a hash
+  of what made it; `lungecuta voice --again KEY` makes a lost one again and refuses one
+  whose samples come out different.
+- **Placing it.** The `speech` anchor of an audio layer puts the line's first word on
+  the layer's `start`, the silence before it playing earlier (as `rise` and `peak` do for
+  an effect): `lungecuta op place COMP KEY --at P --anchor speech`.
+- **Captions from it.** `lungecuta op captions COMP --voices LAYER,...` makes caption lines
+  of what voice-over layers say, where the comp plays it: a word is the text between
+  spaces, its marks with it, said where its first token begins; a line runs from its
+  first word's start to its last word's end, so the full stop's pause is not in it; one
+  caption line a voice-over line, or with `--by sentence` one a sentence, which ends at a
+  word ending in `.`, `!` or `?`. A line made with a `caption` shows that text whole over
+  the same span. A layer repitched or reversed is refused, since its words are no longer
+  where the record says. How the captions look is the caller's CSS, as for any captions.
+- **Rights.** The text is the person's and the voice is made here, so lint's licence
+  rule does not ask a voice-over line for a licence record; the model's terms are in D16.
+- **Telemetry.** onnxruntime's macOS and Linux wheels send Microsoft telemetry by
+  default from 1.29.0 (a device id, the CPU and memory and, sampled, each session's model
+  name and hashes); lungecuta sets `ORT_DISABLE_TELEMETRY=1` before onnxruntime is first
+  imported, which its source makes a process-wide, irreversible opt-out, and refuses to
+  run it if it was imported without. A bench run left onnxruntime's telemetry cache
+  untouched; an inspection run without the variable wrote to it.
 
 ## Analysis and checks
 

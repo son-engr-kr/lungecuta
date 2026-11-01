@@ -2,7 +2,8 @@
 a machine can check, as warnings, each with its threshold in `project.json`'s `lint`.
 
 Checked so far: graphics layers on screen long enough to read, no source frame shown by
-two layers, a licence record on every music file and sound a comp uses, no sound on two
+two layers, a licence record on every music file and sound a comp uses (but voice-over lines
+`lungecuta voice` made), no sound on two
 consecutive sound layers ("SFX vary"), and no frame with nothing on screen (a gap between
 cuts, or the frame before a first cut on a beat that falls just after the comp's start), and shots of a clip that repeats its
 images starting on a new image (for clips `lungecuta repeats` has measured). Flashes are checked on a render, by
@@ -61,8 +62,9 @@ def lint(project: Project, name: str) -> dict[str, Any]:
                                      "message": f"{a.layer.id} and {b.layer.id} both show {a.record.key} source "
                                                 f"frames {', '.join(f'{r[0]} to {r[1]}' for r in runs)}"})
     if settings.music_licence:
-        # precomps' music is in the piece too; a clip's own sound is the person's recording
-        sounds = [sound for sound in resolved.every_sound() if not sound.footage]
+        # precomps' music is in the piece too; a clip's own sound is the person's recording, and a
+        # voice-over line made here is the person's text in a voice whose terms its record names
+        sounds = [sound for sound in resolved.every_sound() if not sound.footage and sound.record.speech is None]
         for key in sorted({sound.record.key for sound in sounds}):
             record = next(sound.record for sound in sounds if sound.record.key == key)
             if record.licence is None:

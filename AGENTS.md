@@ -101,6 +101,13 @@ the Phase 0 media tests need samples of your own (see Conventions).
   `lungecuta op masks`), audio layer gain in dB with keys and fades, `lungecuta audio-check` (cut
   offsets to beats and to onsets by SuperFlux, `onsets.py`; RMS per half beat), `lungecuta lint`
   (five of the review rules), `lungecuta flash`, `lungecuta diff` and `lungecuta licence`.
+- **A voice-over is said on the machine** by `lungecuta voice` (`voice.py`, D16): Kokoro-82M
+  v1.0 (Apache-2.0) as kokoro-onnx's ONNX export, run by onnxruntime on the CPU with its
+  telemetry off, text read by misaki with no espeak-ng fallback (GPL-3.0), each line a
+  sound whose record holds its phonemes and every token's samples from the model's
+  durations; the `speech` anchor puts a line's first word on its start, and
+  `lungecuta op captions --voices` captions what the layers say. English voices only;
+  the model has no Korean voice. Measured in `bench/voice_check.py`.
 - **Two edits made as an agent makes one** run end to end on the samples
   (`bench/dry_run.sh`, `bench/dry_run2.sh`; their stage times in `bench/RESULTS.md`): a cut
   built one `lungecuta op place COMP KEY --at P --for SPAN --source T` (or `--to P`) per shot,
@@ -213,6 +220,7 @@ Decided in this repository rather than taken from Pickapicka:
 | PyTorch | 2.14.1, MPS available |
 | Chromium | Playwright 1.63.0: chrome-headless-shell and Chrome for Testing, both 153.0.8010.12 |
 | Gyroflow | 1.6.3, the macOS disk image from its GitHub release, pinned (`src/lungecuta/gyroflow.py`; GPL-3.0: run as a subprocess only) |
+| Kokoro-82M | v1.0, kokoro-onnx's release `model-files-v1.1` (`kokoro-v1.0.onnx`, `voices-v1.0.bin`), pinned (`src/lungecuta/voice.py`); onnxruntime 1.31.0 on the CPU, misaki 0.9.4, spaCy 3.8.16 with `en_core_web_sm` 3.8.0 |
 | DaVinci Resolve | 21.0.4 free. Blackmagic's 21.1 notes: "Advanced scripting now requires DaVinci Resolve Studio" (secondary sources: Python scripting moved to Studio). Phase 0 uses File > Import > Timeline, never scripting |
 
 The machine is in `bench/RESULTS.md`.
@@ -353,6 +361,12 @@ describes.
   `src/lungecuta/flash.py`), since the deliverables are for the web; ITU-R BT.1702 for
   television is not read (its site and Ofcom's refuse automated downloads). Red flashes
   are not checked.
+- Voice-over lines (D16, *proposed*): the model's output kept untrimmed with no pauses
+  added, a line over 510 phonemes refused, word times from the model's durations without
+  hexgrad's 3-frame offset, a caption line ending at its last word and a sentence at `.`,
+  `!` or `?`, onnxruntime's threads the core count by default and recorded; and whether
+  Kokoro's files are mirrored to this repository's releases, as D10 has it, rather than
+  fetched from kokoro-onnx's.
 - **The proxy format and its parity criterion** (D7, amended): no ProRes profile passed;
   lossless FFV1 4:4:4 passed at 19 times the size and is used provisionally, with the gate
   in R'G'B' codes because 2 DI codes cannot be reached by a proxy downscaled before the
@@ -390,5 +404,14 @@ Each is labelled where it is cited; collected here so none is mistaken for a fac
   (truncation is likely, not verified), and whether the frame-wide shifts it makes with no
   warp asked for are the IBIS movement it removes (`bench/RESULTS.md`, Gyroflow)
 - where a Gyroflow trim range ends, so that part of a clip could be stabilized
+- whether kokoro-onnx's `kokoro-v1.0.onnx` holds hexgrad's `kokoro-v1_0.pth` weights
+  tensor for tensor (its release says it was exported from them; not compared), and what
+  licence the release gives the files (none is stated; the weights are Apache-2.0)
+- whether a voice-over line said with the same threads comes out the same on another Mac
+  (one machine measured), and why one or two onnxruntime threads give other samples than
+  four or more
+- how close the model's durations put a word to where it is heard (word times are the
+  model's alignment, not measured onsets)
+- the licence of misaki's lexicons (`us_gold`, `us_silver`, `gb_*`; its README says nothing)
 - which licence PyAV's wheel is under: it calls its FFmpeg libraries LGPL v3 but ships
   libx264 and libx265 ([08-deliver.md](docs/design/08-deliver.md#licences))

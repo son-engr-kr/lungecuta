@@ -160,14 +160,17 @@ def op_split(comp: str, layer: str, at: str, project_dir: Path | None) -> None:
 @click.option("--size", type=click.Choice(["fit", "fill", "own"]), default="fit", show_default=True,
               help="Footage of another size: scaled to fit the comp (all of it seen), to fill it (cropped), or at "
                    "its own size.")
+@click.option("--anchor", type=click.Choice(["start", "peak", "rise", "speech"]),
+              help="A sound: the point of it that lands on --at, its first sample when absent; speech, for a "
+                   "voice-over line, is where its first word begins, the silence before it playing earlier.")
 @project_option
 def op_place(comp: str, media: str, at: str, length: str | None, to: str | None, source: str | None, size: str,
-             project_dir: Path | None) -> None:
+             anchor: str | None, project_dir: Path | None) -> None:
     """Put MEDIA on the comp at a position, from a source in point, for a length or as long
     as it lasts: footage under any graphics, scaled to the comp as --size says, music and
     sounds as audio layers. One place per shot builds a cut: `--at b:8 --for b:4 --source
-    2.5s`."""
-    print_json(ops.place(project_of(project_dir), comp, media, at, size, length, source, to))
+    2.5s`. A voice-over line goes on its first word with `--anchor speech`."""
+    print_json(ops.place(project_of(project_dir), comp, media, at, size, length, source, to, anchor=anchor))
 
 
 @op.command("graphic")
@@ -197,16 +200,21 @@ def op_graphic(comp: str, page: str, at: str, length: str | None, to: str | None
                               '{"at": "13s", "text": "two"}], "class": "loud"}]\'.')
 @click.option("--file", "lines_file", type=click.Path(exists=True, dir_okay=False, path_type=Path),
               help="The lines as a JSON file, instead of --lines.")
+@click.option("--voices", help="Voice-over layers (lungecuta voice) whose words are the lines, instead of --lines: "
+                               "layer ids separated by commas, each line where the comp plays it, word by word.")
+@click.option("--by", type=click.Choice(["line", "sentence"]), default="line", show_default=True,
+              help="With --voices: a caption line for each voice-over line, or for each sentence of it.")
 @click.option("--css", help="How the captions look: the page's stylesheet, as CSS.")
 @click.option("--css-file", type=click.Path(exists=True, dir_okay=False, path_type=Path),
               help="The stylesheet as a file, instead of --css.")
 @project_option
-def op_captions(comp: str, lines: str | None, lines_file: Path | None, css: str | None, css_file: Path | None,
-                project_dir: Path | None) -> None:
+def op_captions(comp: str, lines: str | None, lines_file: Path | None, voices: str | None, by: str, css: str | None,
+                css_file: Path | None, project_dir: Path | None) -> None:
     """Put captions on top of the comp: one layer of lungecuta's captions page
     (graphics/captions.html, the project's own copy once written), each line shown from its
     at to its to, as one div.line in #captions; a line given as words shows each word as a
-    span.word that takes the class "said" at its own time. How they look is the
+    span.word that takes the class "said" at its own time. --voices makes the lines of
+    what voice-over layers say, word by word where the comp plays them. How they look is the
     stylesheet, yours to write: fonts (system fonts, or files in graphics/ by @font-face),
     size, colour, position, a box behind the text. Each shown line has the CSS variables
     --in (seconds since it came), --out (seconds until it goes) and --progress (0 to 1), and
@@ -218,11 +226,16 @@ def op_captions(comp: str, lines: str | None, lines_file: Path | None, css: str 
     .line { font: 600 5vh "Apple SD Gothic Neo", sans-serif; color: #fff;
             text-shadow: 0 0.2vh 0.6vh rgba(0,0,0,.6); opacity: min(1, calc(var(--in) / 0.15)); }
     """
-    assert (lines is None) != (lines_file is None), "give the lines with --lines or --file"
+    assert [lines, lines_file, voices].count(None) == 2, "give the lines with --lines, --file or --voices"
     assert (css is None) != (css_file is None), "give the look with --css or --css-file"
+    look = css if css is not None else css_file.read_text()
+    if voices is not None:
+        print_json(ops.captions(project_of(project_dir), comp, None, look,
+                                voices=[v.strip() for v in voices.split(",")], by=by))
+        return
     given = json.loads(lines if lines is not None else lines_file.read_text())
     assert isinstance(given, list), "the lines are a JSON list"
-    print_json(ops.captions(project_of(project_dir), comp, given, css if css is not None else css_file.read_text()))
+    print_json(ops.captions(project_of(project_dir), comp, given, look))
 
 
 @op.command("snap")

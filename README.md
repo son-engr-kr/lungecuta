@@ -57,8 +57,9 @@ Run each step and check it before the next, and tell the person what each downlo
    ```
 
 5. `lungecuta setup` fetches, once, what lungecuta needs beside its Python packages (the
-   pinned ffmpeg build, Playwright's headless Chromium and the beat model, each otherwise
-   fetched on first use) and writes the lungecuta skill for Claude Code
+   pinned ffmpeg build, Playwright's headless Chromium, Gyroflow, the beat model and the
+   voice-over model, Kokoro-82M, 354 MB; each otherwise fetched on first use) and writes
+   the lungecuta skill for Claude Code
    (`~/.claude/skills/lungecuta/`) and Codex (`~/.agents/skills/lungecuta/`).
 6. `lungecuta doctor` prints `"ok": true`. A check that fails says what to run.
 7. Read `~/.claude/skills/lungecuta/SKILL.md` (Codex's copy is the same file) and follow
@@ -87,8 +88,8 @@ Without MCP the agent runs `lungecuta` in a shell: every command prints one JSON
 ## Phase 0 tools
 
 ```
-lungecuta setup                            fetch the pinned ffmpeg, the headless Chromium, the beat model;
-                                           write the skill for Claude Code and Codex
+lungecuta setup                            fetch the pinned ffmpeg, the headless Chromium, Gyroflow, the beat
+                                           and voice models; write the skill for Claude Code and Codex
 lungecuta doctor                           whether this machine has what lungecuta needs, and what to run
 lungecuta init DIR                         a new project, with AGENTS.md and CLAUDE.md for a coding agent
 lungecuta guide [--write]                  that guide, printed or brought up to date in a project
@@ -114,6 +115,8 @@ lungecuta scope COMP --at b:16             waveform, parade, vectorscope and the
 lungecuta still --media KEY --at f:N       the same three for one imported clip
 lungecuta framing COMP LAYER               the comp's window in a layer's source frame, and where its edge shows
 lungecuta beats KEY                        the beat analysis again, applied only if no beat literal moves
+lungecuta voice --lines JSON --voice V     voice-over lines said on this machine (Kokoro-82M, English),
+                                           each a sound that knows where its words are
 lungecuta validate                         every project file, original and comp checked
 lungecuta fcpxml COMP                      the comp as FCPXML 1.10 for Resolve's File > Import > Timeline
 lungecuta render COMP --preset P           the comp rendered to a deliverable, with a version manifest
@@ -124,7 +127,7 @@ lungecuta patch-card DIR ... / lungecuta patches  a card of known colours, and r
 lungecuta op OP COMP ...                   an edit operation: place, cut, graphic, sfx, move, trim, slip, slide,
                                            roll, ripple-delete, split, snap, key, unkey, move-key, set,
                                            remap, speed, style, unstyle, look, unlook, grade, masks,
-                                           transition, untransition, sound, duck
+                                           transition, untransition, sound, duck, captions
 lungecuta stages --comp COMP               the time the edit took by stage, from the log of every command
 lungecuta changes                          what the editor wrote since the agent last asked, and what is on
                                            its screen: the playhead, the selection, the range marked with I and O

@@ -343,9 +343,10 @@ class AudioLayer(_MediaLayer):
     effects: list[AudioEffect] = Field(default_factory=list, description="in order, on the layer's sound")
     pan: float = Field(default=0.0, ge=-1, le=1, description="-1 left to 1 right, constant power, 0 dB a channel "
                        "at the centre")
-    anchor: Literal["start", "peak", "rise"] = Field(
-        default="start", description="the point of the sound that lands on `start`: its first sample, its loudest, or "
-        "the steepest rise of its 2 ms envelope (07-audio.md, SFX placement); pre-roll before the comp's start is cut")
+    anchor: Literal["start", "peak", "rise", "speech"] = Field(
+        default="start", description="the point of the sound that lands on `start`: its first sample, its loudest, "
+        "the steepest rise of its 2 ms envelope (07-audio.md, SFX placement), or for a voice-over line where its first "
+        "word begins (07-audio.md, Voice-over); pre-roll before the comp's start is cut")
 
     @model_validator(mode="after")
     def _gain(self) -> AudioLayer:
