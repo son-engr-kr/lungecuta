@@ -20,7 +20,10 @@ media colour space --input transform--> DaVinci Wide Gamut
   `studio-config-v5.0.0_aces-v2.1_ocio-v2.6`**, BSD-3-Clause. It contains DaVinci Wide
   Gamut and DaVinci Intermediate, S-Log3 with S-Gamut3 and S-Gamut3.Cine, D-Log D-Gamut,
   Apple Log and Apple Log 2, BMDFilm Gen5, ARRI, Canon, Panasonic and RED, and Rec.1886,
-  sRGB, Display P3, HLG and PQ displays.
+  sRGB, Display P3, HLG and PQ displays. lungecuta adds to it the camera spaces whose
+  makers publish a definition the config does not carry yet (`camera_spaces.py`; so far
+  DJI's D-Log2 / D-Gamut2), so that every part of the engine names them as it names the
+  config's own.
 - **Working space: DaVinci Wide Gamut**, because it is what the user grades in today, its
   primaries and DaVinci Intermediate curve are published by Blackmagic, and it is in the
   config. DI puts 18 % grey at 0.336043 and linear 100.0 at 1.0.
@@ -38,9 +41,9 @@ media colour space --input transform--> DaVinci Wide Gamut
 | Sony S-Log3 / S-Gamut3.Cine | OCIO `S-Log3 S-Gamut3.Cine` | Sony technical summary V1.01; Sony-provided ACES transform | Sony: "S-Log3 is recorded as Full range in XAVC"; the user's clip is flagged `pc`, consistent. To be verified on a chart ([02-media.md](02-media.md#decode)) |
 | Sony S-Log3 / S-Gamut3 | OCIO `S-Log3 S-Gamut3` | same | |
 | Sony S-Log2 / S-Gamut | custom colour space: Sony's S-Log2 curve plus Sony's ACES matrices | Sony S-Log2 technical paper V1.0; Sony-provided ACES CTL | S-Gamut has **two** matrices, daylight and tungsten, chosen by the camera's colour temperature setting, which has to be known per clip. The curve reads absolute code values like S-Log3; the file's range governs YCbCr decode only |
-| DJI D-Log / D-Gamut | OCIO `D-Log D-Gamut` | DJI white paper rev 1.0 (2017), X9 edition (2022) | OCIO's toe is not exactly the paper's `6.025 in + 0.0929` (its linear slope defaults to the log slope at the break); the difference is measured, and the paper's form used if it matters. A body's "D-Log" is mapped here only after a grey-scale shot confirms the paper's code values (10-bit 95, 408 and 586 for 0, 18 and 90 % reflectance): the Osmo Pocket 4P offers a D-Log mode alongside D-Log 2 (a LUT vendor reports its D-Log LUT is identical to the Mavic 4 Pro's, unverified), and if that is the published encoding it is the exact DJI path today |
+| DJI D-Log / D-Gamut | OCIO `D-Log D-Gamut` | DJI white paper rev 1.0 (2017), X9 edition (2022); for the Osmo Pocket 4P, DJI's download pages list that white paper with a D-Log ACES workflow whose DCTL (`DLog_DGamut_to_ACES_AP0_cat02_v1.dctl`) is the paper's formula and D-Gamut matrix | OCIO's toe is not exactly the paper's `6.025 in + 0.0929` (its linear slope defaults to the log slope at the break); measured, the two differ by 1.6e-6 in linear in the toe and by 0.012 ten-bit codes in DaVinci Intermediate over the whole code range (`bench/dji_check.py`), so OCIO's space is used. Mapped for the Osmo Pocket 4P from DJI's own DCTL for it; the paper's code values (95, 408 and 586 for 0, 18 and 90 % reflectance, as signal codes) are still to be seen on a grey scale shot with the camera, which is also what settles its data levels ([02-media.md](02-media.md#dji-files)) |
 | DJI D-Log M | DJI's official `.cube` (to Rec.709 only), then the **inverse output view** into the working space | DJI LUT downloads (33^3, output 0 to 1, one file shared by twelve products) | curve and gamut are not published, so the clip has a Rec.709 clip's latitude, and the UI says so. Two things to settle on a real D-Log M file: the LUT's input normalization (it is a Resolve cube, applied to Resolve's data-level-scaled values), and how much of it is a look (some product pages call the same file "vivid"). Not through `Camera Rec.709`, which would tone-map DJI's rendering a second time and leave it dull |
-| DJI D-Log 2 (Osmo Pocket 4P, 10-bit, 1x zoom only) | as D-Log M: DJI's official LUT, then the inverse output view | none published, checked 2026-10-11: no curve or gamut document from DJI, and no Osmo Pocket 4P entry on dji.com/lut. A third-party LUT vendor says it does not use D-Gamut and that Resolve has no CST for it (unverified) | until DJI publishes a definition or a LUT is in hand, a D-Log 2 clip stays undecided. Whatever arrives first (white paper or LUT) decides how it enters; a published curve and gamut would give it a real input transform, like S-Log3 |
+| DJI D-Log2 / D-Gamut2 (Osmo Pocket 4P, 10-bit, 1x zoom only) | `D-Log2 D-Gamut2`, added to the config by lungecuta (`camera_spaces.py`): DJI's curve to scene-linear D-Gamut2, then D-Gamut2 to ACES2065-1 by CAT02 as DJI's CTL builds it; `Linear D-Gamut2` beside it | DJI's ACES input transform, `DLog2_DGamut2_to_ACES_AP0_cat02.dctl` and `.ctl` (`IDT.DJI.DLog2_DGamut2.a1.v1`), on DJI's CDN, listed 2026-06-30 on the Osmo Pocket 4P download pages of DJI's Chinese and Hong Kong sites (not the US or UK ones); no white paper ([color-sources.md](../research/color-sources.md), 4b) | a real input transform, so a D-Log2 clip keeps its whole range into DaVinci Wide Gamut, nothing clipped: the camera's top code (about 900, limited range) is linear 284, 10.6 stops over grey, which DaVinci Intermediate holds above 1.0. The curve's three pieces (linear toe, log to 18 % grey, an exponential of another slope above) are not one OCIO transform, so it enters OCIO as two 1D LUTs over the half-float domain, one each way: within 4.2e-6 of DJI's formula, relative to the value, on the code range, and 5.5e-4 ten-bit codes in DaVinci Intermediate (`bench/dji_check.py`). Their input ends at half's 65504 (linear), x = 1.44 of the signal. D-Gamut2's red is ACES AP0's and lies a little outside DaVinci Wide Gamut (pure D-Gamut2 red is -0.009 of DWG green), kept as a negative value. DJI's own Rec.709 LUTs for D-Log2 (V1.0, 33 and 65 points, standard and vivid) are looks to apply in this space, not the way in |
 | Apple Log | OCIO `Apple Log` | Apple Log Profile white paper (2023) | files signal it through CoreVideo attachments, not the usual tags |
 | Apple Log 2 | OCIO `Apple Log 2` | Apple documentation; OCIO and Academy sources for the gamut | Apple's own Log 2 paper not read (needs a login) |
 | HLG camera footage | **none yet; such clips import as undecided** | BT.2100 | the user's Sony HLG clips are tagged `hlg-slog3ootf` in their XML. OCIO's config offers HLG only as a display. What Sony means by `slog3ootf`, and whether to treat the footage as display-referred HLG or to invert the OOTF into scene light, has to be established from Sony documentation before a mapping row is added. Deferred by the user (2026-10-13): the footage being edited is S-Log3 |
@@ -49,6 +52,16 @@ media colour space --input transform--> DaVinci Wide Gamut
 
 Every row marked "no file yet" in [02-media.md](02-media.md#colour-space-detection) is
 confirmed on a real file before it is relied on.
+
+A colour space lungecuta adds follows the config's own camera spaces: family
+`Input/DJI`, encoding `log` (or `scene-linear`), to ACES2065-1, its matrix built from the
+maker's primaries by the ACES library's method, which reproduces the config's own D-Gamut
+and DaVinci Wide Gamut matrices to 1e-15. A space the config already has under that name
+stops the program: the two definitions are compared before either is used. Its LUTs'
+processors are asked for by colour space names only: OCIO 2.6.0 keys its processor cache
+on a transform's description, which for an in-memory 1D LUT holds its length and its
+smallest and largest entry but not the data, so two such LUTs alike in those are applied
+as one (`bench/dji_check.py` shows a 2.2 gamma LUT giving the identity LUT's result).
 
 ## Grading
 

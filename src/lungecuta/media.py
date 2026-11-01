@@ -117,6 +117,12 @@ def import_file(project: Project, file: Path, *, root: str, key: str | None = No
 
     stat = file.stat()
     suffix = file.suffix.lower()
+    assert not file.name.startswith("._"), (
+        f"{file.name} is macOS's record of another file's attributes on a disk that cannot hold them "
+        f"(AppleDouble), not media; import {file.name[2:]}")
+    assert suffix != ".lrf", (
+        f"{file.name} is DJI's low-resolution copy of {file.stem}.MP4 for its phone app (8-bit, 1280x720, its "
+        "sound and metadata the MP4's); import the MP4")
     assert suffix not in RAW_SUFFIXES, (
         f"{file.name} is a camera RAW; develop it to a JPEG, PNG or TIFF first (Pickapicka exports sRGB JPEGs)")
     if suffix in IMAGE_FORMATS:
@@ -141,7 +147,7 @@ def import_file(project: Project, file: Path, *, root: str, key: str | None = No
         decode = decoder_check(file, pix_fmt=video.pix_fmt, size=video.size, frames=video.frames)
         record = MediaRecord(
             **common, time=detection.time, color=detection.color, decode=decode, wav=None, beats=None,
-            proxy=_proxy(project, file, key, detection.color, video) if proxy else None,
+            proxy=_proxy(project, file, key, detection.color, video) if proxy else None, lenses=detection.lenses,
         )
     write_new(record_path, json_text(record.model_dump(mode="json")))
     return record
@@ -293,7 +299,14 @@ def summary(record: MediaRecord) -> dict[str, Any]:
         "decoder": record.decode.decoder,
         "proxy": record.proxy is not None,
         "proxy_parity": record.proxy.parity.codes.model_dump() if record.proxy and record.proxy.parity.codes else None,
+        **({"lens_changes": lens_changes(record)} if record.lenses and len(record.lenses) > 1 else {}),
     }
+
+
+def lens_changes(record: MediaRecord) -> str:
+    """A clip's lens runs in a line, for a clip that changes lens while it records."""
+    runs = ", ".join(f"f:{run.first} to f:{run.first + run.frames - 1} {run.lens}" for run in record.lenses)
+    return f"changes lens {len(record.lenses) - 1} times: {runs}; lungecuta lint warns of a shot across a change"
 
 
 def music_wav(project: Project, record: MediaRecord) -> Path:

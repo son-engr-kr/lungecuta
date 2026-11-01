@@ -104,6 +104,9 @@ stabilize the clips the cut uses, not the shoot; Gyroflow's settings go in `--pr
 A clip shot with a shutter longer than a frame repeats each image for several frames:
 `lungecuta repeats KEY` lists the frames where a new image begins, a shot of it starts on one,
 and `lungecuta lint` then warns of one that does not.
+A DJI clip can change lens while it records (the Osmo Pocket 4P zooms onto its 60 mm
+camera and back): its record's `lenses` gives the frames of each lens, `lungecuta import`
+says where it changes, and a shot keeps to one lens, which `lungecuta lint` checks.
 Choose the clips from `lungecuta clips` (a tile a clip, its middle frame, labelled with its
 length, the time it was recorded and whether it has sound), then in points from the
 footage itself: `lungecuta sheet --media KEY --every f:15` labels each frame with its seconds. Then one `place` per shot, on the beat grid:

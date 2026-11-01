@@ -22,8 +22,9 @@ After Effects' layer and keyframe model:
 - Output up to UHD (3840x2160, 2160x3840 vertical) at up to 60p. Sources up to 120p,
   used as slow motion.
 - Sources: Sony S-Log3, S-Log2 and HLG; DJI D-Log, D-Log M and D-Log 2 (Osmo Pocket 4P);
-  Apple Log; Rec.709 material (phones, screen recordings); stills and graphics. HLG and
-  D-Log 2 have no defined input transform yet and import as undecided
+  Apple Log; Rec.709 material (phones, screen recordings); stills and graphics. HLG has
+  no defined input transform yet and imports as undecided; D-Log 2 enters through DJI's
+  own published transform, which lungecuta adds to the OCIO config
   ([04-color.md](04-color.md#input-camera-spaces)).
 - macOS on Apple Silicon first. The GPU layer goes through PyTorch so that an NVIDIA
   build stays possible, but nothing is promised for it.
@@ -41,7 +42,8 @@ After Effects' layer and keyframe model:
 Each item is something a test can check, not an adjective:
 
 - **Colour transforms come from published math.** Camera, working and display spaces are
-  taken from OpenColorIO's built-in studio config or from a vendor's published formula.
+  taken from OpenColorIO's built-in studio config or from a vendor's published formula
+  (DJI's D-Log2 transform, added to the config).
   A curve that has not been published (DJI D-Log M, at the time of writing) is applied
   from the vendor's own LUT and never reconstructed.
 - **The reference is the implementation.** Year one renders colour with OpenColorIO's

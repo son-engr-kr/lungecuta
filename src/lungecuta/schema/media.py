@@ -91,9 +91,20 @@ class TimeUndecided(_Record):
     evidence: dict[str, Any]
 
 
+class LensRun(_Record):
+    """Frames of a clip read from one sensor, so through one lens, as the camera's own
+    per-frame metadata names it (a DJI clip's debug stream, `dji.py`)."""
+
+    first: int = Field(ge=0, description="the run's first frame")
+    frames: int = Field(gt=0)
+    sensor: str = Field(description="the sensor mode's name as the camera writes it")
+    lens: str = Field(description="the lens, as the camera's LensType tag names it")
+
+
 class ColorDecided(_Record):
     status: Literal["decided"]
-    space: str = Field(description="an OpenColorIO colour space of the project's config")
+    space: str = Field(description="an OpenColorIO colour space of the project's config, or one lungecuta adds to "
+                                   "it from the camera maker's published definition (camera_spaces.py)")
     matrix: Literal["bt709"]
     range: Literal["full", "limited"]
     evidence: dict[str, Any]
@@ -316,9 +327,22 @@ class MediaRecord(_Record):
     image: ImageRecord | None = None
     derivation: Derivation | None = None
     speech: Speech | None = None
+    lenses: list[LensRun] | None = Field(default=None, description="which frames came through which lens, for a "
+                                         "camera that says so per frame (DJI); more than one run when the clip "
+                                         "changes lens while it records")
 
     @model_validator(mode="after")
     def _video_or_music(self) -> MediaRecord:
+        if self.lenses is not None:
+            assert self.probe.video is not None and self.lenses, f"{self.key}: lens runs belong to footage"
+            assert self.lenses[0].first == 0 and all(
+                b.first == a.first + a.frames and b.sensor != a.sensor for a, b in zip(self.lenses, self.lenses[1:])), (
+                f"{self.key}: lens runs must follow one another from frame 0, each another sensor than the last")
+            assert sum(run.frames for run in self.lenses) == self.probe.video.frames, (
+                f"{self.key}: lens runs cover {sum(run.frames for run in self.lenses)} frames of "
+                f"{self.probe.video.frames}")
+        assert self.speech is None or (self.wav is not None and self.beats is None and self.probe.video is None), (
+            f"{self.key}: a voice-over line is a sound")
         video = (self.time, self.color, self.decode)
         if self.probe.video is not None:
             assert all(part is not None for part in video), f"{self.key}: footage needs time, color and decode"

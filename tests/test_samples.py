@@ -60,6 +60,36 @@ def test_detect_leaves_the_hlg_sample_undecided(samples):
     }
 
 
+@pytest.mark.parametrize("role, space, runs", [
+    ("dji_dlog2", "D-Log2 D-Gamut2", [(0, None, "20mm F2")]),
+    ("dji_dlog", "D-Log D-Gamut", [(0, None, "60mm F1.8")]),
+    # a D-Log clip that zooms onto the 60 mm camera and back five times while it records
+    ("dji_lens_change", "D-Log D-Gamut", [(0, 164, "20mm F2"), (164, 12, "60mm F1.8"), (176, 196, "20mm F2"),
+                                          (372, 54, "60mm F1.8"), (426, 217, "20mm F2"), (643, 9, "60mm F1.8")]),
+])
+def test_detect_decides_the_dji_samples_with_their_lenses(samples, role, space, runs):
+    result = CliRunner().invoke(main, ["detect", str(samples[role]["path"])])
+    assert result.exit_code == 0, result.output
+    printed = json.loads(result.output)
+    color = printed["color"]
+    assert (color["space"], color["matrix"], color["range"]) == (space, "bt709", "limited")
+    assert color["evidence"]["source"] == "dji-mp4" and color["evidence"]["CameraModel"] == "PP-041"
+    assert color["evidence"]["stream_tags"]["color_transfer"] == "bt709"  # the tag, not the log curve
+    frames = probe(samples[role]["path"]).video.frames
+    expected = [(first, frames if n is None else n, lens) for first, n, lens in runs]
+    assert [(r["first"], r["frames"], r["lens"]) for r in printed["lenses"]] == expected
+    assert printed["time"]["rate"] == "24000/1001" and printed["time"]["start_tc"] is not None
+
+
+def test_import_refuses_the_lrf_beside_a_dji_sample(samples, tmp_path):
+    lrf = samples["dji_dlog2"]["path"].with_suffix(".LRF")
+    assert lrf.is_file()
+    project = init_project(tmp_path / "edit.lungecuta")
+    set_root(project, "card", lrf.parent)
+    with pytest.raises(AssertionError, match="import the MP4"):
+        import_file(Project.load(project), lrf, root="card")
+
+
 def sequential(path, index, *, matrix, range_, size, autorotate=False):
     """Frame `index` from a decode from the start, independent of lungecuta's seeking."""
     raw = run(["ffmpeg", "-v", "error", *([] if autorotate else ["-noautorotate"]), "-i", str(path),

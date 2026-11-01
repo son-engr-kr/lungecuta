@@ -42,6 +42,8 @@ class LintSettings(BaseModel):
                            "frame before the first, as when a cut on the first beat lands a frame in")
     new_image: bool = Field(default=True, description="a shot of a clip that repeats its images (measured by lungecuta "
                             "repeats) starts on a frame where a new image begins")
+    one_lens: bool = Field(default=True, description="a shot of a clip that changes lens while it records (a DJI "
+                           "zoom onto its other camera) shows frames of one lens")
 
 
 class ProjectFile(BaseModel):

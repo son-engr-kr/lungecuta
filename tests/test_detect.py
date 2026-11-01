@@ -84,11 +84,31 @@ def test_a_near_miss_is_not_matched_to_a_nearby_row(tmp_path):
 
 
 def test_a_clip_without_sidecar_is_never_assumed_rec709(tmp_path):
+    from clips import make_clip
+
     tags = dict(color_range="tv", color_space="bt709", color_transfer="bt709", color_primaries="bt709")
-    detection = detect(*clip(tmp_path, xml=None, tags=tags))
+    path, probe = clip(tmp_path, xml=None, tags=tags)
+    make_clip(path)  # a real file, whose container the DJI step reads and finds no DJI tag in
+    detection = detect(path, probe)
     assert detection.color.status == "undecided"
     assert detection.color.reason == "no camera sidecar, and no mapping for stream tags bt709/bt709/bt709"
     assert detection.time.status == "decided" and detection.time.capture_rate is None
+    assert detection.lenses is None
+
+
+def test_a_file_with_djis_tags_and_no_debug_stream_is_undecided(tmp_path):
+    from lungecuta.tools import run
+
+    path, probe = clip(tmp_path, xml=None, tags=dict(color_range="tv", color_space="bt709", color_transfer="bt709",
+                                                      color_primaries="bt709"))
+    run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "testsrc2=size=64x36:rate=24000/1001", "-frames:v", "3",
+         "-c:v", "libx264", "-pix_fmt", "yuv420p", "-metadata", "com.dji.camera.CameraModel=PP-041",
+         "-metadata", "com.dji.camera.ColorGammaSxS=D-Log2", "-metadata", "com.dji.camera.LensType=20mm F2",
+         "-movflags", "use_metadata_tags", str(path)])
+    detection = detect(path, probe)
+    assert detection.color.status == "undecided"
+    assert detection.color.reason == "no 'CAM dbgi' stream, so the lens of each frame is not known"
+    assert detection.color.evidence["ColorGammaSxS"] == "D-Log2" and detection.color.evidence["source"] == "dji-mp4"
 
 
 def test_a_stream_that_does_not_state_its_range_is_undecided(tmp_path):

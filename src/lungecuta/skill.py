@@ -64,8 +64,10 @@ lungecuta import SONG --root music --key song --project PROJECT
 lungecuta status --project PROJECT
 ```
 
-`import` takes the video files (a camera's XML files beside them are read on their own)
-and checks every clip, so it takes a while; tell the person. For more than a few dozen
+`import` takes the video files (a camera's XML files beside them are read on their own;
+from a DJI card the `.MP4` files only, since the `.LRF` beside each is a small copy that
+`import` refuses, as it does macOS's `._` files) and checks every clip, so it takes a
+while; tell the person. For more than a few dozen
 clips, add `--no-proxy`, and run `lungecuta proxy --comp main --project PROJECT` once the cut
 is placed and before opening the editor. `status` then says which
 clips are usable, and `lungecuta clips --project PROJECT` shows them all, a tile a clip. A clip whose colour space could not be identified is imported as

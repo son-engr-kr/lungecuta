@@ -7,7 +7,8 @@ Importing a file does four things and changes nothing on disk next to it:
 1. **Probe** with ffprobe: codec, profile, pixel format, size, rate (as a rational),
    frame count, stream colour tags, audio layout, creation time, rotation, timecode.
 2. **Read sidecars and embedded vendor metadata** (Sony `NNNNM01.XML`: colour, rates,
-   recording mode, timecode; DJI to be determined).
+   recording mode, timecode; DJI: the MP4's `com.dji.camera.*` tags and, per frame, the
+   lens the frame came through, [below](#dji-files)).
 3. **Decide the colour space**, with the evidence that decided it (below).
 4. **Build the proxy** (10-bit all-intra, in the original's range, sized for the framing) into the project's
    cache. Music is decoded once to a PCM WAV instead ([music and beats](#music-and-beats)).
@@ -37,8 +38,10 @@ Detection walks a fixed chain and stops at the first source that answers:
 
 1. **Camera sidecar.** Sony XML: `CaptureGammaEquation` and `CaptureColorPrimaries` give
    the colour space; `CodingEquations` gives the YCbCr matrix.
-2. **Embedded vendor metadata.** DJI writes per-file metadata into the MP4; which field
-   names the colour mode is not known yet and needs a sample clip from each DJI body.
+2. **Embedded vendor metadata.** DJI writes per-file metadata into the MP4: the container
+   tag `com.dji.camera.ColorGammaSxS` names the colour mode (`D-Log2`, `D-Log`) and
+   `com.dji.camera.CameraModel` the body (`PP-041`, the Osmo Pocket 4P), read from 72 clips
+   of the Osmo Pocket 4P ([DJI files](#dji-files)). Other DJI bodies need a sample clip each.
 3. **Stream tags**, when they are specific (HLG and PQ are tagged; log usually is not).
 4. **Nothing found, or evidence with no mapping row: undecided.** The import still
    succeeds, the media record says `undecided` with every piece of evidence it found and
@@ -60,10 +63,56 @@ name the camera writes.
 | Sony `rec709` + `rec709` | `Camera Rec.709` (OCIO studio config): the inverse of the camera's Rec.709 curve, into scene light like the log clips ([04-color.md](04-color.md#input-camera-spaces)) | seen on disk: three clips of a 23.98p shoot from the same body (2026-10-12), their streams tagged BT.709 throughout, limited range |
 | Sony `hlg-slog3ootf` + `rec2020` | **none yet: the clip stays undecided** | seen on disk. OCIO's config has HLG only as a display, not as a scene-referred input, and what Sony means by `slog3ootf` is unknown, so no mapping row exists and the import correctly reports the clip as undecided ([04-color.md](04-color.md#input-camera-spaces)) |
 | Sony S-Log2 | not in the OCIO config; defined from Sony's published formula | no file yet |
-| DJI D-Log | `D-Log D-Gamut` (OCIO studio config), per body once a grey-scale shot confirms the white paper's code values | no file yet |
+| DJI `PP-041` + `D-Log` | `D-Log D-Gamut` (OCIO studio config): DJI's Osmo Pocket 4P downloads list the 2017 D-Log / D-Gamut white paper and a D-Log DCTL of the same formula and matrix, which OCIO's space follows to 0.012 ten-bit codes (`bench/dji_check.py`) | seen on disk: 7 clips on both lenses, one changing lens five times; the grey-scale check of the paper's codes is still the person's |
+| DJI `PP-041` + `D-Log2` | `D-Log2 D-Gamut2`, which lungecuta adds to the config from DJI's published DCTL and CTL ([04-color.md](04-color.md#input-camera-spaces)) | seen on disk: 65 clips, all on the 20 mm lens; a D-Log2 clip with a frame from another lens is undecided ("10-bit D-Log 2 only supports 1x zoom", DJI's product page) |
 | DJI D-Log M | DJI's official LUT, curve not published | no file yet |
-| DJI D-Log 2 (Osmo Pocket 4P) | DJI's official LUT once obtained, curve and gamut not published | no file yet; no DJI LUT found either ([04-color.md](04-color.md#input-camera-spaces)) |
 | Apple Log | `Apple Log` (OCIO studio config) | no file yet |
+
+### DJI files
+
+Read from 72 Osmo Pocket 4P clips of two shoots (2026-10-16, 2026-10-30; firmware
+01.01.71.37), all 3840x2160 23.976p HEVC Main 10 4:2:0 (`dji.py`, `detect.py`):
+
+- **Tags.** The container carries `com.dji.camera.CameraModel` (`PP-041`), `ColorGammaSxS`
+  (`D-Log2` or `D-Log`), `LensType` (`20mm F2`, `60mm F1.8`), `ExposureIndexAsa` (the EI
+  in D-Log2, 400 to 1600; empty in D-Log), `WhiteBalanceKelvin` and `WhiteBalanceTintCc`.
+  They go into the colour evidence, the serial number left out. The streams are tagged
+  BT.709 throughout (`color_space`, `color_transfer`, `color_primaries`) and limited range,
+  whatever the colour mode: the transfer and primaries tags do not describe the log
+  curve, and are not read as Rec.709.
+- **Matrix and range** come from the stream's own tags (`bt709`, `tv`). DJI's ACES
+  workflow for the camera is "import the clip into Resolve, apply the DCTL" with no
+  data-level setting, so DJI's curve is applied to what Resolve decodes by those tags. The
+  clips agree: in the darkest night shots the luma floor peaks at code 122 with neutral
+  chroma, the median pixel is 125 to 129 and none is below 82, where D-Log2's black falls
+  at 118.8 read as limited range and at 64 read as full (`bench/dji_check.py`). A lens-cap shot on each lens, black
+  at about 119 in D-Log2 and 145 in D-Log, would settle it; that shot is still the
+  person's.
+- **Lens per frame.** `LensType` is the lens a clip starts on. The camera moves to its
+  60 mm camera when it zooms in, and a D-Log clip can change lens while it records (one
+  sample changes five times). Each packet of the MP4's `CAM dbgi` data stream names the
+  sensor mode the frame was read with: `OV50X50...` for the 20 mm camera, `IMX06C...` for
+  the 60 mm, and DJI's own per-frame metadata (`CAM meta`) changes its aperture between
+  F2.0 and F1.8 on the same frames. The runs of frames per lens go into the record's
+  `lenses` ([03-project-format.md](03-project-format.md#media)); `lungecuta import` says
+  where a clip changes lens and `lungecuta lint` warns of a shot across a change
+  (`one_lens`). DJI says both lenses are "strictly calibrated to ensure a highly
+  consistent color style", so the colour space is one for the clip; framing, depth of
+  field and noise jump at a change. A clip is undecided when a packet names neither
+  sensor or both, when the packets and frames differ in number, when the first frame is
+  not the `LensType` lens, and in D-Log2 when any frame is not the 20 mm's.
+- **LRF files.** Beside each MP4 the camera writes `NAME.LRF`: an MP4 container holding
+  the same frames at 1280x720 in 8-bit HEVC Main (about 10 Mb/s), the same log picture
+  (on the keyframes of all 72 clips, its luma less the MP4's averaged over 3x3 and taken
+  to 8 bits is -0.06 to -0.01 of a code on average, the 1st, 50th and 99th percentiles
+  within 1.2 codes), the MP4's two audio streams packet for packet, and the same `CAM meta`
+  stream but for its size and bit-depth fields; it has no `CAM dbgi`
+  (`bench/dji_files.py`). It is DJI Mimo's preview copy and holds nothing the MP4 does
+  not. `lungecuta import` refuses it, and refuses the `._NAME` files macOS writes beside
+  files on a disk that cannot hold their attributes.
+- **Sound.** The two audio streams are the same sound a few samples apart (in the three
+  clips checked, 2 to 154 samples, correlation 0.998 or more at that lag); a clip's sound
+  is the first, as for any file.
 
 ### Rates and timecode
 

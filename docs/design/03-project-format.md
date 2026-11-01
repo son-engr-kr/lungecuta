@@ -251,7 +251,8 @@ is listed in `project.json` and lives at `comps/ID.json`.
 ```
 
 An optional `lint` holds `lungecuta lint`'s thresholds (`graphics_min_seconds`, 0.6 by default;
-`repeated_source` and `music_licence`, on by default), from the past projects' review
+`repeated_source`, `music_licence` and the other rules, on by default, among them `one_lens`
+for a shot across a DJI clip's change of lens), from the past projects' review
 rules ([09-agent-interface.md](09-agent-interface.md#lint-rules-learned-the-hard-way)).
 
 ### media
@@ -332,6 +333,25 @@ reason, and has no `space`:
 
 - Media keys default to the file stem (`C0001`); a second file with the same
   stem is an error until one of them is given an explicit key.
+- **A DJI clip** is decided from the MP4's own tags, with evidence
+  `{ "source": "dji-mp4", "encoder", "CameraModel", "ColorGammaSxS", "LensType",
+  "ExposureIndexAsa", "WhiteBalanceKelvin", "WhiteBalanceTintCc", "stream_tags",
+  "lens_runs" }`, `space` `D-Log2 D-Gamut2` (a colour space lungecuta adds to the config,
+  [04-color.md](04-color.md#input-camera-spaces)) or `D-Log D-Gamut`, and `matrix` and
+  `range` from the stream's tags. It carries `lenses`, the runs of frames read through one
+  lens, `[{ "first": 0, "frames": 164, "sensor": "OV50X50", "lens": "20mm F2" }, ...]`,
+  which follow one another from frame 0 to the clip's last; one run unless the clip changes
+  lens while it records ([02-media.md](02-media.md#dji-files)). A clip stabilized from it
+  keeps them, frame for frame.
+- **A voice-over line** made by `lungecuta voice` is a sound (`wav`, no `beats`) whose file
+  lies in the project's cache (root `project`, `cache/lungecuta/voice/KEY.HASH.wav`, the
+  model's 24 kHz float output) with a `speech` entry: how it was made (model and file
+  hashes, onnxruntime and misaki versions, voice, speed, seed, threads, the text, an
+  optional `caption`, the phonemes) and every token's text, phonemes, following space and
+  start and end sample in that file
+  ([07-audio.md](07-audio.md#voice-over)). The cache is not committed;
+  `lungecuta voice --again KEY` makes the file again from the record and checks it against
+  `hash`.
 - **Paths are relative to a named media root.** `project.json` lists the root names the
   project uses; `roots.local.json`, gitignored and written empty by `lungecuta init`, says where
   each root is on this machine (`{ "footage": "/path/to/shoots" }`). The root `project` is

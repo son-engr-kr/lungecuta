@@ -63,14 +63,17 @@ def describe(record: MediaRecord) -> dict[str, Any]:
     return {"key": record.key, "seconds": round(float(video.frames / parse_rate(video.rate)), 3),
             "recorded": recorded, "sound": bool(record.probe.audio), "usable": usable,
             "colour": record.color.space if isinstance(record.color, ColorDecided) else f"undecided: {record.color.reason}",
-            "time": record.time.status if record.time.status == "decided" else f"undecided: {record.time.reason}"}
+            "time": record.time.status if record.time.status == "decided" else f"undecided: {record.time.reason}",
+            **({"lenses": [f"f:{run.first} to f:{run.first + run.frames - 1} {run.lens}" for run in record.lenses]}
+               if record.lenses and len(record.lenses) > 1 else {})}
 
 
 def label(described: dict[str, Any]) -> str:
     clock = ""
     if described["recorded"]:
         clock = datetime.fromisoformat(described["recorded"].replace("Z", "+00:00")).astimezone().strftime("  %H:%M")
-    flags = ("  sound" if described["sound"] else "") + ("" if described["usable"] else "  UNDECIDED")
+    flags = (("  sound" if described["sound"] else "") + ("" if described["usable"] else "  UNDECIDED")
+             + (f"  {len(described['lenses'])} lens runs" if "lenses" in described else ""))
     return f"{described['key']}\n{described['seconds']:.1f}s{clock}{flags}"
 
 

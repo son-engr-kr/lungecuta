@@ -120,7 +120,7 @@ def stabilize(project: Project, key: str, *, mode: str = "stabilize", preset: di
         time=record.time.model_copy(update={"evidence": record.time.evidence | evidence}), color=color,
         decode=decoder_check(target, pix_fmt=made_video.pix_fmt, size=made_video.size, frames=made_video.frames),
         proxy=_proxy(project, target, into, color, made_video) if proxy else None, wav=None, beats=None,
-        derived_from=key, licence=record.licence,
+        derived_from=key, licence=record.licence, lenses=record.lenses,  # frame for frame the original's
         derivation=Derivation(by="gyroflow", version=gyroflow.RELEASE.version, mode=mode, preset=chosen, output=out,
                               original_hash=record.hash),
     )

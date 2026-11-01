@@ -28,7 +28,8 @@ Rec.709 with the ACES 2.0 SDR view. Grading operators are OCIO's own (D9). Year 
 OCIO's CPU processors on threads for preview and final.
 
 **Evidence** (`bench/ocio_check.py`, `bench/ocio_threads.py`). The config has every
-camera space the user shoots except S-Log2, D-Log M and D-Log 2 (and has HLG only as a
+camera space the user shoots except S-Log2, D-Log M and D-Log 2 (D-Log 2 since added from
+DJI's own transform, D17; and has HLG only as a
 display, not as an input space), and generates Metal shading
 language for any processor. On 15 threads the ACES 2.0 output view costs 144 ms per 4K
 frame and 10 ms per 540p frame (one thread: 1674 ms and 106 ms). DWG and DI are published
@@ -397,3 +398,34 @@ repository as D10 has it; mirroring them there is the user's to decide.
 over 510 phonemes refused rather than split; word times from the model's durations
 without hexgrad's 3-frame offset; a caption line ending at its last word; a sentence
 ending at `.`, `!` or `?`; threads by default the core count, recorded.
+
+## D17: DJI clips decided from their own tags; D-Log2 through DJI's transform, added to the config
+
+**Decided** by the user, 2026-11-01, on reading what the Osmo Pocket 4P writes, asking that
+the cameras' colour spaces be used as fully as they can be: a DJI clip's colour space comes from the MP4's
+`com.dji.camera.ColorGammaSxS` and `CameraModel` tags; D-Log enters through OCIO's
+`D-Log D-Gamut`; D-Log2 through a colour space lungecuta adds to the config from DJI's own
+ACES input transform, a real scene-referred input rather than DJI's Rec.709 LUT and the
+inverse output view (which would hold a D-Log2 clip to a Rec.709 rendering's latitude);
+the lens of every frame is read and kept, and a shot across a change of lens is a lint
+warning ([02-media.md](02-media.md#dji-files), [04-color.md](04-color.md#input-camera-spaces)).
+
+**Evidence** (`bench/dji_check.py`, `bench/dji_files.py`,
+`docs/research/color-sources.md`, 3 and 4b). DJI published `DLog2_DGamut2_to_ACES_AP0_cat02`
+(DCTL and CTL) on its CDN, listed on the Pocket 4P's Chinese and Hong Kong download pages
+on 2026-06-30, and lists the 2017 D-Log white paper with a DCTL of its formula for the
+camera; no D-Log2 white paper exists. The colour space follows DJI's constants digit for
+digit and its matrix method (CAT02 to AP0), which reproduces the config's own D-Gamut
+matrix to 1e-15; OCIO carries the curve as two half-domain 1D LUTs within 4.2e-6 of DJI's
+formula. The matrix and range are the stream's tags (BT.709, limited), as Resolve decodes
+the file before DJI's DCTL; the clips' black (a floor peak at code 122, where D-Log2's
+black falls at 118.8 read as limited range, 64 as full) agrees, and a lens-cap shot is to
+confirm it. In 72 clips the debug stream names the 20 mm or the 60 mm sensor on every
+frame, one D-Log clip changing five times; DJI says D-Log 2 is made at 1x only, and a
+D-Log2 clip with another lens's frame is undecided. The LRF beside each MP4 is an 8-bit
+720p copy with nothing the MP4 lacks; `lungecuta import` refuses it.
+
+**Found on the way.** OCIO 2.6.0 keys its processor cache on a transform's description,
+which for an in-memory 1D LUT holds the length and the extremes but not the data: two
+such LUTs alike in those are applied as one. lungecuta asks for its LUT spaces' processors
+by colour space names only.

@@ -11,7 +11,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .schema.media import ColorDecided, ColorUndecided, Probe, TimeDecided, TimeUndecided
+from . import dji
+from .camera_spaces import DLOG2
+from .schema.media import ColorDecided, ColorUndecided, LensRun, Probe, TimeDecided, TimeUndecided
 from .sony import SonyXml, read_sidecar
 from .ticks import format_rate, parse_rate
 
@@ -31,11 +33,29 @@ SONY_RATES = {"23.98p": "24000/1001", "29.97p": "30000/1001", "59.94p": "60000/1
 # The stream's own range tag: range belongs to the file, not to the curve (D5).
 RANGES = {"pc": "full", "tv": "limited"}
 
+# (CameraModel, ColorGammaSxS) of a DJI file's container tags -> colour space. Seen: the Osmo
+# Pocket 4P (PP-041), 65 D-Log2 and 7 D-Log clips of two shoots (2026-10-16, 2026-10-30).
+# D-Log2 is DJI's published D-Log2 / D-Gamut2 (camera_spaces.py); D-Log is the 2017 white
+# paper's, which DJI's Pocket 4P downloads list with a DCTL of the same formula and matrix
+# (docs/research/color-sources.md, 3 and 4b). Their streams are tagged BT.709 throughout and
+# limited range: the matrix and range are taken from those tags, as Resolve decodes such a
+# file before DJI's DCTL is applied; the transfer and primaries tags are not the log curve's.
+DJI_COLOR_SPACES = {
+    ("PP-041", "D-Log2"): DLOG2,
+    ("PP-041", "D-Log"): "D-Log D-Gamut",
+}
+# Colour modes DJI makes on one lens only: "10-bit D-Log 2 only supports 1x zoom" (DJI's Osmo
+# Pocket 4P product page, its footnotes, read 2026-11-01), the 20 mm camera.
+DJI_ONE_LENS = {("PP-041", "D-Log2"): "20mm F2"}
+# The stream's matrix tag -> YCbCr matrix, for a camera whose own metadata does not name it.
+STREAM_MATRICES = {"bt709": "bt709"}
+
 
 @dataclass(frozen=True)
 class Detection:
     time: TimeDecided | TimeUndecided
     color: ColorDecided | ColorUndecided
+    lenses: list[LensRun] | None = None
 
     @property
     def decided(self) -> bool:
@@ -48,10 +68,54 @@ def detect(clip: Path, probe: Probe) -> Detection:
     rate = format_rate(parse_rate(video.rate))  # a rate outside the supported set is an error
     xml = read_sidecar(clip)
     mismatch = _sidecar_mismatch(xml, video.frames)
-    return Detection(
-        time=_time(xml, rate, probe.timecode, mismatch),
-        color=_color(xml, video.tags.model_dump(), mismatch),
-    )
+    tags = video.tags.model_dump()
+    time = _time(xml, rate, probe.timecode, mismatch)
+    if xml is None:
+        made_by_dji = dji.read(clip)
+        if made_by_dji is not None:
+            color, lenses = _dji_color(clip, made_by_dji, tags, video.frames)
+            return Detection(time=time, color=color, lenses=lenses)
+    return Detection(time=time, color=_color(xml, tags, mismatch))
+
+
+def _dji_color(clip: Path, found: dji.DjiFile, tags: dict[str, str],
+               frames: int) -> tuple[ColorDecided | ColorUndecided, list[LensRun] | None]:
+    """A DJI clip's colour from its container tags, and its lens runs from its debug
+    stream: decided only when both are read and agree with each other."""
+    evidence: dict[str, Any] = {"source": "dji-mp4", "encoder": found.encoder, **found.tags, "stream_tags": tags}
+
+    def undecided(reason: str, lenses: list[LensRun] | None = None) -> tuple[ColorUndecided, list[LensRun] | None]:
+        return ColorUndecided(status="undecided", reason=reason, evidence=evidence), lenses
+
+    model, mode = found.model, found.tags.get("ColorGammaSxS")
+    space = DJI_COLOR_SPACES.get((model, mode))
+    if space is None:
+        return undecided(f"no mapping for dji {model} + {mode}")
+    sensors = dji.SENSORS.get(model)
+    assert sensors is not None, f"DJI_COLOR_SPACES maps {model} and dji.SENSORS does not name its sensors"
+    if found.debug_stream is None:
+        return undecided(f"no {dji.DEBUG_STREAM!r} stream, so the lens of each frame is not known")
+    lenses = dji.lens_runs(dji.packets(clip, found.debug_stream), sensors)
+    if isinstance(lenses, str):
+        return undecided(lenses)
+    if sum(run.frames for run in lenses) != frames:
+        return undecided(f"the debug stream has {sum(run.frames for run in lenses)} packets and the clip {frames} "
+                         "frames")
+    evidence["lens_runs"] = len(lenses)
+    if lenses[0].lens != found.tags.get("LensType"):
+        return undecided(f"LensType says {found.tags.get('LensType')} and the first frame is {lenses[0].lens}", lenses)
+    only = DJI_ONE_LENS.get((model, mode))
+    other = [run for run in lenses if only is not None and run.lens != only]
+    if other:
+        return undecided(f"{mode} is made on the {only} lens only, and frames {other[0].first} to "
+                         f"{other[0].first + other[0].frames - 1} are {other[0].lens}", lenses)
+    matrix = STREAM_MATRICES.get(tags["color_space"])
+    if matrix is None:
+        return undecided(f"no matrix for the stream's matrix tag {tags['color_space']}", lenses)
+    range_ = RANGES.get(tags["color_range"])
+    if range_ is None:
+        return undecided(f"the stream does not state its range (color_range {tags['color_range']})", lenses)
+    return ColorDecided(status="decided", space=space, matrix=matrix, range=range_, evidence=evidence), lenses
 
 
 def _sidecar_mismatch(xml: SonyXml | None, frames: int) -> str | None:

@@ -91,6 +91,14 @@ the Phase 0 media tests need samples of your own (see Conventions).
   to the original, writes a clip into the project's cache (lossless H.264 by default),
   imported as derived media of the original with its decisions; what Gyroflow changes was
   measured (`bench/gyroflow_check.py`, `bench/RESULTS.md`).
+- **DJI clips are decided from the MP4's own tags** (`dji.py`, `detect.py`, D17): the
+  Osmo Pocket 4P's `com.dji.camera.ColorGammaSxS` maps `D-Log` to OCIO's `D-Log D-Gamut`
+  and `D-Log2` to `D-Log2 D-Gamut2`, a colour space lungecuta adds to the OCIO config from
+  DJI's own published ACES transform (`camera_spaces.py`; DJI's constants digit for digit,
+  checked in `bench/dji_check.py`). The lens of every frame is read from the MP4's debug
+  stream into the record's `lenses` (a D-Log clip can zoom onto the 60 mm camera and back),
+  and `lungecuta lint` warns of a shot across a change (`one_lens`). `lungecuta import`
+  refuses DJI's `.LRF` preview copies and macOS's `._` files (`bench/dji_files.py`).
 - **The time an edit takes is logged**: every lungecuta command run in a project, with its
   time, duration, parameters and outcome (`activity.py`, `cache/lungecuta/commands.jsonl`), and
   `lungecuta stages` turns that and the editor's journal into minutes by stage, for Phase 0's
@@ -148,8 +156,8 @@ optional.
 - **Research before computing.** Primary sources first (vendor white papers, ITU, OCIO
   docs). An implementation is a secondary source.
 - **Never invent a constant.** If a curve, gamut or threshold is not published or
-  measured, say so and stop. DJI D-Log M and D-Log 2 are applied only through DJI's own
-  LUTs for this reason.
+  measured, say so and stop. DJI D-Log M is applied only through DJI's own LUT for this
+  reason; D-Log 2 waited for DJI's own transform, which is now what defines it.
 - **Label what is unverified.** Write which part of a claim is verified and which is not.
 - **Every number has a script.** A measurement lives in `bench/` with the command that
   produced it, and its result in `bench/RESULTS.md` with machine, versions and date.
@@ -238,11 +246,15 @@ Needed for Phase 0, by role (the maintainer's files are listed in `AGENTS.local.
 - **the music sample**: any music file with a steady beat (the maintainer's is an MP3
   at 48 kHz, 124.9 s). It has no ground truth; the beat map is checked against itself
   and against a synthetic track whose beats are known.
+- **the DJI samples** (Osmo Pocket 4P, D-Log2 and D-Log, 23.976p HEVC 10-bit, each with
+  its `.LRF`), roles `dji_dlog2` (20 mm), `dji_dlog` (60 mm) and `dji_lens_change` (a D-Log
+  clip that changes lens five times). They lie on another disk, so their paths in
+  `tests/samples.local.json` are absolute.
 
 Not on disk yet, and needed (ask the user): the music and footage chosen for the Phase 0
-edit (its exit criterion is a real edit); an XAVC HS (HEVC) original; DJI clips in D-Log,
-D-Log M and D-Log 2 (Osmo Pocket 4P), with the LUTs DJI ships for each; a lens-cap shot
-and a colour chart from every body.
+edit (its exit criterion is a real edit); an XAVC HS (HEVC) original; DJI clips in D-Log M;
+a lens-cap shot and a colour chart from every body (for the Osmo Pocket 4P: D-Log2 and
+D-Log on each lens, which settle its data levels and the D-Log codes 95, 408, 586).
 
 The user shoots a Sony ILCE-7CM2 (S-Log3, HLG) and DJI cameras including the Osmo
 Pocket 4P (D-Log 2, 10-bit, 1x zoom only). Their recent footage is all S-Log3, so the HLG
@@ -377,8 +389,8 @@ describes.
 
 Each is labelled where it is cited; collected here so none is mistaken for a fact:
 
-- D-Log 2 curve and gamut, and where DJI's D-Log 2 LUT is published
-- whether the Osmo Pocket 4P's D-Log mode is the published 2017 D-Log / D-Gamut (check a grey scale against codes 95, 408, 586)
+- the Osmo Pocket 4P's data levels: its streams say limited range and the clips' black agrees (02-media.md, DJI files), not yet seen on a lens-cap shot; and its D-Log codes 95, 408, 586 on a grey scale (DJI's own DCTL for the camera is the 2017 paper's formula)
+- whether the Pocket 4P's two lenses render one scene alike in D-Log (DJI says they are "strictly calibrated" to a consistent colour; not compared here)
 - D-Log M LUT input normalization, and how much of it is a look
 - what Sony means by `hlg-slog3ootf`
 - which Sony gammas write `rec709` in the XML (ITU709 alone, or Standard and Still too), so

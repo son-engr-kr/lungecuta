@@ -9,13 +9,19 @@ from concurrent.futures import ThreadPoolExecutor
 import numpy as np
 import PyOpenColorIO as ocio
 
+from .camera_spaces import add_spaces
+
 # The space proxy parity is measured in (docs/design/02-media.md#proxies).
 DAVINCI_INTERMEDIATE = "DaVinci Intermediate WideGamut"
 
 
 @functools.cache
 def config(name: str) -> ocio.Config:
-    return ocio.Config.CreateFromBuiltinConfig(name)
+    """The built-in config `name`, with the camera spaces lungecuta adds to it
+    (`camera_spaces.py`: DJI D-Log2 D-Gamut2, from DJI's published transform)."""
+    cfg = ocio.Config.CreateFromBuiltinConfig(name)
+    add_spaces(cfg)
+    return cfg
 
 
 @functools.cache

@@ -888,3 +888,76 @@ audio-check under 1, sheet 6, still 2, render 23, verify 5, flash 6. Every check
 with the same numbers as above (-14.0 LUFS, -1.6 dBTP, 39.33 dB PSNR, cuts 10.5 to 25.8 ms
 after their beats, no flash).
 
+
+## DJI D-Log2 and D-Log as applied: `uv run python bench/dji_check.py --dctl DLOG2.dctl --dlog-dctl DLOG.dctl CLIP...`
+
+DJI's `DLog2_DGamut2_to_ACES_AP0_cat02.dctl` (from `aces_workflow-dlog-2.zip`, SHA-256
+`fcc0c94f...c4369`) and `DLog_DGamut_to_ACES_AP0_cat02_v1.dctl` (from the Pocket 4P's D-Log
+ACES workflow zip), both from DJI's CDN (`docs/research/color-sources.md`, 3 and 4b);
+lungecuta's `camera_spaces.py` in OpenColorIO 2.6.0, studio config v5.0.0, numpy 2.5.4,
+Python 3.12.13, on the M5 Pro (2026-11-01).
+
+| check | result |
+| --- | --- |
+| `camera_spaces.py` constants against the DCTL's (H, a, k1, b1, k2, b2, both limits and both reverse limits) | all ten the same |
+| D-Log2 curve at its two breaks (x 151.726/1023 and 312/1023) | continuous to 4e-12; the toe's slope 2.960935 is the log piece's there |
+| 18 % grey, and linear 0, as x times 1023 | 312.000000000000 and 63.999999999999; x = 1 is 475 (H) |
+| the matrix method (ACES `calculate_rgb_to_rgb_matrix`, CAT02) on D-Gamut and on DaVinci Wide Gamut, against the config's own matrices | 2.4e-15 and 8.9e-16 |
+| D-Gamut2 to AP0 by that method, against the DCTL's three four-decimal matrices multiplied | 1.0e-4 |
+| D-Gamut2 to DWG through AP0 (CAT02 each way), against D65 to D65 with no adaptation | 7.8e-16 |
+| D-Gamut2's primaries in linear DWG | red (0.979, -0.009, 0.072), green (0.006, 0.975, 0.102), blue (0.015, 0.034, 0.826) |
+| `D-Log2 D-Gamut2` to `Linear D-Gamut2` in OCIO (two half-domain 1D LUTs) against DJI's formula, x in [0, 1] | 4.2e-6 of the value; 1.3e-9 absolute where linear is under 0.001 |
+| the same, x in [-1.2, 2.2] (every R'G'B' a ten-bit Y'CbCr code decodes to) | 6.2e-5 of the value |
+| linear back to x in OCIO, linear up to half's 65504 (x up to 1.436) | 1.6e-4 ten-bit codes |
+| a code ramp 0 to 1023 into DaVinci Intermediate WideGamut, the LUT path against the exact curve then OCIO's matrix path | 5.5e-4 ten-bit codes |
+| OCIO's `D-Log D-Gamut` against DJI's D-Log DCTL (the 2017 paper's formula), x in [0, 1] | 8.7e-4 of the value, 1.6e-6 absolute in the toe; 0.012 ten-bit codes in DaVinci Intermediate |
+| the D-Log DCTL's `dgamut_to_xyz` against D-Gamut's primaries | 1.8e-4 (four decimals) |
+
+**OCIO's processor cache and in-memory 1D LUTs.** OCIO 2.6.0 describes a `Lut1DTransform`
+as its length and smallest and largest entry (`<Lut1DTransform ... length=4096,
+minrgb=[0, 0, 0], maxrgb=[1, 1, 1]>`), not its data, and a config's processor cache is
+keyed on that: on one raw config, a ramp LUT's processor and then a 2.2 gamma LUT's of the
+same length come out as one, the gamma LUT giving 0.5000 at 0.5 where it holds 0.2176;
+with the cache off it gives 0.2176. `camera_spaces.py`'s two LUTs are described apart
+(extremes -22122.8 and 3.4e38, against -193953 and 1.43642), and lungecuta asks for their
+processors by colour space names, which the key holds. A first draft that saturated both
+to float32's extremes was applied as one LUT both ways (the way back 781 codes off).
+
+**Where five clips put black and their clip** (luma over every keyframe, ten-bit codes,
+native planes):
+
+| clip | min | p0.01 | p1 | median | p99.99 | max | most frequent code near the floor |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| D-Log2 20 mm, the darkest night shot | 82 | 108 | 114 | 129 | 706 | 890 | 122 (4.9 % of pixels) |
+| D-Log2 20 mm, the next darkest | 97 | 109 | 114 | 125 | 698 | 893 | 122 (7.2 %) |
+| D-Log2 20 mm, day | 129 | 149 | 205 | 407 | 783 | 794 | 278 (0.2 %) |
+| D-Log 60 mm, day | 210 | 249 | 281 | 522 | 811 | 818 | 310 (0.2 %) |
+| D-Log 60 mm, night | 101 | 144 | 188 | 360 | 805 | 810 | 250 (0.3 %) |
+
+D-Log2's linear 0 falls at code 118.8 read as limited range and at 64.0 read as full;
+18 % grey at 331.2 and 312.0. Code 900 is linear 283.7 (10.62 stops over grey) read as
+limited, 122.2 (9.41) as full. The two night clips' floor peaks at 122 with neutral
+chroma (Cb and Cr within 3 of 512 there) and has no pixel below 82. Read as full range,
+their median pixel (codes 125 and 129) would be 3.1 to 3.2 stops under 18 % grey and
+their 0.01st percentile 3.6 under, in a night frame whose noise around a black at 64
+would reach below 64. Read as limited, as the streams are tagged, the floor sits 3 codes
+over black; a lens-cap shot would decide it. D-Log's top, about 810,
+is 5.94 stops over grey read as limited (5.17 as full); its black would be 145.4 (95.0).
+
+## What a DJI camera writes: `uv run python bench/dji_files.py --sound 3 DIR DIR`
+
+72 Osmo Pocket 4P clips (firmware 01.01.71.37) of two shoots, 2026-10-16 (31) and
+2026-10-30 (41), each MP4 with its LRF; read with the pinned ffmpeg 9.0.2 on the M5 Pro
+(2026-11-01).
+
+| check | result |
+| --- | --- |
+| `ColorGammaSxS` and `LensType` | D-Log2 on 20mm F2: 65 clips (EI 1600: 59, 800: 3, 400: 3); D-Log on 60mm F1.8: 6; D-Log starting on 20mm F2: 1 |
+| lens runs from `CAM dbgi` (every packet names `OV50X50` or `IMX06C`, never both or neither) | one run in 71 clips; the D-Log clip starting on 20 mm runs 0+164 20 mm, 164+12 60 mm, 176+196 20 mm, 372+54 60 mm, 426+217 20 mm, 643+9 60 mm; no D-Log2 frame is a 60 mm one |
+| aperture runs in `CAM meta` (field 3.2.11.1, f-number times ten over ten) | F2.0 and F1.8 only, their runs on the lens runs' frames in all 72 (F1.8 where `IMX06C`) |
+| LRF video | 1280x720 `yuv420p` (8-bit HEVC Main) in all 72, the MP4's frame count in all 72 |
+| LRF audio streams | the MP4's two, packet for packet, in all 72 |
+| LRF `CAM meta` against the MP4's, field by field | differs in the same five fields in all 72: 2.3.1 and 2.3.2 (3840 and 2160 against 1280 and 720), 2.3.5 (10 against 8 bits), and 2.1.1 and 3.1.3 (present only in the LRF, value 1) |
+| `CAM dbgi` in the LRF | none of the 72 |
+| LRF luma less the MP4's (3x3 means, 8-bit codes), every keyframe | mean -0.056 to -0.010 a keyframe; the 1st, 50th and 99th percentiles at most 1.14 codes apart |
+| the MP4's two audio streams, first three clips | the same sound at lags of 154, 2 and 146 samples, correlation 0.9980, 0.9989 and 0.9989 there |

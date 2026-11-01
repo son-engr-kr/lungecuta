@@ -88,6 +88,7 @@ def detect(context: click.Context, file: Path) -> None:
         "file": file.name,
         "time": detection.time.model_dump(mode="json"),
         "color": detection.color.model_dump(mode="json"),
+        **({"lenses": [run.model_dump(mode="json") for run in detection.lenses]} if detection.lenses else {}),
     })
     if not detection.decided:
         context.exit(1)

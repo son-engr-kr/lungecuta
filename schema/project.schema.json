@@ -82,6 +82,12 @@
           "description": "a shot of a clip that repeats its images (measured by lungecuta repeats) starts on a frame where a new image begins",
           "title": "New Image",
           "type": "boolean"
+        },
+        "one_lens": {
+          "default": true,
+          "description": "a shot of a clip that changes lens while it records (a DJI zoom onto its other camera) shows frames of one lens",
+          "title": "One Lens",
+          "type": "boolean"
         }
       },
       "title": "LintSettings",

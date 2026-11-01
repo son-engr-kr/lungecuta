@@ -5,8 +5,9 @@ Checked so far: graphics layers on screen long enough to read, no source frame s
 two layers, a licence record on every music file and sound a comp uses (but voice-over lines
 `lungecuta voice` made), no sound on two
 consecutive sound layers ("SFX vary"), and no frame with nothing on screen (a gap between
-cuts, or the frame before a first cut on a beat that falls just after the comp's start), and shots of a clip that repeats its
-images starting on a new image (for clips `lungecuta repeats` has measured). Flashes are checked on a render, by
+cuts, or the frame before a first cut on a beat that falls just after the comp's start), shots of a clip that repeats its
+images starting on a new image (for clips `lungecuta repeats` has measured), and shots that stay on one lens of a
+clip that changes lens while it records (a DJI zoom). Flashes are checked on a render, by
 `lungecuta flash FILE` (`flash.py`), since any layer can make one. Not checked yet, and listed in
 every report so their absence is not mistaken for a pass: the dead gap before a hit (it
 needs the crescendo found), sources for on-screen numbers and font licences (no text
@@ -90,7 +91,27 @@ def lint(project: Project, name: str) -> dict[str, Any]:
                                             f"{after.record.key}"})
     if settings.new_image:
         warnings += _new_images(project, resolved)
+    if settings.one_lens:
+        warnings += _lens_changes(resolved)
     return {"comp": name, "warnings": warnings, "settings": settings.model_dump(), "not_checked": NOT_CHECKED}
+
+
+def _lens_changes(resolved) -> list[dict[str, Any]]:
+    """Shots, precomps' included, that show frames of a clip from more than one of its lens
+    runs: the clip changed lens there, a jump in framing, depth of field and noise."""
+    out = []
+    for cut in resolved.every_cut():
+        runs = cut.record.lenses
+        if not runs or len(runs) == 1:
+            continue
+        shown = set(cut.all_samples())
+        crossed = [(run, [f for f in shown if run.first <= f < run.first + run.frames]) for run in runs]
+        crossed = [(run, frames) for run, frames in crossed if frames]
+        if len(crossed) > 1:
+            parts = ", ".join(f"{run.lens} (source f:{min(frames)} to f:{max(frames)})" for run, frames in crossed)
+            out.append({"rule": "one_lens", "layers": [cut.layer.id],
+                        "message": f"{cut.layer.id} shows {cut.record.key} across a change of lens: {parts}"})
+    return out
 
 
 def _new_images(project: Project, resolved) -> list[dict[str, Any]]:

@@ -128,7 +128,7 @@
           "type": "string"
         },
         "space": {
-          "description": "an OpenColorIO colour space of the project's config",
+          "description": "an OpenColorIO colour space of the project's config, or one lungecuta adds to it from the camera maker's published definition (camera_spaces.py)",
           "title": "Space",
           "type": "string"
         },
@@ -400,6 +400,41 @@
         "captured"
       ],
       "title": "ImageRecord",
+      "type": "object"
+    },
+    "LensRun": {
+      "additionalProperties": false,
+      "description": "Frames of a clip read from one sensor, so through one lens, as the camera's own\nper-frame metadata names it (a DJI clip's debug stream, `dji.py`).",
+      "properties": {
+        "first": {
+          "description": "the run's first frame",
+          "minimum": 0,
+          "title": "First",
+          "type": "integer"
+        },
+        "frames": {
+          "exclusiveMinimum": 0,
+          "title": "Frames",
+          "type": "integer"
+        },
+        "sensor": {
+          "description": "the sensor mode's name as the camera writes it",
+          "title": "Sensor",
+          "type": "string"
+        },
+        "lens": {
+          "description": "the lens, as the camera's LensType tag names it",
+          "title": "Lens",
+          "type": "string"
+        }
+      },
+      "required": [
+        "first",
+        "frames",
+        "sensor",
+        "lens"
+      ],
+      "title": "LensRun",
       "type": "object"
     },
     "Licence": {
@@ -1307,6 +1342,22 @@
         }
       ],
       "default": null
+    },
+    "lenses": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/LensRun"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "which frames came through which lens, for a camera that says so per frame (DJI); more than one run when the clip changes lens while it records",
+      "title": "Lenses"
     }
   },
   "required": [

@@ -2,8 +2,10 @@
 
 Tests that read sample media are marked `media` and run with `uv run pytest -m media`.
 They read the directory named by LUNGECUTA_SAMPLES; which file plays each role (the
-S-Log3 sample, the HLG sample) is set in `tests/samples.local.json`, which is gitignored,
-so the committed tests name no sample. A missing variable or file is a failure, not a skip.
+S-Log3 sample, the HLG sample, the DJI samples) is set in `tests/samples.local.json`, which
+is gitignored, so the committed tests name no sample. A role's path is relative to that
+directory, or absolute for a sample kept on another disk. A missing variable or file is a
+failure, not a skip.
 """
 from __future__ import annotations
 
