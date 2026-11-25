@@ -105,9 +105,14 @@ def patches(file: Path, card_file: Path, frame: int, matrix: str | None, range_:
 @threads_option
 @click.option("--workers", type=click.IntRange(min=1),
               help="Frames rendered at once (OCIO single-threaded in each); by default the core count.")
+@click.option("--picture-from", type=click.Path(exists=True, dir_okay=False, path_type=Path),
+              help="An earlier render of this preset whose picture this one keeps, its video copied and only the "
+                   "sound delivered anew; refused unless its manifest shows the same picture (the comp without its "
+                   "sound, media, graphics, grade, code).")
+@click.option("--again", is_flag=True, help="Render every frame even if the file at --out has this picture already.")
 @project_option
 def render_command(comp: str, preset: str, out: Path | None, threads: int | None, workers: int | None,
-                   project_dir: Path | None) -> None:
+                   picture_from: Path | None, again: bool, project_dir: Path | None) -> None:
     """Render comp COMP to a delivery file, with a manifest of what decided it.
 
     Every frame goes through the same chain as lungecuta still at the comp's size; music layers
@@ -115,8 +120,12 @@ def render_command(comp: str, preset: str, out: Path | None, threads: int | None
     Y'CbCr by ITU-T H.273, chroma decimated co-sited, 8-bit output dithered, all four tags
     set on the frames. The manifest (FILE.manifest.json) records the comp's and media's
     hashes, the colour settings and the versions of everything that decided the pixels.
+
+    When only the sound changed since the file at --out was rendered (music, effects,
+    gains, ducking), its video is kept and only the sound is delivered again, in seconds;
+    --picture-from does this from another file, such as the previous version.
     """
-    print_json(render_comp(project_of(project_dir), comp, preset, out, threads, workers))
+    print_json(render_comp(project_of(project_dir), comp, preset, out, threads, workers, picture_from, again))
 
 
 @main.command("flash")

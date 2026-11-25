@@ -103,6 +103,15 @@ the Phase 0 media tests need samples of your own (see Conventions).
   TEXT` (`media.py`) records their word (a config space, or `display` for display-referred
   video such as a screen recording) with the evidence it was undecided with, and runs the
   proxy's parity test with it (`tests/test_decide.py`).
+- **Graphics captures are kept and made in parallel** (`overlays.py`, 2026-11-25): every
+  page time a render, still, sheet or check shows is captured first, the missing ones by
+  four Chromiums at once, into `cache/lungecuta/graphics/`, by page, params and every file
+  the page loaded; a page that throws stops at once with its error and console. A render
+  whose picture is unchanged (the manifest's `picture`) keeps its video and delivers only
+  the new sound (`render.py`, `--picture-from`, `--again`). `import --colour/--note`,
+  `import --refresh`, `new-comp --replace`, `rm-comp`, `op place --gain/--fade-in/--fade-out`
+  and `added` in every op's result save the repeated calls an agent made
+  (`bench/graphics_capture.py`).
 - **The time an edit takes is logged**: every lungecuta command run in a project, with its
   time, duration, parameters and outcome (`activity.py`, `cache/lungecuta/commands.jsonl`), and
   `lungecuta stages` turns that and the editor's journal into minutes by stage, for Phase 0's
@@ -383,6 +392,12 @@ describes.
   `!` or `?`, onnxruntime's threads the core count by default and recorded; and whether
   Kokoro's files are mirrored to this repository's releases, as D10 has it, rather than
   fetched from kokoro-onnx's.
+- Graphics captured by four Chromiums at once (`CAPTURE_WORKERS`, *proposed*,
+  `bench/graphics_capture.py`), knowing that several Chromiums sometimes give captures one
+  Chromium in order does not (below, Known unknowns).
+- `lungecuta import --refresh` re-imports a changed file as new, the old colour decision
+  not kept (*proposed*, `02-media.md#ingest`); a removed or replaced comp's file is kept
+  in `cache/lungecuta/removed/` (*proposed*).
 - **The proxy format and its parity criterion** (D7, amended): no ProRes profile passed;
   lossless FFV1 4:4:4 passed at 19 times the size and is used provisionally, with the gate
   in R'G'B' codes because 2 DI codes cannot be reached by a proxy downscaled before the
@@ -429,5 +444,9 @@ Each is labelled where it is cited; collected here so none is mistaken for a fac
 - how close the model's durations put a word to where it is heard (word times are the
   model's alignment, not measured onsets)
 - the licence of misaki's lexicons (`us_gold`, `us_silver`, `gb_*`; its README says nothing)
+- why several Chromiums capturing at once sometimes give a capture that differs from one
+  Chromium's in order (a title by up to 80 codes on 24,230 pixels, in one of five runs at 4
+  and one of six at 6), and why a page drawing SVG strokes varies between two runs of one Chromium
+  (`bench/RESULTS.md`, Graphics captures)
 - which licence PyAV's wheel is under: it calls its FFmpeg libraries LGPL v3 but ships
   libx264 and libx265 ([08-deliver.md](docs/design/08-deliver.md#licences))

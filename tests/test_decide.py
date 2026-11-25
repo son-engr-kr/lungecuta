@@ -96,3 +96,70 @@ def test_the_command_prints_the_decision_with_its_evidence(imported):
     printed = json.loads(result.output)
     assert printed["key"] == "screen" and printed["color"] == "decided" and printed["space"] == "display"
     assert printed["evidence"]["source"] == "person" and printed["proxy_parity"] is not None
+
+
+def test_import_decides_the_clips_it_imports_undecided_on_the_persons_word(tmp_path):
+    project = init_project(tmp_path / "edit.lungecuta")
+    settings = json.loads((project / "project.json").read_text())
+    settings["proxy_height"] = 36
+    (project / "project.json").write_text(json.dumps(settings))
+    plates = tmp_path / "plates"
+    plates.mkdir()
+    set_root(project, "plates", plates)
+    files = [str(make_clip(plates / f"plate{k}.mov", limited=True, frames=5)) for k in (1, 2)]
+    invoke = lambda *extra: CliRunner().invoke(main, ["import", *files, "--root", "plates", *extra,
+                                                      "--project", str(project)])
+    refused = invoke("--colour", "display")
+    assert refused.exit_code != 0 and "--colour and --note go together" in str(refused.exception)
+    result = invoke("--colour", "display", "--note", "plates rendered for the deliverable", "--matrix", "bt709")
+    assert result.exit_code == 0, result.output
+    printed = json.loads(result.output)["imported"]
+    assert [(p["key"], p["color"], p["space"]) for p in printed] == [("plate1", "decided", "display"),
+                                                                     ("plate2", "decided", "display")]
+    record = load_record(Project.load(project), "plate1")
+    assert record.color.evidence["note"] == "plates rendered for the deliverable"
+
+
+def test_a_plate_rendered_again_is_imported_again_with_refresh(tmp_path):
+    project = init_project(tmp_path / "edit.lungecuta")
+    settings = json.loads((project / "project.json").read_text())
+    settings["proxy_height"] = 36
+    (project / "project.json").write_text(json.dumps(settings))
+    plates = tmp_path / "plates"
+    plates.mkdir()
+    set_root(project, "plates", plates)
+    plate = make_clip(plates / "plate.mov", limited=True, frames=5)
+    invoke = lambda *extra: CliRunner().invoke(main, ["import", str(plate), "--root", "plates", *extra,
+                                                      "--project", str(project)])
+    assert invoke().exit_code == 0
+    first = load_record(Project.load(project), "plate")
+    unchanged = invoke("--refresh")
+    assert unchanged.exit_code == 0, unchanged.output
+    assert json.loads(unchanged.output) == {"imported": [], "unchanged": ["plate"]}
+    plate.unlink()
+    make_clip(plate, limited=True, frames=7)  # rendered again
+    refused = invoke()
+    assert refused.exit_code != 0 and "exists already" in str(refused.exception)
+    again = invoke("--refresh")
+    assert again.exit_code == 0, again.output
+    assert json.loads(again.output)["imported"][0]["refreshed"] is True
+    second = load_record(Project.load(project), "plate")
+    assert second.hash != first.hash and second.probe.video.frames == 7
+    assert (project / second.proxy.path).is_file()
+
+
+def test_a_proxy_left_by_a_record_deleted_by_hand_does_not_stop_an_import(tmp_path):
+    project = init_project(tmp_path / "edit.lungecuta")
+    settings = json.loads((project / "project.json").read_text())
+    settings["proxy_height"] = 36
+    (project / "project.json").write_text(json.dumps(settings))
+    plates = tmp_path / "plates"
+    plates.mkdir()
+    set_root(project, "plates", plates)
+    plate = make_clip(plates / "plate.mov", limited=True, frames=5)
+    loaded = Project.load(project)
+    record = import_file(loaded, plate, root="plates")
+    (project / "media" / "plate.json").unlink()
+    assert (project / record.proxy.path).is_file()
+    again = import_file(loaded, plate, root="plates")
+    assert again.proxy.parity == record.proxy.parity

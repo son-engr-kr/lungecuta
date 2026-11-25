@@ -16,7 +16,7 @@ from contextlib import ExitStack, contextmanager
 
 import numpy as np
 
-from . import color, grade, graphics
+from . import color, grade, graphics, overlays
 from .comp import Cut, Nest, Overlay, Placement, Resolved
 from .decode import Layout, frame_rgb, read_raw, seek_seconds
 from .geometry import mask_alpha, oriented, place
@@ -104,16 +104,11 @@ def _all_overlays(resolved: Resolved, prefix: str = "") -> list[tuple[str, Overl
 
 
 @contextmanager
-def overlay_pages(project: Project, resolved: Resolved) -> Iterator[dict]:
-    """A page for each graphics layer, precomps' included, open for the whole render, by
-    path; all in one Chromium, started only when the comp has graphics."""
-    overlays = _all_overlays(resolved)
-    with ExitStack() as stack:
-        browser = stack.enter_context(graphics.chromium()) if overlays else None
-        yield {path: (overlay, stack.enter_context(graphics.opened(
-                   browser, project.directory / overlay.layer.page, size, overlay.layer.params, photos_of(project, overlay),
-                   resolution=overlay.resolution)))
-               for path, overlay, size in overlays}
+def overlay_pages(project: Project, resolved: Resolved, indices: Iterable[int]) -> Iterator[dict]:
+    """Every graphics layer's captures, precomps' included, by path, holding each page time
+    comp frames `indices` show: kept in the cache, the missing ones captured first
+    (overlays.py). A context manager, as the open pages it stands for were."""
+    yield overlays.captures(project, resolved, indices)
 
 
 def photo_keys(resolved: Resolved) -> set[str]:
@@ -147,7 +142,7 @@ def page_layer(project: Project, overlay: Overlay, shots: Shots, comp: tuple[int
     if overlay.plain:
         ((_, png),) = shots
         rgb, alpha = graphics.straight(png, size)
-        if inline:
+        if inline and alpha.any():  # a page empty on this frame needs no colour work
             color.apply(into, rgb, threads)
         return rgb * alpha, alpha
     linear = inline and len(shots) > 1
@@ -155,9 +150,10 @@ def page_layer(project: Project, overlay: Overlay, shots: Shots, comp: tuple[int
     total = cover = None
     for ticks, png in shots:
         rgb, alpha = graphics.straight(png, size)
-        if inline:
+        empty = not alpha.any()
+        if inline and not empty:
             color.apply(into, rgb, threads)
-        if linear:
+        if linear and not empty:
             color.apply(color.cpu_processor(settings.config, settings.working, settings.linear), rgb, threads)
         position, scale, opacity, anchor, rotation = (IDENTITY if overlay.placement is None
                                                       else transform_ticks(overlay.placement, ticks))
@@ -449,21 +445,7 @@ def compose(project: Project, resolved: Resolved, index: int, raws: list[tuple[C
     return finish(project, resolved, index, footage, captures, threads, alpha)
 
 
-def captured(resolved: Resolved, index: int, pages: dict, prefix: str = "") -> dict[str, Shots]:
-    """The graphics layers visible on comp frame `index`, precomps' included at the frame
-    each precomp shows, captured, by path: at the frame's time, or with motion blur at each
-    of `shutter_times` (at least the layer's `samples`)."""
-    out = {}
-    size = tuple(resolved.comp.size)
-    for overlay in resolved.overlays:
-        if overlay.first <= index < overlay.end:
-            _, page = pages[prefix + overlay.layer.id]
-            out[prefix + overlay.layer.id] = [
-                (ticks, graphics.frame_png(page, overlay.seconds_at(ticks)))
-                for ticks in shutter_times(overlay, index, size, size, at_least=overlay.samples)]
-    for nest in resolved.nests_at(index):
-        out |= captured(nest.resolved, nest.frame(index), pages, f"{prefix}{nest.layer.id}/")
-    return out
+captured = overlays.captured
 
 
 @contextmanager
@@ -482,8 +464,7 @@ FRAMES_AT_ONCE = 4
 def frames_at(project: Project, resolved: Resolved, indices: Iterable[int], pages: dict, *,
               threads: int | None = None, alpha: bool = False) -> Iterator[np.ndarray]:
     """Comp frames `indices`, in order, as `frame_at` makes them, FRAMES_AT_ONCE at a time.
-    Graphics are captured on the caller's thread, in order, since a page captures one frame
-    at a time; the rest runs on the workers."""
+    `pages` hold the graphics captures of every one of them (`overlay_pages`)."""
     def made(index: int, captures: dict[str, Shots]) -> np.ndarray:
         return finish(project, resolved, index, footage_at(project, resolved, index, threads), captures, threads, alpha)
 
@@ -498,5 +479,5 @@ def frame_at(project: Project, resolved: Resolved, index: int, threads: int | No
     footage = footage_at(project, resolved, index, threads)
     if pages is not None:
         return finish(project, resolved, index, footage, captured(resolved, index, pages), threads, alpha)
-    with overlay_pages(project, resolved) as opened:
+    with overlay_pages(project, resolved, [index]) as opened:
         return finish(project, resolved, index, footage, captured(resolved, index, opened), threads, alpha)

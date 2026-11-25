@@ -126,6 +126,31 @@ def test_a_new_comp_is_written_and_listed(cut_project):
     assert again.exit_code != 0
 
 
+def test_a_comp_is_replaced_or_removed_and_its_file_kept(cut_project):
+    run = lambda *args: CliRunner().invoke(main, [*args, "--project", str(cut_project)])
+    made = lambda *extra: run("new-comp", "card", "--size", "64x36", "--rate", "25", "--end", "1s", *extra)
+    assert made().exit_code == 0
+    first = (cut_project / "comps" / "card.json").read_text()
+    replaced = made("--end", "2s", "--replace")
+    assert replaced.exit_code == 0, replaced.output
+    assert json.loads((cut_project / "comps" / "card.json").read_text())["end"] == "2s"
+    (kept,) = (cut_project / "cache" / "lungecuta" / "removed").glob("card.*.json")
+    assert kept.read_text() == first and kept.relative_to(cut_project).as_posix() in json.loads(replaced.output)["changes"][0]
+    assert json.loads((cut_project / "project.json").read_text())["comps"].count("comps/card.json") == 1
+    main_comp = json.loads((cut_project / "comps" / "main.json").read_text())
+    main_comp["layers"].append({"id": "card", "type": "comp", "comp": "card", "start": "0s", "out": "1s"})
+    (cut_project / "comps" / "main.json").write_text(json.dumps(main_comp))
+    held = run("rm-comp", "card")
+    assert held.exit_code != 0 and "is a precomp of main" in str(held.exception)
+    main_comp["layers"].pop()
+    (cut_project / "comps" / "main.json").write_text(json.dumps(main_comp))
+    removed = run("rm-comp", "card")
+    assert removed.exit_code == 0, removed.output
+    assert not (cut_project / "comps" / "card.json").exists()
+    assert "comps/card.json" not in json.loads((cut_project / "project.json").read_text())["comps"]
+    assert len(list((cut_project / "cache" / "lungecuta" / "removed").glob("card.*.json"))) == 2
+
+
 def test_keys_are_added_replaced_and_deleted_in_layer_time(cut_project):
     project = Project.load(cut_project)
     result = ops.key(project, "main", "shot1", "scale", "b:1", 1.2, "out")

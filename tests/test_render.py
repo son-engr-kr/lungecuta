@@ -404,3 +404,47 @@ def test_the_alpha_preset_is_transparent_where_nothing_covers(cut_project):
     checked = CliRunner().invoke(main, ["verify", json.loads(result.output)["file"], "--comp", "main",
                                         "--preset", "prores-4444-alpha", *args])
     assert checked.exit_code == 0, checked.output
+
+
+def video_md5(file) -> str:
+    import subprocess
+
+    return subprocess.run([tool("ffmpeg"), "-v", "error", "-i", str(file), "-map", "0:v:0", "-c", "copy", "-f", "md5",
+                           "-"], capture_output=True, check=True, text=True).stdout.strip()
+
+
+def test_a_change_to_the_sound_alone_keeps_the_rendered_picture(cut_project, tmp_path):
+    run = lambda *args: CliRunner().invoke(main, ["render", "main", "--preset", "web-h264", *args,
+                                                  "--project", str(cut_project)])
+    first = run()
+    assert first.exit_code == 0, first.output
+    file = json.loads(first.output)["file"]
+    picture = video_md5(file)
+    comp_path = cut_project / "comps" / "main.json"
+    comp = json.loads(comp_path.read_text())
+    music = next(layer for layer in comp["layers"] if layer["type"] == "audio")
+    music["fade_out"] = "1s"
+    comp["markers"] = []
+    comp_path.write_text(json.dumps(comp))
+    sound = run()
+    assert sound.exit_code == 0, sound.output
+    printed = json.loads(sound.output)
+    assert "unchanged; sound delivered anew" in printed["picture"] and video_md5(file) == picture
+    checked = CliRunner().invoke(main, ["verify", file, "--comp", "main", "--preset", "web-h264",
+                                        "--project", str(cut_project)])
+    assert checked.exit_code == 0 and json.loads(checked.output)["ok"], checked.output
+    elsewhere = tmp_path / "v2.mp4"
+    lent = run("--out", str(elsewhere), "--picture-from", file)
+    assert lent.exit_code == 0, lent.output
+    assert video_md5(elsewhere) == picture
+    assert json.loads(open(str(elsewhere) + ".manifest.json").read())["picture_from"]["file"] == Path(file).name
+    footage = next(layer for layer in comp["layers"] if layer["type"] == "footage")
+    footage["transform"] = {"scale": 1.1}
+    comp_path.write_text(json.dumps(comp))
+    refused = run("--out", str(tmp_path / "v3.mp4"), "--picture-from", file)
+    assert refused.exit_code != 0 and "the picture is not the one" in str(refused.exception)
+    full = run()
+    assert full.exit_code == 0, full.output
+    assert "picture" not in json.loads(full.output) and video_md5(file) != picture
+    again = run("--again")
+    assert again.exit_code == 0 and "picture" not in json.loads(again.output)

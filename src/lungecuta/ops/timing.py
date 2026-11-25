@@ -163,7 +163,8 @@ SIZES = ("fit", "fill", "own")
 
 def place(project: Project, name: str, media: str, at: str, size: str = "fit", length: str | None = None,
           source: str | None = None, to: str | None = None, expect: str | None = None,
-          anchor: str | None = None) -> dict[str, Any]:
+          anchor: str | None = None, gain: float | None = None, fade_in: str | None = None,
+          fade_out: str | None = None) -> dict[str, Any]:
     """Put media on the comp at position `at`, on top of the stack: from `source` (a source
     time: `f:` at the media's rate or seconds for footage, seconds for sound; its first
     frame or sample when absent), for `length` (a span from `at`, written as given), or up
@@ -175,15 +176,16 @@ def place(project: Project, name: str, media: str, at: str, size: str = "fit", l
     scale is written out, never implied. Every frame the layer shows must be in the media.
     A photo goes in as a graphics layer of lungecuta's photo page (`_photo`). A sound's
     `anchor` is the point of it that lands on `at` (07-audio.md, SFX placement and
-    Voice-over)."""
+    Voice-over), and its `gain` (dB), `fade_in` and `fade_out` (spans) are the audio
+    layer's own fields, so a sound is placed as it plays in one edit."""
     edit = Edit.open(project, name, expect)
-    _place(project, edit, media, at, size, length, source, to, anchor)
+    _place(project, edit, media, at, size, length, source, to, anchor, gain, fade_in, fade_out)
     _resolves(project, edit)  # every frame it shows is in the media
     return edit.save()
 
 
 # What `cut` takes for each shot, by the names `lungecuta op place` gives its options
-SHOT_FIELDS = {"media", "at", "for", "to", "source", "size", "anchor"}
+SHOT_FIELDS = {"media", "at", "for", "to", "source", "size", "anchor", "gain", "fade_in", "fade_out"}
 
 
 def cut(project: Project, name: str, shots: list[dict[str, Any]], expect: str | None = None) -> dict[str, Any]:
@@ -196,17 +198,21 @@ def cut(project: Project, name: str, shots: list[dict[str, Any]], expect: str | 
         assert set(shot) <= SHOT_FIELDS and {"media", "at"} <= set(shot), (
             f"shot {k}: {sorted(shot)}; a shot has media and at, and for or to, source and size ({sorted(SHOT_FIELDS)})")
         _place(project, edit, shot["media"], shot["at"], shot.get("size", "fit"), shot.get("for"), shot.get("source"),
-               shot.get("to"), shot.get("anchor"))
+               shot.get("to"), shot.get("anchor"), shot.get("gain"), shot.get("fade_in"), shot.get("fade_out"))
     _resolves(project, edit)
     return edit.save()
 
 
 def _place(project: Project, edit: Edit, media: str, at: str, size: str, length: str | None, source: str | None,
-           to: str | None, anchor: str | None = None) -> None:
+           to: str | None, anchor: str | None = None, gain: float | None = None, fade_in: str | None = None,
+           fade_out: str | None = None) -> None:
     """`place` on an open edit."""
     assert size in SIZES, f"{size!r} is not a size ({', '.join(SIZES)})"
     record = load_record(project, media)
     assert anchor is None or record.wav is not None, f"{media} is not a sound: only a sound has an anchor"
+    for value, option in ((gain, "a gain"), (fade_in, "a fade in"), (fade_out, "a fade out")):
+        assert value is None or record.wav is not None, (
+            f"{media} is not a sound: only a sound is placed with {option} (a clip's own sound: lungecuta op sound)")
     if record.image is not None:
         assert source is None, f"{media} is a photo: it has no source in point"
         return _photo(project, edit, media, at, size, length, to)
@@ -245,6 +251,9 @@ def _place(project: Project, edit: Edit, media: str, at: str, size: str, length:
     layer = {"id": layer_id, "type": kind, "media": media, "start": at, "source_start": source, "out": out}
     if anchor is not None and anchor != "start":
         layer["anchor"] = anchor
+    for key, value in (("gain", gain), ("fade_in", fade_in), ("fade_out", fade_out)):
+        if value is not None:
+            layer[key] = value
     if kind == "footage" and size != "own":
         shown = shown_size(record.probe.video.size, record.probe.video.rotation)
         comp_w, comp_h = edit.data["size"]
@@ -259,6 +268,9 @@ def _place(project: Project, edit: Edit, media: str, at: str, size: str, length:
     edit.changes.append(f"{media} placed at {at} as {layer_id}, {out} long"
                         + (f", from {source}" if offset else "")
                         + (f", by its {anchor}" if "anchor" in layer else "")
+                        + (f", at {gain:+g} dB" if gain is not None else "")
+                        + (f", fading in over {fade_in}" if fade_in is not None else "")
+                        + (f", fading out over {fade_out}" if fade_out is not None else "")
                         + (f", scaled {layer['transform']['scale']} to {size} the comp" if "transform" in layer else ""))
 
 

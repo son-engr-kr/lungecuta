@@ -158,6 +158,37 @@ def import_file(project: Project, file: Path, *, root: str, key: str | None = No
 IMPORT_JOBS = 2
 
 
+def refresh(project: Project, files: list[Path], *, root: str, key: str | None = None) -> dict[str, str]:
+    """Make way for importing `files` again where they have changed (a plate rendered
+    again): a file whose key has a record of this same file, with other contents now, has
+    its record and its proxy removed, so `import_files` imports it as new; a file
+    unchanged keeps its record. Footage and photos only, since a sound's WAV and a music
+    file's beat map have rules of their own (re-analysis, `lungecuta beats`). Per key:
+    `changed`, `unchanged` or `new`. Nothing is removed unless every file can be refreshed."""
+    plan: dict[str, tuple[str, MediaRecord | None]] = {}
+    for file in files:
+        file = file.resolve()
+        name = key or file.stem
+        record_path = project.directory / "media" / f"{name}.json"
+        if not record_path.exists():
+            plan[name] = ("new", None)
+            continue
+        record = load_record(project, name)
+        same = (record.path.root == root
+                and (project.root_path(root).resolve() / record.path.rel).resolve() == file)
+        assert same, (f"media key {name!r} is {record.path.root}:{record.path.rel}, not {file}; give this file "
+                      "another key with --key")
+        assert record.wav is None and record.derivation is None and record.speech is None, (
+            f"{name} is a sound, music or a derived clip; --refresh re-imports footage and photos only")
+        plan[name] = ("unchanged" if content_hash(file) == record.hash else "changed", record)
+    for name, (state, record) in plan.items():
+        if state == "changed":
+            if record.proxy is not None and (project.directory / record.proxy.path).exists():
+                (project.directory / record.proxy.path).unlink()
+            (project.directory / "media" / f"{name}.json").unlink()
+    return {name: state for name, (state, _) in plan.items()}
+
+
 def import_files(project: Project, files: list[Path], *, root: str, key: str | None = None,
                  sound: bool = False, proxy: bool = True) -> list[MediaRecord]:
     """`import_file` for each of `files`, IMPORT_JOBS at once, the records in the files'
@@ -232,7 +263,8 @@ def _proxy(
 ) -> ProxyRecord | None:
     """Build the proxy in the original's own range (the decision's, or the stream's while the
     clip is undecided) and run its parity test; a proxy that fails the test is deleted and
-    the import stops."""
+    the import stops. A file already at the proxy's path is one no record refers to (left by
+    a record of this key deleted since, or a build that stopped), and is replaced."""
     source_range = decision.range if isinstance(decision, ColorDecided) else RANGES.get(video.tags.color_range)
     if source_range is None:
         return None  # without a stated range the proxy could not be decoded correctly
@@ -241,6 +273,7 @@ def _proxy(
     relative = PROXY_DIR / f"{key}{chosen.suffix}"
     target = project.directory / relative
     target.parent.mkdir(parents=True, exist_ok=True)
+    target.unlink(missing_ok=True)  # every caller makes a proxy no record refers to
     build_proxy(
         file, target, size=size, coded_size=video.size, source_pix_fmt=video.pix_fmt,
         source_chroma_location=video.chroma_location, source_range=source_range, profile=PROXY_PROFILE,

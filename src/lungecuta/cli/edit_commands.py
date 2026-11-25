@@ -163,14 +163,20 @@ def op_split(comp: str, layer: str, at: str, project_dir: Path | None) -> None:
 @click.option("--anchor", type=click.Choice(["start", "peak", "rise", "speech"]),
               help="A sound: the point of it that lands on --at, its first sample when absent; speech, for a "
                    "voice-over line, is where its first word begins, the silence before it playing earlier.")
+@click.option("--gain", type=float, help="A sound: its gain in dB (0, unity, when absent).")
+@click.option("--fade-in", help="A sound: a span from its in point over which it rises from silence (f:3, 0.2s).")
+@click.option("--fade-out", help="A sound: a span before its out point over which it falls to silence.")
 @project_option
 def op_place(comp: str, media: str, at: str, length: str | None, to: str | None, source: str | None, size: str,
-             anchor: str | None, project_dir: Path | None) -> None:
+             anchor: str | None, gain: float | None, fade_in: str | None, fade_out: str | None,
+             project_dir: Path | None) -> None:
     """Put MEDIA on the comp at a position, from a source in point, for a length or as long
     as it lasts: footage under any graphics, scaled to the comp as --size says, music and
     sounds as audio layers. One place per shot builds a cut: `--at b:8 --for b:4 --source
-    2.5s`. A voice-over line goes on its first word with `--anchor speech`."""
-    print_json(ops.place(project_of(project_dir), comp, media, at, size, length, source, to, anchor=anchor))
+    2.5s`. A voice-over line goes on its first word with `--anchor speech`. The result's
+    `added` names the layer made."""
+    print_json(ops.place(project_of(project_dir), comp, media, at, size, length, source, to, anchor=anchor,
+                         gain=gain, fade_in=fade_in, fade_out=fade_out))
 
 
 @op.command("graphic")
@@ -374,7 +380,8 @@ def op_remap(comp: str, layer: str, project_dir: Path | None) -> None:
 @op.command("cut")
 @click.argument("comp")
 @click.option("--shots", help='The shots as JSON, in order: \'[{"media": "C0012", "at": "b:8", "for": "b:4", '
-              '"source": "2.5s"}, ...]\', each as lungecuta op place takes it (media, at, for or to, source, size).')
+              '"source": "2.5s"}, ...]\', each as lungecuta op place takes it (media, at, for or to, source, size; anchor, gain, fade_in, '
+              'fade_out for a sound).')
 @click.option("--file", "plan", type=click.Path(exists=True, dir_okay=False, path_type=Path),
               help="The same list in a JSON file, instead of --shots.")
 @project_option

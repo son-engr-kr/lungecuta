@@ -91,6 +91,23 @@ all-intra and joins anywhere; HEVC and H.264 chunks are encoded with closed GOPs
 join is clean. Audio is encoded once, over the whole mix, and muxed onto the joined video,
 because AAC chunks would each carry encoder priming and leave gaps at the joins.
 
+## A change to the sound alone
+
+The manifest's `picture` is a hash of what decides the pixels and none of the sound
+(`src/lungecuta/render.py`): the comp and its precomps without audio layers, a clip's own
+`sound` or markers, with the beat grid as resolved in place of where it comes from (a
+position written in beats moves with it); the footage and photos by their hashes; LUTs,
+looks and colour settings; each graphics layer's capture entry with every file its page
+loaded ([05-motion-graphics.md](05-motion-graphics.md#captures)); lungecuta's own Python
+files by hash, and the OpenColorIO, numpy and ffmpeg versions. It is absent when a
+graphics layer's captures cannot be vouched for. A render to a file whose manifest has
+the same preset and `picture`, the file still the one it describes, copies that file's
+video stream and delivers only the sound, through the same master chain; `--picture-from
+FILE` does it from another file (the previous version) and is refused unless the picture
+matches, and `--again` renders every frame regardless. The video stream that comes out is
+the earlier one byte for byte (`tests/test_render.py`). The new manifest names the file
+the picture came from (`picture_from`) and keeps its clipped-pixel count.
+
 ## Verification
 
 `lungecuta verify FILE --preset P` after every render:

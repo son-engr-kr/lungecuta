@@ -22,6 +22,14 @@ Photos (JPEG, PNG, TIFF) are imported where they lie too, with a record of their
 header and no decisions: they are shown as graphics pages show images
 ([05-motion-graphics.md](05-motion-graphics.md#photos)).
 
+A file imported already is refused under its key. `lungecuta import --refresh` imports a
+file whose contents changed (a plate rendered again) once more: its record and its proxy
+are removed and it is imported as new, nothing of the old decision kept, since that was
+made of other pixels; a file unchanged keeps its record. Footage and photos only: a
+sound's WAV and a music file's beat map change by their own rules
+([music and beats](#music-and-beats)). A proxy file at a new import's proxy path is one no
+record refers to (its record deleted, or a build that stopped) and is replaced.
+
 ## Colour-space detection
 
 The stream tags alone cannot be trusted, and on the footage this tool is for they are
@@ -65,7 +73,10 @@ Detection walks a fixed chain and stops at the first source that answers:
    command only on the person's word. Values a display cannot show, outside [0, 1] (as
    subsampled chroma makes at saturated edges, or codes past the range's ends), come out
    of a `display` clip at the display's edge (`tests/test_decide.py`, on a 4:2:2 test
-   pattern).
+   pattern). Files the person has named the space of together import decided:
+   `lungecuta import FILES --colour SPACE --note TEXT` (with `--matrix` and `--range` as
+   `decide` takes them) decides each one that imports undecided as `decide` would, and
+   leaves one decided from its own evidence as it is.
 
 The mapping from evidence to an OpenColorIO colour space is a table in code with one row
 per observed combination. Evidence that matches no row makes the clip undecided; it is

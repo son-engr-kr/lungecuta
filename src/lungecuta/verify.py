@@ -108,7 +108,7 @@ def verify(project: Project, name: str, file: Path, preset_name: str, *, threads
                 across[inside], across[outside] = outside, inside
             else:
                 across.setdefault(inside, None)
-    with overlay_pages(project, resolved) as pages:
+    with overlay_pages(project, resolved, across) as pages:
         totals, cuts, alpha_error = _sample(project, resolved, file, video, preset, across, threads, pages)
     bias = [round(float(b), 3) for b in totals["sum"] / totals["pixels"]]
     mse = float(totals["squares"].sum() / (3 * totals["pixels"]))

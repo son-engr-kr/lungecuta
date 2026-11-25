@@ -130,7 +130,7 @@ def comp_sheet(project: Project, name: str, every: str, *, start: str | None = N
     size = tile_size(tuple(resolved.comp.size), height)
     tiles, numbers = [], []
     per_page = columns * rows
-    with overlay_pages(project, resolved) as opened:
+    with overlay_pages(project, resolved, indices) as opened:
         for k, (index, frame) in enumerate(zip(indices, frames_at(project, resolved, indices, opened, threads=threads))):
             tile = area_resize(frame, size) if size != tuple(resolved.comp.size) else frame
             tiles.append(quantize(tile))

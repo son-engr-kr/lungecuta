@@ -50,7 +50,7 @@ def with_page(project_dir, page: str, **layer):
 def page_alone(project, resolved, index):
     """The graphics layer on frame `index`, premultiplied, and its alpha, as the top of the stack."""
     (overlay,) = resolved.overlays
-    with overlay_pages(project, resolved) as pages:
+    with overlay_pages(project, resolved, [index]) as pages:
         shots = captured(resolved, index, pages)["page"]
     return shots, page_layer(project, overlay, shots, tuple(resolved.comp.size), None, inline=False)
 

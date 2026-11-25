@@ -30,6 +30,7 @@ import numpy as np
 from urllib.parse import unquote, urlencode
 
 from .encode import TAGS
+from .files import content_hash, content_hash_text
 from .ticks import format_rate
 from .tools import run, tool
 
@@ -37,34 +38,57 @@ from .tools import run, tool
 CHROMIUM_ARGS = ["--use-angle=metal", "--ignore-gpu-blocklist", "--enable-gpu-rasterization",
                  "--force-color-profile=srgb"]
 READY_TIMEOUT_MS = 120_000  # what the past renderer waited for `window.ready`
+CONSOLE_LINES = 40  # the end of a page's console that a failure reports
+# Errors before the page is ready, which `pageerror` reports to Python but cannot end the
+# wait for `window.ready` with: kept in the page, so the wait ends on the first.
+_CATCH = """window.__lungecuta_errors = [];
+addEventListener("error", e => window.__lungecuta_errors.push(String((e.error && e.error.stack) || e.message)));
+addEventListener("unhandledrejection", e => window.__lungecuta_errors.push(String((e.reason && e.reason.stack) || e.reason)));"""
 TO_YCBCR = "scale=out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int"
 # The frames carry their own colour properties into the encoder, so they are set on the frames.
 
 
+def served_hash(path: Path) -> str | None:
+    """What a page was given at `path`: the file's hash, a directory's listing, or None
+    for nothing there (a page can depend on a file being absent)."""
+    if path.is_file():
+        return content_hash(path)
+    if path.is_dir():
+        return content_hash_text("\n".join(sorted(entry.name for entry in path.iterdir())))
+    return None
+
+
 class _Quiet(http.server.SimpleHTTPRequestHandler):
-    def __init__(self, *args: Any, photos: dict[str, Path], **kwargs: Any):
+    def __init__(self, *args: Any, photos: dict[str, Path], served: dict[Path, str | None] | None, **kwargs: Any):
         self.photos = photos
+        self.served = served
         super().__init__(*args, **kwargs)
 
     def translate_path(self, path: str) -> str:
-        """A page's own directory, and the photos it was given by media key (MEDIA_URL)."""
+        """A page's own directory, and the photos it was given by media key (MEDIA_URL).
+        Every file of the directory asked for is recorded in `served` with what it held
+        when it was asked for, so a capture knows what it depends on (overlays.py)."""
         from .media import MEDIA_URL
 
         path = path.split("?", 1)[0]
         if path.startswith(MEDIA_URL):
             key = unquote(path.removeprefix(MEDIA_URL))
             return str(self.photos[key]) if key in self.photos else str(Path(self.directory) / ".missing")
-        return super().translate_path(path)
+        local = super().translate_path(path)
+        if self.served is not None:
+            self.served[Path(local)] = served_hash(Path(local))
+        return local
 
     def log_message(self, format: str, *args: Any) -> None:
         pass
 
 
 @contextmanager
-def serve(directory: Path, photos: dict[str, Path] | None = None) -> Iterator[str]:
+def serve(directory: Path, photos: dict[str, Path] | None = None,
+          served: dict[Path, str | None] | None = None) -> Iterator[str]:
     """Serve `directory` on 127.0.0.1 at a free port, and `photos` (files by media key) at
-    MEDIA_URL; yields its origin."""
-    handler = functools.partial(_Quiet, directory=str(directory), photos=photos or {})
+    MEDIA_URL; yields its origin. The files asked for go into `served` if it is given."""
+    handler = functools.partial(_Quiet, directory=str(directory), photos=photos or {}, served=served)
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -89,18 +113,24 @@ def chromium() -> Iterator[Any]:
 
 @contextmanager
 def opened(browser: Any, page_file: Path, size: tuple[int, int], params: dict[str, Any] | None = None,
-           photos: dict[str, Path] | None = None, resolution: Fraction = Fraction(1)) -> Iterator[Any]:
+           photos: dict[str, Path] | None = None, resolution: Fraction = Fraction(1),
+           served: dict[Path, str | None] | None = None) -> Iterator[Any]:
     """A page of `size` CSS pixels in `browser` showing `page_file`, ready to render, in a
     context of its own (its own origin, viewport and request gate), captured at
     `resolution` device pixels a CSS pixel (which must make `size` whole pixels); `params`
-    reach the page as JSON in its `params` query parameter, and `photos` are served to it
-    by key."""
+    reach the page as JSON in its `params` query parameter, `photos` are served to it by
+    key, and the files it asks for go into `served`.
+
+    A page that throws before it is ready fails at once with its error and its console,
+    not after the wait for `window.ready` runs out."""
+    from playwright.sync_api import TimeoutError as PlaywrightTimeout
+
     page_file = page_file.resolve()
     assert page_file.is_file(), f"{page_file} is not a file"
     width, height = size
     assert (width * resolution).denominator == (height * resolution).denominator == 1, (
         f"{resolution} device pixels a CSS pixel does not make {width}x{height} whole pixels")
-    with serve(page_file.parent, photos) as origin:
+    with serve(page_file.parent, photos, served) as origin:
         context = browser.new_context(viewport={"width": width, "height": height},
                                       device_scale_factor=float(resolution))
         refused: list[str] = []
@@ -117,15 +147,30 @@ def opened(browser: Any, page_file: Path, size: tuple[int, int], params: dict[st
         # every step waits as long as a page's start may (a screenshot timed out at Playwright's
         # 30 s while the machine ran another job at a load of 38 on 15 cores)
         context.set_default_timeout(READY_TIMEOUT_MS)
+        context.add_init_script(_CATCH)
         page = context.new_page()
         errors: list[str] = []
-        page.on("pageerror", lambda error: errors.append(str(error)))
+        console: list[str] = []
+        page.on("pageerror", lambda error: errors.append(error.stack or str(error)))
+        page.on("console", lambda message: console.append(f"{message.type}: {message.text}"))
+
+        def failed() -> str:
+            said = "\n".join(console[-CONSOLE_LINES:])
+            return f"{page_file.name} raised: {errors[0]}" + (f"\nits console:\n{said}" if said else "")
+
         query = "" if not params else "?" + urlencode({"params": json.dumps(params)})
         page.goto(f"{origin}/{page_file.name}{query}")
-        page.wait_for_function("window.ready === true", timeout=READY_TIMEOUT_MS)
-        assert not errors, f"{page_file.name} raised: {errors[0]}"
+        try:
+            page.wait_for_function("window.ready === true || window.__lungecuta_errors.length > 0",
+                                   timeout=READY_TIMEOUT_MS)
+        except PlaywrightTimeout as timeout:
+            said = "\n".join(console[-CONSOLE_LINES:]) or "(nothing)"
+            raise AssertionError(f"{page_file.name} did not set window.ready = true in {READY_TIMEOUT_MS // 1000} s; "
+                                 f"its console:\n{said}") from timeout
+        errors += [error for error in page.evaluate("window.__lungecuta_errors") if error not in errors]
+        assert not errors, failed()
         yield page
-        assert not errors, f"{page_file.name} raised: {errors[0]}"
+        assert not errors, failed()
         assert not refused, f"{page_file.name} asked for {refused[0]}, outside its directory; refused"
         context.close()
 

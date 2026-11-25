@@ -165,6 +165,36 @@ size, so a layer without a transform covers the comp as it always did, code for 
 - FCPXML does not carry a graphics layer's transform, masks or motion blur yet, and
   refuses one that has them.
 
+## Captures
+
+A render, a still, a sheet or a check first works out every page time its frames show,
+then captures the ones the cache lacks, and composes its frames from the cache
+(`src/lungecuta/overlays.py`). The contract makes this sound: a frame is a function of `t`,
+its parameters and what the page loaded, so it can be captured once, in any order, by any
+browser, and kept.
+
+- **What a capture is kept by**: an entry of `cache/lungecuta/graphics/` per graphics layer,
+  named by its page, its params, the size and resolution it is captured at, the photos it
+  is given (by their records' hashes), the Playwright release (which pins Chromium), the
+  capture flags and a capture version; a file per page time, named by the time exactly as
+  `renderAt` was given it. The page's server records every file of the directory the page
+  asked for with its hash at that moment, a file that was absent as absent
+  (`served.json`), before the captures it decided are written. A file that changed,
+  appeared or went away since makes the entry stale and it is emptied and captured again.
+- **Only what is shown**: a still captures the pages on screen at its frame, not every
+  page of the comp.
+- **Several Chromiums**: the missing captures are split into runs of one page's times,
+  each run captured in a page of its own, `CAPTURE_WORKERS` Chromiums at once (4,
+  *proposed*: `bench/graphics_capture.py`; a run no shorter than 24 frames, so a page's start
+  is paid over many). A failure stops the others at their next run and is raised.
+- **A page that throws before it is ready** stops the command at once with its error and the
+  end of its console, instead of waiting out the 120 s given to `window.ready`; a page
+  that never says it is ready reports its console with the timeout.
+- **Not detected**: a page that breaks the contract (a clock, unseeded randomness, state
+  carried from one `renderAt` to the next) gives captures that depend on when and in what
+  order they were made; a cached capture then stays as it was first made. Two runs of one
+  Chromium in order already differed on a page of SVG strokes (`bench/RESULTS.md`).
+
 ## Captions
 
 Captions are a page too, lungecuta's captions page (`web/captions.html`, written into the

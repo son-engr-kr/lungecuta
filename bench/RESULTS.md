@@ -844,6 +844,49 @@ onnxruntime 1.31.0 on the CPU, misaki 0.9.4, on the M5 Pro (2026-10-21).
 - Why one or two threads give other samples, while four, eight and fifteen agree, is not
   known; nor whether four or more agree on another machine.
 
+## Graphics captures by one Chromium and by several: `uv run python bench/graphics_capture.py PROJECT COMP 60 1 2 4 6 8`
+
+A private project's comp: 16 graphics layers (titles, 3D labels drawn in WebGL, SVG
+figures drawn on), 1920x1080 at 50 fps; the first 60 frames of each layer, 885 comp
+frames, 1065 captures, each run cold into a cache of its own. Chromium 153.0.8010.12
+headless shell (Playwright 1.63.0), on the M5 Pro at a load of 5 to 13 from other work
+(2026-11-25). Every run made all 1065 captures.
+
+| Chromiums | seconds | ms a capture |
+| --- | --- | --- |
+| 1 | 41.2 | 38.7 |
+| 1, again | 43.6 | 40.9 |
+| 2 | 22.9 | 21.5 |
+| 4 | 14.2 | 13.3 |
+| 6 | 10.3 | 9.7 |
+| 8 | 10.1 | 9.5 |
+
+Warm, every capture in the cache: 0.03 s. An earlier run of the same command gave 40.7
+ms a capture for one Chromium, 23.6 for two and 13.3 for four. Four is the default
+(`CAPTURE_WORKERS`, *proposed*): three times one Chromium's rate, where more gain little.
+
+Captures that differ from the first run's, pixel for pixel:
+
+- Two runs of one Chromium in order already differ, on the two layers of one page that
+  draws SVG strokes on: 29 to 50 of their 120 captures, by up to 85 codes, on up to 568
+  pixels of 2 million; and once on a 3D label, 3 codes on one pixel. Why the SVG page
+  varies is not known (it is not lungecuta's: one Chromium in order is the old capture).
+- Several Chromiums differ on those layers as one does, and sometimes on layers two runs
+  of one Chromium never differed on: at 2 Chromiums a 3D label by 3 codes on one pixel; at
+  6, a title on 9 captures by up to 80 codes on up to 24,230 pixels, and a 3D label on 14
+  captures by up to 13 codes on 4 pixels; at 8, a 3D label on 53 captures by up to 64
+  codes on 27 pixels; in one earlier run at 4, the same title, its size not recorded.
+  Three more runs at 4 and five at 6 showed none of these (no layer but the SVG page's
+  differing on more than 100 pixels). The cause is not known: the stale-frame check
+  above (Graphics in motion) found no stale capture with four pages in one Chromium, and
+  the title waits for its fonts and its image before it is ready. A cached capture is
+  made once, so a render no longer varies from the last one by this.
+
+Through `lungecuta still` on the same project, frame 1100 (two graphics layers on
+screen): 3.58 s with nothing in the cache, 0.79 s again; frame 1101, 2.13 s and 1.04 s.
+Before the cache, a still opened every page of the comp and captured on each call
+(30 to 60 s, as the person reported it; not re-measured).
+
 ## Numbers cited from elsewhere (not re-measured here)
 
 | number | where it was measured |

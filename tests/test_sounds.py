@@ -117,3 +117,19 @@ def test_op_sfx_puts_a_sound_on_every_cut_in_turn(sounding):
     assert cuts == ["hit placed on f:8 as hit.3 by its rise", "hit placed on f:68 as hit.4 by its rise"]
     refused = run(sounding, "op", "sfx", "main", *["hit"] * 7, "--on", "beats", ok=False)
     assert "repeats one sound" in str(refused.exception)
+
+
+def test_a_sound_is_placed_with_its_gain_and_fades_and_the_layer_made_is_named(sounding):
+    placed = run(sounding, "op", "place", "main", "hit", "--at", "b:4", "--gain", "-6", "--fade-in", "f:2",
+                 "--fade-out", "0.1s")
+    assert placed["added"] == ["hit"] and "at -6 dB" in placed["changes"][0]
+    again = run(sounding, "op", "place", "main", "hit", "--at", "b:8")
+    assert again["added"] == ["hit.2"]
+    layer = next(layer for layer in json.loads((sounding / "comps" / "main.json").read_text())["layers"]
+                 if layer["id"] == "hit")
+    assert (layer["gain"], layer["fade_in"], layer["fade_out"]) == (-6.0, "f:2", "0.1s")
+    refused = run(sounding, "op", "place", "main", "C0001", "--at", "b:4", "--gain", "-6", ok=False)
+    assert "only a sound is placed with a gain" in str(refused.exception)
+    cut = run(sounding, "op", "cut", "main", "--shots",
+              json.dumps([{"media": "hit", "at": "b:2", "gain": -3}, {"media": "hit", "at": "b:3"}]))
+    assert cut["added"] == ["hit.3", "hit.4"]

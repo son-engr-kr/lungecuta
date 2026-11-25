@@ -153,7 +153,10 @@ in the span, anchored there (`rise` by default), sound `(k * 7) mod n` of the n 
 event k, each as long as its sound and cut at the comp's end; seven or fourteen sounds
 are refused, since the rule would repeat one. A cut is a footage layer's first frame
 after the comp's start, from black included. Pools with repitch jitter, keyframes and
-graphics events as events are not written yet.
+graphics events as events are not written yet. `lungecuta op place COMP SOUND --at P
+--gain DB --fade-in SPAN --fade-out SPAN` writes the audio layer's `gain`, `fade_in` and
+`fade_out` in the same edit, so one call places a sound as it plays; footage refuses
+them (its own sound is `lungecuta op sound`).
 
 ## Music editing
 

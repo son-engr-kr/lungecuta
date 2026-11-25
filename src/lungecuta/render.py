@@ -5,6 +5,7 @@ delivers it, and a manifest of the versions that decided the pixels and samples
 """
 from __future__ import annotations
 
+import json
 import os
 import platform
 import subprocess
@@ -14,11 +15,11 @@ from typing import Any
 
 import numpy as np
 
-from . import grade
+from . import grade, overlays
 from .comp import Resolved, load_comp, resolve
 from .compose import captured, compose, overlay_pages, photo_keys, raw_layers
 from .encode import PRESETS, TAGS, Preset, frame_bytes
-from .files import content_hash, json_text, write_atomic
+from .files import content_hash, content_hash_text, json_text, write_atomic
 from .media import Project, load_record
 from .mixdown import delivered_audio
 from .parallel import in_order
@@ -53,6 +54,52 @@ def read(project: Project, name: str) -> tuple[Resolved, dict[str, Any]]:
     return resolved, hashes
 
 
+def _engine() -> str:
+    """lungecuta's own code, as a hash of its Python files: a change to how frames are made
+    is a change to every picture, whatever version number the package carries."""
+    package = Path(__file__).parent
+    return content_hash_text("\n".join(f"{path.relative_to(package).as_posix()} {content_hash(path)}"
+                                       for path in sorted(package.rglob("*.py"))))
+
+
+def _picture_comp(resolved: Resolved) -> dict[str, Any]:
+    """A comp as far as it decides pixels: no audio layers, no clip sound, no markers, and
+    its beat grid as resolved in place of where it comes from (beat literals land on it)."""
+    data = resolved.comp.model_dump(mode="json", by_alias=True, exclude_unset=True)
+    data.pop("markers", None)
+    data.pop("beats", None)
+    data["layers"] = [{key: value for key, value in layer.items() if key != "sound"}
+                      for layer in data["layers"] if layer["type"] != "audio"]
+    grid = resolved.grid
+    return {"comp": data, "grid": None if grid is None else [list(grid.times), list(grid.downbeats)],
+            "precomps": [_picture_comp(nest.resolved) for nest in resolved.nests]}
+
+
+def picture(project: Project, resolved: Resolved, hashes: dict[str, Any]) -> str | None:
+    """What decides a render's pixels and none of its sound, as one hash: the comp and its
+    precomps as `_picture_comp` keeps them, the footage and photos, LUTs, looks, colour
+    settings, the code and versions that make frames, and each graphics layer's capture
+    entry with every file its page loaded (overlays.py). None when a graphics layer's
+    captures cannot be vouched for (not made yet, or a file its page loaded changed), since
+    then nothing says what the page draws."""
+    entries = overlays._entries(project, resolved)
+    if not all(overlays._fresh(project, entry) for entry in entries.values()):
+        return None
+    decided = {
+        "comp": _picture_comp(resolved),
+        "media": sorted({(c.record.key, c.record.hash) for c in resolved.every_cut()}
+                        | {(key, load_record(project, key).hash) for key in photo_keys(resolved)}),
+        "luts": hashes["luts"], "looks": hashes["looks"],
+        "color": project.file.color.model_dump(mode="json"),
+        "graphics": sorted((path, entry.directory.name, sorted(entry.served.items()))
+                           for path, entry in entries.items()),
+        "engine": _engine(),
+        "versions": {"opencolorio": version("opencolorio"), "numpy": np.__version__,
+                     "ffmpeg": run(["ffmpeg", "-hide_banner", "-version"]).stdout.decode().splitlines()[0]},
+    }
+    return content_hash_text(json.dumps(decided, sort_keys=True, default=list))
+
+
 def manifest(project: Project, resolved: Resolved, hashes: dict[str, Any], preset: Preset, out: Path,
              clipped: float, audio: dict[str, Any]) -> dict:
     """What decided the file's pixels and samples (01-architecture.md, Playback)."""
@@ -75,15 +122,54 @@ def manifest(project: Project, resolved: Resolved, hashes: dict[str, Any], prese
                      "numpy": np.__version__, "ffmpeg": ffmpeg, "python": platform.python_version()},
         "clipped_pixels": round(clipped, 6),
         "audio": audio,
+        "picture": picture(project, resolved, hashes),
     }
 
 
+def _same_picture(project: Project, resolved: Resolved, hashes: dict[str, Any], preset: Preset,
+                  earlier: Path) -> tuple[dict | None, str]:
+    """The manifest of an earlier render whose video this render would make again, frame
+    for frame, or None and why not: its manifest gives the same preset and the same
+    `picture`, and the file is still the one it describes."""
+    manifest_path = earlier.with_name(earlier.name + ".manifest.json")
+    if not earlier.is_file() or not manifest_path.is_file():
+        return None, f"{earlier.name} has no manifest beside it"
+    old = json.loads(manifest_path.read_text())
+    if old["preset"] != preset.name:
+        return None, f"{earlier.name} is a {old['preset']} render, not {preset.name}"
+    current = picture(project, resolved, hashes)
+    if current is None or old.get("picture") != current:
+        return None, f"the picture is not the one {earlier.name} was rendered from"
+    if content_hash(earlier) != old["hash"]:
+        return None, f"{earlier.name} changed since it was rendered"
+    return old, ""
+
+
+def _with_new_sound(project: Project, resolved: Resolved, preset: Preset, earlier: Path, partial: Path,
+                    out: Path) -> dict[str, Any]:
+    """The earlier render's video stream, copied as it is, with the comp's sound delivered
+    as a full render delivers it; returns what the master chain did."""
+    mix_path, audio_args, chain = delivered_audio(project, resolved, preset, out)
+    flags = ["-movflags", "+faststart"] if "-movflags" in preset.video else []
+    run([tool("ffmpeg"), "-v", "error", "-y", "-i", str(earlier), "-i", str(mix_path), "-map", "0:v:0",
+         "-map", "1:a:0", "-c:v", "copy", *audio_args, *flags, str(partial)])
+    mix_path.unlink()
+    return chain
+
+
 def render(project: Project, name: str, preset_name: str, out: Path | None = None,
-           threads: int | None = None, workers: int | None = None) -> dict[str, Any]:
+           threads: int | None = None, workers: int | None = None, picture_from: Path | None = None,
+           again: bool = False) -> dict[str, Any]:
     """Render comp `name` with a delivery preset, `workers` frames at a time (by default
-    the machine's core count); returns what `lungecuta render` prints."""
+    the machine's core count); returns what `lungecuta render` prints.
+
+    When only the sound changed, the picture is not rendered again: an earlier render of
+    the same preset whose manifest gives the same `picture` (the file at `out`, or
+    `picture_from`) lends its video stream, copied, and the sound is delivered anew. With
+    `picture_from` the picture must match; `again` renders every frame regardless."""
     workers = workers or os.cpu_count() or 1
     assert preset_name in PRESETS, f"unknown preset {preset_name!r} (presets: {', '.join(PRESETS)})"
+    assert not (again and picture_from), "--again renders the picture; --picture-from reuses one"
     preset = PRESETS[preset_name]
     resolved, hashes = read(project, name)
     if out is None:
@@ -91,6 +177,19 @@ def render(project: Project, name: str, preset_name: str, out: Path | None = Non
     assert out.suffix == preset.suffix, f"a {preset_name} file is a {preset.suffix} file, not {out.name}"
     out.parent.mkdir(parents=True, exist_ok=True)
     partial = out.with_name(f".{out.stem}.partial{out.suffix}")
+    earlier = picture_from or (None if again else out)
+    old, why = _same_picture(project, resolved, hashes, preset, earlier) if earlier is not None else (None, "")
+    assert picture_from is None or old is not None, f"--picture-from {picture_from.name}: {why}"
+    if old is not None:
+        chain = _with_new_sound(project, resolved, preset, earlier, partial, out)
+        partial.rename(out)
+        record = manifest(project, resolved, hashes, preset, out, old["clipped_pixels"], chain)
+        record["picture_from"] = {"file": earlier.name, "hash": old["hash"]}
+        write_atomic(out.with_name(out.name + ".manifest.json"), json_text(record))
+        return {"file": str(out), "manifest": str(out.with_name(out.name + ".manifest.json")),
+                "frames": old["comp"]["frames"], "picture": f"the video of {earlier.name}, unchanged; sound delivered anew",
+                "seconds": round(resolved.end * ticks_per_frame(resolved.rate) / TICKS_PER_SECOND, 6),
+                "clipped_pixels": record["clipped_pixels"], "audio": chain}
     width, height = resolved.comp.size
     inputs = ["-f", "rawvideo", "-pix_fmt", preset.pix_fmt, "-s", f"{width}x{height}",
               "-framerate", format_rate(resolved.rate), "-i", "-"]
@@ -113,7 +212,7 @@ def render(project: Project, name: str, preset_name: str, out: Path | None = Non
 
     # Frames are read and graphics captured in order here; their colour work runs on
     # `workers` threads (numpy and OCIO release the GIL) and they are written in order.
-    with overlay_pages(project, resolved) as pages:
+    with overlay_pages(project, resolved, range(resolved.end)) as pages:
         jobs = ((index, raws, captured(resolved, index, pages))
                 for index, raws in enumerate(raw_layers(project, resolved)))
         for data, outside in in_order(job, jobs, workers=workers, ahead=2 * workers):

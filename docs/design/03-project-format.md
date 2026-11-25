@@ -229,7 +229,10 @@ line's first word ([07-audio.md](07-audio.md#voice-over)). FCPXML carries a cons
 DTD's `adjust-volume amount`; it refuses gain keys and fades until the parameter that
 animates the amount is read from Apple's reference. A graphics layer's page sees its
 `params` as JSON in its `params` query parameter and is asked for layer time `t`. A comp
-is listed in `project.json` and lives at `comps/ID.json`.
+is listed in `project.json` and lives at `comps/ID.json`. `lungecuta new-comp ID --replace`
+writes a new comp over one of that name and `lungecuta rm-comp ID` takes one out of the list,
+refused while another comp holds it as a precomp; either way the old file is kept in
+`cache/lungecuta/removed/ID.HASH.json`, where the person can read it back.
 
 ## project.json
 

@@ -69,6 +69,8 @@ returns its report as the tool's error; the server keeps running.
   writes each one atomically and only if its content hash is still the one the command
   read, the same rule the UI follows. Before editing a file by hand, the agent runs
   `lungecuta changes`, so it does not overwrite something the person just did.
+  An `lungecuta op` result names the layers the edit added (`added`, in stack order), so
+  the next call can name a layer it made without reading the comp or guessing `KEY.2`.
 - **Code values** in printed numbers are 10-bit output codes computed from the float
   frame before any quantization; images are 8-bit and for looking at only.
 - **Schemas:** `lungecuta schema --write` regenerates `schema/*.json` from the pydantic models; a

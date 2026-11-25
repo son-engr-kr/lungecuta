@@ -1,4 +1,4 @@
-"""lungecuta commands that set up and describe a project: init, guide, status, import and the media around it, beats, licence, validate, schema, changes, stages, new-comp."""
+"""lungecuta commands that set up and describe a project: init, guide, status, import and the media around it, beats, licence, validate, schema, changes, stages, new-comp, rm-comp."""
 from __future__ import annotations
 
 import inspect
@@ -12,7 +12,7 @@ from .. import journal, ops
 from ..beats import reanalyse
 from ..detect import detect as detect_clip
 from ..files import json_text, write_atomic
-from ..media import decide as decide_colour, import_files, relink as relink_root, set_root, summary
+from ..media import decide as decide_colour, import_files, refresh as refresh_media, relink as relink_root, set_root, summary
 from ..probe import probe
 from ..guide import PUT_ON_PATH, SERVER
 from ..project import find_project, init_project
@@ -127,16 +127,44 @@ def relink(name: str, place: Path, project_dir: Path | None) -> None:
 @click.option("--sound", is_flag=True, help="Files of sound alone are sounds (effects, voices): their WAV, no beat map.")
 @click.option("--no-proxy", "no_proxy", is_flag=True,
               help="Footage without its proxy, for a large shoot: lungecuta proxy makes it for the clips used.")
+@click.option("--colour", "space",
+              help="The person's colour space for every clip that imports undecided, as lungecuta decide takes it "
+                   "(`display` for plates rendered for the deliverable); clips decided from their own evidence keep "
+                   "it. Needs --note.")
+@click.option("--note", help="With --colour: what the person decided it from, kept in each record.")
+@click.option("--matrix", type=click.Choice(["bt709"]),
+              help="With --colour: the YCbCr matrix, for streams that do not state it.")
+@click.option("--range", "range_", type=click.Choice(["full", "limited"]),
+              help="With --colour: the range, for streams that do not state it.")
+@click.option("--refresh", is_flag=True,
+              help="Footage and photos imported already: one whose contents changed (a plate rendered again) is "
+                   "imported again, its old record and proxy removed; one unchanged keeps its record.")
 @project_option
 def import_(files: tuple[Path, ...], root_name: str, key: str | None, sound: bool, no_proxy: bool,
+            space: str | None, note: str | None, matrix: str | None, range_: str | None, refresh: bool,
             project_dir: Path | None) -> None:
     """Import FILES as media records under media/: probe, rates and timecode, colour
     decision with evidence, decoder check, proxy with its parity test; music decoded to
-    a 48 kHz WAV with its beat map, or with --sound without one."""
+    a 48 kHz WAV with its beat map, or with --sound without one. With --colour and
+    --note, each clip that imports undecided is then decided as lungecuta decide decides it,
+    one command for a folder of plates the person has said the space of."""
+    from ..schema.media import ColorUndecided
+
     assert key is None or len(files) == 1, "--key names one file"
-    records = import_files(project_of(project_dir), list(files), root=root_name, key=key, sound=sound,
-                           proxy=not no_proxy)
-    print_json({"imported": [summary(record) for record in records]})
+    assert (space is None) == (note is None), "--colour and --note go together: the space and what it was decided from"
+    assert space is not None or (matrix is None and range_ is None), "--matrix and --range go with --colour"
+    project = project_of(project_dir)
+    states = refresh_media(project, list(files), root=root_name, key=key) if refresh else {}
+    kept = {name for name, state in states.items() if state == "unchanged"}
+    again = [file for file in files if (key or file.stem) not in kept]
+    records = import_files(project, again, root=root_name, key=key, sound=sound, proxy=not no_proxy) if again else []
+    if space is not None:
+        records = [decide_colour(project, record.key, space, note=note, matrix=matrix, range_=range_)
+                   if record.image is None and isinstance(record.color, ColorUndecided) else record
+                   for record in records]
+    printed = {"imported": [summary(record) | ({"refreshed": True} if states.get(record.key) == "changed" else {})
+                            for record in records]}
+    print_json(printed | ({"unchanged": sorted(kept)} if refresh else {}))
 
 
 @main.command("decide")
@@ -319,10 +347,23 @@ def licence_command(key: str, name: str, source: str, checked: str, note: str | 
 @click.option("--rate", required=True, help="Frame rate as ffprobe writes it: 30000/1001, 25, 60.")
 @click.option("--end", required=True, help="Where the comp ends, a position: 30s, f:900, or with music b:64.")
 @click.option("--music", help="A music record to put at 0s and take the beat grid from.")
+@click.option("--replace", is_flag=True, help="Replace comp NAME if it exists; its file is kept in "
+              "cache/lungecuta/removed/.")
 @project_option
-def new_comp(name: str, size: str, rate: str, end: str, music: str | None, project_dir: Path | None) -> None:
+def new_comp(name: str, size: str, rate: str, end: str, music: str | None, replace: bool,
+             project_dir: Path | None) -> None:
     """Create comp NAME (comps/NAME.json) and list it in project.json."""
-    print_json(ops.new_comp(project_of(project_dir), name, size=parse_size(size), rate=rate, end=end, music=music))
+    print_json(ops.new_comp(project_of(project_dir), name, size=parse_size(size), rate=rate, end=end, music=music,
+                            replace=replace))
+
+
+@main.command("rm-comp")
+@click.argument("name")
+@project_option
+def rm_comp(name: str, project_dir: Path | None) -> None:
+    """Remove comp NAME: out of project.json, its file kept in cache/lungecuta/removed/.
+    Refused while another comp holds it as a precomp."""
+    print_json(ops.remove_comp(project_of(project_dir), name))
 
 
 @main.command()

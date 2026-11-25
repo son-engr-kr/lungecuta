@@ -73,8 +73,10 @@ when they ask how long the edit took.
 2. Prefer `lungecuta op OP COMP ...` (move, trim, slip, slide, roll, ripple-delete, split, snap,
    place, cut, graphic, captions, key, unkey, move-key, set, remap, speed, style, unstyle, grade, look, unlook,
    masks, transition, untransition, sfx, sound, duck): the editor's own functions, written only if the
-   file is still the one read, the change printed in editing terms. Edit the JSON for anything
-   else, then run `lungecuta validate`.
+   file is still the one read, the change printed in editing terms, and the layers an op made
+   named in its `added`. Edit the JSON for anything else, then run `lungecuta validate`.
+   `lungecuta new-comp NAME ... --replace` starts a comp again and `lungecuta rm-comp NAME`
+   removes one, the old file kept in `cache/lungecuta/removed/`.
 3. Look at what you changed. `lungecuta sheet COMP --every b:1 --from P --to P` over the range,
    `lungecuta still COMP --at P` on the frames that matter (cuts, hits, titles, faces),
    `lungecuta scope COMP --at P` for levels, and `lungecuta framing COMP LAYER` after a transform
@@ -86,7 +88,9 @@ when they ask how long the edit took.
    the last commit.
 6. Delivering: `lungecuta render COMP --preset P` (`web-h264`, `web-hevc10`, `master-prores-hq`,
    `prores-4444-alpha`), then `lungecuta verify FILE --comp COMP --preset P` and `lungecuta flash FILE`.
-   Both exit with status 1 when the file fails.
+   Both exit with status 1 when the file fails. A change to the sound alone (music, an
+   effect, a gain, ducking) renders in seconds: the file's picture is kept and only the
+   sound delivered again; a new version file takes `--picture-from PREVIOUS_FILE`.
 7. Commit each review round (`lungecuta init` made the project a git repository, unless it
    lay in one); never overwrite a version the person has seen.
 
@@ -131,7 +135,8 @@ dragging it in the editor's speed graph does. When the person marks the range,
 A shot is silent until its own sound is on: `lungecuta op sound COMP LAYER --gain -6` plays
 the clip's audio with its picture (a cheer, a line, the room), cutting on the layer's
 frames and going wherever the layer goes; `--off` takes it off. Only a layer at 100 %
-plays it, so split off a slowed part first. Music and effects are audio layers of their own.
+plays it, so split off a slowed part first. Music and effects are audio layers of their own: `lungecuta op place COMP hit --at b:8
+--gain -9 --fade-out f:3` places a sound at its level with its fades in one call.
 `lungecuta op duck COMP MUSIC --under LAYER --by -12 --ramp 0.25s` lowers the music while that
 shot speaks, and `--from P --to P` over a run of shots; the person judges by ear how far.
 
@@ -162,7 +167,10 @@ a grid of positions, so a slow drift (a quarter pixel a frame) moved from 0.03 t
 frame; moved by a transform on an element with `will-change: transform`, it moved 0.245 to
 0.255 px every frame. Leave `will-change` off text that grows or shrinks: it is then an
 enlargement of one rendering, and softer. Several pages may be on screen at once. Look at a
-title with `lungecuta still COMP --at P` where it comes in, holds and goes.
+title with `lungecuta still COMP --at P` where it comes in, holds and goes. Captures are
+kept in `cache/lungecuta/graphics/`, by the page, its params and every file it loaded, so a
+page is captured again only when one of those changes, and a page that throws stops the
+command at once with its error and its console.
 
 Captions (subtitles, lyrics, a line someone says) are `lungecuta op captions COMP --lines
 JSON --css CSS`: each line from a comp position to another, as text or word by word, on
@@ -193,7 +201,10 @@ published, say so instead of choosing one.
 - A clip imported as undecided in colour or time stays unusable until the person
   decides it; never guess its colour space. Ask them what the clip is, and on their word
   record it: `lungecuta decide KEY --colour SPACE --note "what they said"` (`display` for a
-  screen recording, `Camera Rec.709` for a phone's standard video).
+  screen recording, `Camera Rec.709` for a phone's standard video). Files the person has
+  named the space of together (plates rendered for the deliverable) import decided:
+  `lungecuta import FILES --root R --colour display --note "what they said"`. A file
+  rendered again imports again with `--refresh`, which keeps the records of unchanged ones.
 - Footage and music are read where they are and never copied into the project.
 - Nothing in the project runs as Python: graphics are web pages, run in a sandboxed
   browser with no network.

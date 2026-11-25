@@ -151,11 +151,15 @@ class Edit:
         self.changes.append(f"{layer['id']} source start moved {old} to {new}")
 
     def save(self) -> dict[str, Any]:
-        """Validate the edited comp as a whole, then write it if nobody changed it meanwhile."""
+        """Validate the edited comp as a whole, then write it if nobody changed it meanwhile.
+        What it returns names the layers the edit added (`added`, in stack order), so the
+        next edit can name them without reading the comp."""
         CompFile.model_validate(self.data)
         path = self.path_of(self.project, self.name)
         replace_if_unchanged(path, self.read_hash, json_text(self.data))
-        return {"comp": self.name, "changes": self.changes}
+        before = {layer.id for layer in self.comp.layers}
+        added = [layer["id"] for layer in self.data["layers"] if layer["id"] not in before]
+        return {"comp": self.name, "changes": self.changes} | ({"added": added} if added else {})
 
 
 def _delta(edit: Edit, text: str, anchor: int) -> int:
