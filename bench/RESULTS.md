@@ -887,6 +887,31 @@ screen): 3.58 s with nothing in the cache, 0.79 s again; frame 1101, 2.13 s and 
 Before the cache, a still opened every page of the comp and captured on each call
 (30 to 60 s, as the person reported it; not re-measured).
 
+## A render's frames by workers: `uv run python bench/render_scaling.py PROJECT COMP 96 web-h264 1 4 8 15`
+
+The private project's comp above (display-referred plates rendered for the deliverable,
+1920x1080 at 50 fps, the ACES 2.0 output view), its first 96 frames with the graphics
+captures in the cache, on the M5 Pro at a load of 9 to 11 from other work (2026-11-25).
+Every count made the same frame bytes as one worker.
+
+| workers | ms a frame, wall | OCIO, ms a frame summed over threads |
+| --- | --- | --- |
+| 1 | 934.2 | 851.7 |
+| 4 | 223.9 | 838.9 |
+| 8 | 127.3 | 943.4 |
+| 15 | 84.7 | 1079.1 |
+
+Reading a frame's inputs on the render's own thread (footage from ffmpeg, captures from
+the cache) took 11.0 ms. OpenColorIO is 91 % of a frame on one thread: each plate enters
+through the inverse output view and the frame leaves through the output view. At 15
+workers the frames alone come to 10.4 minutes for the comp's 7355; the whole render,
+with the encode, took 1155 s (19 min) at a load of 20 to 30 from other work, against
+about 35 min before the capture cache for the same comp (same comp, media and settings
+by the manifests; not the same load, so not a measured speed-up). Its frames differ from
+the earlier render's on 462 frames, in three runs where the pages that vary between
+captures are on screen, by a PSNR of 39.5 dB at worst and 47.9 dB at the median, spread
+over the frame as encoder noise.
+
 ## Numbers cited from elsewhere (not re-measured here)
 
 | number | where it was measured |
