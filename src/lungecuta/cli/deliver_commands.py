@@ -110,9 +110,15 @@ def patches(file: Path, card_file: Path, frame: int, matrix: str | None, range_:
                    "sound delivered anew; refused unless its manifest shows the same picture (the comp without its "
                    "sound, media, graphics, grade, code).")
 @click.option("--again", is_flag=True, help="Render every frame even if the file at --out has this picture already.")
+@click.option("--height", type=click.IntRange(min=2),
+              help="Deliver the picture this many lines tall (even), the comp's shape kept, each frame "
+                   "area-averaged from the comp's size.")
+@click.option("--max-size", help="Keep the file under this size, such as 10MiB or 9.5MB (web-h264): the preset's "
+                                 "own encode if it fits, else x264's two passes at the bitrate the budget leaves.")
 @project_option
 def render_command(comp: str, preset: str, out: Path | None, threads: int | None, workers: int | None,
-                   picture_from: Path | None, again: bool, project_dir: Path | None) -> None:
+                   picture_from: Path | None, again: bool, height: int | None, max_size: str | None,
+                   project_dir: Path | None) -> None:
     """Render comp COMP to a delivery file, with a manifest of what decided it.
 
     Every frame goes through the same chain as lungecuta still at the comp's size; music layers
@@ -124,8 +130,12 @@ def render_command(comp: str, preset: str, out: Path | None, threads: int | None
     When only the sound changed since the file at --out was rendered (music, effects,
     gains, ducking), its video is kept and only the sound is delivered again, in seconds;
     --picture-from does this from another file, such as the previous version.
+
+    --height and --max-size make a smaller file to send (a chat service's upload limit):
+    verify it with the same two options.
     """
-    print_json(render_comp(project_of(project_dir), comp, preset, out, threads, workers, picture_from, again))
+    print_json(render_comp(project_of(project_dir), comp, preset, out, threads, workers, picture_from, again,
+                           height, max_size))
 
 
 @main.command("flash")
@@ -158,9 +168,12 @@ def flash_command(file: Path, threads: int | None, project_dir: Path | None) -> 
 @click.argument("file", type=click.Path(exists=True, dir_okay=False, path_type=Path))
 @click.option("--comp", required=True, help="The comp FILE was rendered from.")
 @click.option("--preset", required=True, type=click.Choice(sorted(PRESETS)), help="The preset it was rendered with.")
+@click.option("--height", type=click.IntRange(min=2), help="The --height it was rendered with.")
+@click.option("--max-size", help="The --max-size it was rendered with: the file must be at most this size.")
 @threads_option
 @project_option
-def verify_command(file: Path, comp: str, preset: str, threads: int | None, project_dir: Path | None) -> None:
+def verify_command(file: Path, comp: str, preset: str, height: int | None, max_size: str | None,
+                   threads: int | None, project_dir: Path | None) -> None:
     """Check FILE against its comp and preset: codec, profile, pixel format, size, rate,
     frame count, the four colour tags, audio format; each cut's first and last frames,
     decoded from the file, against the engine's own reference render (bias per channel,
@@ -168,7 +181,8 @@ def verify_command(file: Path, comp: str, preset: str, threads: int | None, proj
     0.2 LU of the preset's target and true peak at or under its ceiling, by ffmpeg's
     ebur128 (EBU R 128-2023). Exits with status 1 when a check fails.
     """
-    result = verify_render(project_of(project_dir), comp, file, preset, threads=threads)
+    result = verify_render(project_of(project_dir), comp, file, preset, threads=threads, height=height,
+                           max_size=max_size)
     print_json(result)
     if not result["ok"]:
         raise SystemExit(1)

@@ -1035,6 +1035,18 @@ The whole comp as a draft (`lungecuta render COMP --preset draft-h264`: 3,573 fr
 142.9 s, audio mastered) took 73.0 s of wall time, with the originals of its plates not
 on disk.
 
+## A render fitted to a size budget: `lungecuta render COMP --preset web-h264 --height 720 --max-size 10MiB`
+
+A private project's comp (3,495 frames at 30 fps, 116.5 s, 1920x1080, footage and
+graphics), on the M5 Pro at a load of about 5 (2026-11-27). The preset's own encode did
+not fit; x264's two passes at 462 kbit/s (the budget less the encoded sound, over the
+comp's length) came to 10,544,212 bytes, 58,452 over (0.56 %, the container and rate
+control); the second pass at 457 kbit/s came to 10,471,314, under 10,485,760. 112 s wall
+in all. `lungecuta verify` with the same options passed (PSNR 35.0 dB against the engine's
+frames area-averaged to 1280x720). A first version that lowered the bitrate in bit/s
+failed here: x264 takes whole kbit/s, so corrections under 1 kbit/s gave the same file
+three times.
+
 ## Numbers cited from elsewhere (not re-measured here)
 
 | number | where it was measured |

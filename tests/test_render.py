@@ -483,3 +483,52 @@ def test_a_draft_is_the_preview_chain_with_its_graphics(cut_project):
     refused = CliRunner().invoke(main, ["verify", printed["file"], "--comp", "main", "--preset", "draft-h264",
                                         "--project", str(cut_project)])
     assert refused.exit_code != 0 and "is a draft" in str(refused.exception)
+
+
+def test_sizes_parse_in_both_units():
+    from lungecuta.render import output_size, parse_size
+
+    assert [parse_size(t) for t in ("10MiB", "9.5MB", "500KiB", "1234")] == [10485760, 9500000, 512000, 1234]
+    assert output_size((1920, 1080), 720) == (1280, 720) and output_size((1080, 1920), 720) == (404, 720)
+    with pytest.raises(AssertionError):
+        parse_size("ten megs")
+    with pytest.raises(AssertionError):
+        output_size((1920, 1080), 721)
+
+
+def test_a_render_fits_a_size_budget_at_a_smaller_height(cut_project):
+    import subprocess
+
+    def render(*args):
+        return CliRunner().invoke(main, ["render", "main", "--preset", "web-h264", *args, "--project", str(cut_project)])
+
+    whole = render("--height", "36")
+    assert whole.exit_code == 0, whole.output
+    file = json.loads(whole.output)["file"]
+    packets = subprocess.run([tool("ffprobe"), "-v", "error", "-select_streams", "v:0", "-show_entries",
+                              "packet=size", "-of", "csv=p=0", file], capture_output=True, text=True, check=True).stdout
+    picture = sum(int(line) for line in packets.split())
+    # a quarter of the picture's bytes under what the preset's own encode takes, so the two passes run
+    budget = Path(file).stat().st_size - picture // 4
+    fitted = render("--height", "36", "--max-size", str(budget), "--out", str(cut_project / "small.mp4"))
+    assert fitted.exit_code == 0, fitted.output
+    printed = json.loads(fitted.output)
+    fit = printed["output"]["fit"]
+    assert printed["output"]["size"] == [64, 36] and fit["video"] == "x264 two passes" and fit["bytes"] <= budget
+    assert (cut_project / "small.mp4").stat().st_size == fit["bytes"]
+    probed = subprocess.run([tool("ffprobe"), "-v", "error", "-select_streams", "v:0", "-show_entries",
+                             "stream=width,height", "-of", "csv=p=0", str(cut_project / "small.mp4")],
+                            capture_output=True, text=True, check=True).stdout.strip()
+    assert probed == "64,36"
+    checked = CliRunner().invoke(main, ["verify", str(cut_project / "small.mp4"), "--comp", "main", "--preset",
+                                        "web-h264", "--height", "36", "--max-size", str(budget),
+                                        "--project", str(cut_project)])
+    assert checked.exit_code == 0, checked.output
+    too_small = CliRunner().invoke(main, ["verify", str(cut_project / "small.mp4"), "--comp", "main", "--preset",
+                                          "web-h264", "--height", "36", "--max-size", str(budget // 2),
+                                          "--project", str(cut_project)])
+    assert too_small.exit_code == 1
+    roomy = render("--max-size", "1GiB", "--out", str(cut_project / "roomy.mp4"))
+    assert json.loads(roomy.output)["output"]["fit"]["video"] == "the preset's own settings, under the budget"
+    refused = render("--preset", "master-prores-hq", "--max-size", "10MiB")
+    assert refused.exit_code != 0

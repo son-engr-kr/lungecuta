@@ -125,6 +125,9 @@ the Phase 0 media tests need samples of your own (see Conventions).
 - **The editor works from another machine** (2026-11-27): the graphics origin listens on
   the editor's address, frames go as JPEG to an editor not on loopback, and only the
   graphics pages near the playhead are open (06-editing.md, The editor from another machine).
+- **A render fits a size budget** (`--max-size 10MiB --height 720`, 2026-11-27): the preset's
+  encode if it fits, else x264's two passes, lowered by the measured excess; `verify` takes
+  both options (08-deliver.md, A size budget).
 - **The time an edit takes is logged**: every lungecuta command run in a project, with its
   time, duration, parameters and outcome (`activity.py`, `cache/lungecuta/commands.jsonl`), and
   `lungecuta stages` turns that and the editor's journal into minutes by stage, for Phase 0's

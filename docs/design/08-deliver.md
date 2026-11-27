@@ -108,6 +108,26 @@ matches, and `--again` renders every frame regardless. The video stream that com
 the earlier one byte for byte (`tests/test_render.py`). The new manifest names the file
 the picture came from (`picture_from`) and keeps its clipped-pixel count.
 
+## A size budget
+
+`lungecuta render COMP --preset web-h264 --max-size 10MiB --height 720` makes a file to
+send where uploads are limited (`src/lungecuta/render.py`). `--height` delivers the
+picture that many lines tall (even, the width the comp's shape rounded to an even
+number): each frame is made at the comp's size and area-averaged on its display-encoded
+values, as `lungecuta still --height` shrinks one. `--max-size` (bytes, or with KB, MB,
+GB, KiB, MiB or GiB) keeps the whole file under the budget: the frames are made once,
+into a lossless H.264 intermediate in the cache; the preset's own encode of it is kept
+when it fits; otherwise x264 runs its two passes at the bitrate the budget leaves once the
+sound is taken out (the sound is encoded first, so its size is known, not assumed), and
+each second pass that comes out over the budget is run again at a bitrate lowered by the
+excess (in whole kbit/s, as x264 takes it, at least 1), at most `FIT_PASSES` times (a guard, not a measured figure). No container
+overhead is assumed: the file's own size decides. The manifest's `output` records the
+size, the budget and each try. A change to the sound alone keeps the picture as long as
+the file still fits; when the new sound takes more room, the picture is fitted again.
+`lungecuta verify FILE --comp COMP --preset web-h264 --height 720 --max-size 10MiB` checks
+the file's size against the budget and its frames against the engine's, area-averaged to
+the same size.
+
 ## Drafts
 
 `draft-h264` is a review copy, not a delivery (`src/lungecuta/render.py`, `preview.py`):

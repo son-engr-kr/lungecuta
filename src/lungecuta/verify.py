@@ -14,6 +14,7 @@ import numpy as np
 from . import compose
 from .comp import load_comp, resolve
 from .compose import captured, finish, footage_at, overlay_pages
+from .geometry import area_resize
 from .decode import Layout, frame_rgb, read_raw, read_rgb
 from .encode import PRESETS
 from .media import Project
@@ -57,14 +58,20 @@ def loudness(path: Path) -> dict[str, float]:
     return {"integrated_lufs": integrated, "true_peak_dbtp": peak}
 
 
-def verify(project: Project, name: str, file: Path, preset_name: str, *, threads: int | None = None) -> dict[str, Any]:
+def verify(project: Project, name: str, file: Path, preset_name: str, *, threads: int | None = None,
+           height: int | None = None, max_size: str | None = None) -> dict[str, Any]:
+    """`file` checked against comp `name` and its preset; `height` and `max_size` as the
+    render was given them (the picture compared at that size, the file under that size)."""
+    from .render import output_size, parse_size
+
     preset = PRESETS[preset_name]
     assert not preset.draft, (f"{preset_name} is a draft, made from the proxies at the preview size for review, "
                               "not a delivery: verify a delivery preset's render")
     resolved = resolve(project, load_comp(project, name))
     found = probe_file(file, audio=bool(preset.audio))
     video, audio = found["video"], found["audio"]
-    width, height = resolved.comp.size
+    size = output_size(tuple(resolved.comp.size), height)
+    width, height = size
     checks = [
         _check("video codec", preset.expect_codec, video["codec_name"]),
         _check("profile", preset.expect_profile, video.get("profile")),
@@ -76,6 +83,10 @@ def verify(project: Project, name: str, file: Path, preset_name: str, *, threads
                [video.get("color_primaries"), video.get("color_transfer"), video.get("color_space"),
                 video.get("color_range")]),
     ]
+    if max_size is not None:
+        budget = parse_size(max_size)
+        checks.append({"check": "file size, bytes", "expected": f"at most {budget}", "found": file.stat().st_size,
+                       "ok": file.stat().st_size <= budget})
     if audio is not None:
         checks.append(_check("audio rate and channels", [48000, 2], [int(audio["sample_rate"]), audio["channels"]]))
     if preset.expect_codec == "h264":
@@ -111,7 +122,7 @@ def verify(project: Project, name: str, file: Path, preset_name: str, *, threads
             else:
                 across.setdefault(inside, None)
     with overlay_pages(project, resolved, across) as pages:
-        totals, cuts, alpha_error = _sample(project, resolved, file, video, preset, across, threads, pages)
+        totals, cuts, alpha_error = _sample(project, resolved, file, video, preset, across, threads, pages, size)
     bias = [round(float(b), 3) for b in totals["sum"] / totals["pixels"]]
     mse = float(totals["squares"].sum() / (3 * totals["pixels"]))
     psnr = None if mse == 0 else round(10 * np.log10(1023 ** 2 / mse), 2)
@@ -132,10 +143,11 @@ def verify(project: Project, name: str, file: Path, preset_name: str, *, threads
     }
 
 
-def _decoded(file: Path, index: int, resolved, video: dict, preset) -> tuple[np.ndarray, np.ndarray | None]:
-    """A frame of the file as R'G'B' over black (premultiplied by its alpha, if it has one),
-    and the alpha in [0, 1]."""
-    width, height = resolved.comp.size
+def _decoded(file: Path, index: int, resolved, video: dict, preset,
+             size: tuple[int, int]) -> tuple[np.ndarray, np.ndarray | None]:
+    """A frame of the file (of `size`) as R'G'B' over black (premultiplied by its alpha, if
+    it has one), and the alpha in [0, 1]."""
+    width, height = size
     if not preset.alpha:
         return read_rgb(file, index, rate=resolved.rate, size=(width, height), pix_fmt=video["pix_fmt"],
                         matrix="bt709", range_="limited", chroma_location=preset.chroma_location), None
@@ -149,10 +161,14 @@ def _decoded(file: Path, index: int, resolved, video: dict, preset) -> tuple[np.
     return colour * alpha, alpha
 
 
-def _reference(project: Project, resolved, index: int, threads, captures, preset) -> tuple[np.ndarray, np.ndarray | None]:
+def _reference(project: Project, resolved, index: int, threads, captures, preset,
+               size: tuple[int, int]) -> tuple[np.ndarray, np.ndarray | None]:
     footage = footage_at(project, resolved, index, threads)
     if not preset.alpha:
-        return np.clip(finish(project, resolved, index, footage, captures, threads), 0, 1), None
+        frame = finish(project, resolved, index, footage, captures, threads)
+        if size != tuple(resolved.comp.size):  # as the render shrinks it: area-averaged, display-encoded
+            frame = area_resize(frame, size)
+        return np.clip(frame, 0, 1), None
     rgba = finish(project, resolved, index, footage, captures, threads, alpha=True)
     return np.clip(rgba[..., :3], 0, 1) * rgba[..., 3:], rgba[..., 3:]
 
@@ -170,7 +186,7 @@ def _runs(indices: list[int]) -> list[list[int]]:
 
 
 def _sample(project: Project, resolved, file: Path, video: dict, preset, across: dict, threads,
-            pages) -> tuple[dict, list, float | None]:
+            pages, size: tuple[int, int]) -> tuple[dict, list, float | None]:
     """Each sampled frame of the file against its reference and the frame across its cut;
     with alpha, colour is compared over black, and the alpha's largest error in codes is
     returned too. Each reference is rendered once. A run of consecutive frames is one job
@@ -179,8 +195,9 @@ def _sample(project: Project, resolved, file: Path, video: dict, preset, across:
     order, since a page captures one frame at a time."""
 
     def measured(run: list[int], captures: dict[int, dict]) -> tuple[dict, list, float | None]:
-        decoded = {index: _decoded(file, index, resolved, video, preset) for index in run}
-        references = {index: _reference(project, resolved, index, threads, captures[index], preset) for index in run}
+        decoded = {index: _decoded(file, index, resolved, video, preset, size) for index in run}
+        references = {index: _reference(project, resolved, index, threads, captures[index], preset, size)
+                      for index in run}
         totals = {"sum": np.zeros(3), "squares": np.zeros(3), "pixels": 0}
         cuts, alpha_error = [], None
         for index in run:
