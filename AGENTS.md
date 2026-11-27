@@ -112,6 +112,12 @@ the Phase 0 media tests need samples of your own (see Conventions).
   `import --refresh`, `new-comp --replace`, `rm-comp`, `op place --gain/--fade-in/--fade-out`
   and `added` in every op's result save the repeated calls an agent made
   (`bench/graphics_capture.py`).
+- **The output view and its inverse run on the GPU** (`metal.py`, 2026-11-27): OCIO's own
+  Metal shader for them, its 1D tables read as buffers, compiled through PyTorch's MPS
+  backend, about 6 ms a 1080p frame against 400 to 460 ms on one CPU thread; a render's
+  frames came out 10 times faster on one worker and 6.5 at 15 (`bench/ocio_gpu.py`,
+  `bench/render_scaling.py`). Everything else in colour stays on the CPU, as do the HDR
+  displays' curves.
 - **The time an edit takes is logged**: every lungecuta command run in a project, with its
   time, duration, parameters and outcome (`activity.py`, `cache/lungecuta/commands.jsonl`), and
   `lungecuta stages` turns that and the editor's journal into minutes by stage, for Phase 0's
@@ -398,6 +404,13 @@ describes.
 - `lungecuta import --refresh` re-imports a changed file as new, the old colour decision
   not kept (*proposed*, `02-media.md#ingest`); a removed or replaced comp's file is kept
   in `cache/lungecuta/removed/` (*proposed*).
+- The faster-path criterion restated (*proposed*, 04-color.md, Precision and tests):
+  against OCIO's lossless CPU processor, no more points over 1 ten-bit code than OCIO's
+  default CPU processor has, since the default, first named as the reference, is off from
+  OCIO's lossless processor by up to 2.4 codes on the default view and by 1023 on one
+  point of the P3 D65 views. Under it the GPU views pass; under the first wording (1 code
+  anywhere from the default) the GPU forward view fails on 6 of 4,146,689 points by up to
+  2.19 codes, near black.
 - **The proxy format and its parity criterion** (D7, amended): no ProRes profile passed;
   lossless FFV1 4:4:4 passed at 19 times the size and is used provisionally, with the gate
   in R'G'B' codes because 2 DI codes cannot be reached by a proxy downscaled before the

@@ -13,6 +13,7 @@ from lungecuta.decode import frame_rgb, read_rgb
 from lungecuta.fcpxml import timecode_frames, timecode_text
 from lungecuta.files import content_hash
 from lungecuta.geometry import oriented, turns
+from lungecuta.metal import GpuProcessor
 from lungecuta.media import Project, import_file, set_root
 from lungecuta.music import decode_audio, read_wav
 from lungecuta.probe import probe
@@ -173,7 +174,9 @@ def test_still_on_the_slog3_sample_is_the_frame_through_its_input_transform_and_
     view.setSrc(DEFAULT_COLOR.working)
     view.setDisplay(DEFAULT_COLOR.display)
     view.setView(DEFAULT_COLOR.view)
-    config.getProcessor(view).getDefaultCPUProcessor().applyRGB(frame)
+    # the view on the GPU, as lungecuta runs it (measured against OCIO's CPU in test_metal.py)
+    processor = config.getProcessor(view)
+    GpuProcessor(processor, processor.getDefaultCPUProcessor()).apply(frame)
     assert printed["codes"] == code_numbers(frame)
     assert (printed["size"], printed["rotation"], printed["space"]) == ([3840, 2160], 0, "S-Log3 S-Gamut3.Cine")
     raw = run(["ffmpeg", "-v", "error", "-i", printed["png"], "-f", "rawvideo", "-pix_fmt", "rgb24", "-"]).stdout

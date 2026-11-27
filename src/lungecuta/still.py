@@ -43,8 +43,8 @@ class Clip:
     path: Path
     video: VideoProbe
     decision: ColorDecided
-    into: ocio.CPUProcessor
-    view: ocio.CPUProcessor
+    into: ocio.CPUProcessor | color.GpuProcessor
+    view: color.GpuProcessor | ocio.CPUProcessor
 
     @property
     def rate(self) -> Fraction:

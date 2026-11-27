@@ -216,10 +216,40 @@ Graphics layers declare a `space`:
   table or round trip in the footage path. Web graphics are 8-bit sRGB by nature (D8)
   and enter as display-referred material.
 - **Every faster path is tested against OCIO's CPU processor on a dense, saturated
-  pattern** (the full DI cube sampled, not a grey ramp): at most 1 ten-bit output code
-  anywhere on the pattern (*proposed*). A grey ramp alone hides the failures that matter:
-  a 129^3 LUT is within 0.34 codes on grey and still off by up to 64.5 on near-neutral
-  colours (`bench/ocio_lut_error.py`).
+  pattern** (the full DI cube sampled, not a grey ramp). A grey ramp alone hides the
+  failures that matter: a 129^3 LUT is within 0.34 codes on grey and still off by up to
+  64.5 on near-neutral colours (`bench/ocio_lut_error.py`). The criterion (*proposed*):
+  against OCIO's CPU processor without its fast approximations (`OPTIMIZATION_LOSSLESS`),
+  no more points over 1 ten-bit output code than OCIO's default CPU processor has, and on
+  the project's default view a largest difference no larger than the default's. It was
+  first stated as at most 1 code anywhere against the default CPU processor, which OCIO's
+  CPU does not meet against itself: its default, with fast log, exp and pow, is off from
+  its lossless processor by up to 2.4 codes on 7 points of the default view and by a full
+  1023 codes on one point of each ACES 2.0 P3 D65 view (`bench/ocio_gpu.py`).
+
+### Faster paths
+
+The output view and its inverse run on the GPU (`metal.py`): OCIO's own shader for the
+transform in Metal Shading Language, with Metal's fast math off, compiled through
+PyTorch's MPS backend; its 1D tables, which the shader reads by nearest texel and
+interpolates in its own math, are passed as buffers and read at the texel the sampler
+would return. A frame goes to the GPU whole, one at a time, about 6 ms for 1920x1080
+against 400 to 460 ms on one CPU thread. Only shaders with no 3D LUT, no dynamic
+property and no linearly sampled table are run there (`metal.supported`): every view of
+the built-in config's SDR displays; the HDR displays' PQ and HLG curves stay on the CPU.
+
+Measured on 4,146,689 points (`bench/ocio_gpu.py`, `bench/RESULTS.md`): on the default
+view, Rec.1886 with ACES 2.0 SDR 100 nits, the GPU is within 1.98 codes of OCIO's
+lossless CPU processor forwards (3 points over 1 code, all where a channel is below code
+8 and the display curve's slope turns float32 rounding in linear light into codes) and
+within 0.09 backwards, where OCIO's default CPU processor is within 2.37 (7 points) and
+0.22. On every view the GPU has no more points over a code than the default CPU
+processor; on two inverse views it has one point further than the default's worst (2.6
+codes on Display P3 with the P3 D65 view, 15.8 on Display P3 HDR with the Rec.709 view,
+against 1.8 and 3.0), at the edge of the display's gamut, where inverting ACES 2.0 is
+ill-conditioned. The GPU gives the same bytes on every run. A command that shows a frame pays about 0.4 s once to
+import PyTorch; building the shader takes 0.02 s. Every other transform
+(input transforms, grades, LUTs, linear conversions) runs on the CPU.
 - Against Resolve, on a chart that includes saturated patches: median within 1 code, p99
   within 2.
 - Every render is decoded again by `lungecuta verify`, which measures the mean signed error per

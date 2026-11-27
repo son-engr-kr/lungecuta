@@ -912,6 +912,104 @@ the earlier render's on 462 frames, in three runs where the pages that vary betw
 captures are on screen, by a PSNR of 39.5 dB at worst and 47.9 dB at the median, spread
 over the frame as encoder noise.
 
+## OCIO's output views on the GPU: `uv run python bench/ocio_gpu.py`
+
+On the M5 Pro, 2026-11-27, PyTorch 2.14.1 (MPS), OpenColorIO 2.6.0, at a load of 4 to 5
+from other work. Every display and view of the built-in config that `metal.py` runs, from
+DaVinci Intermediate forwards (4,146,689 points over [-0.05, 1.05]) and backwards (as
+many over [0, 1] of the display's codes). The difference is in ten-bit output codes from
+OCIO's CPU processor with `OPTIMIZATION_LOSSLESS`, largest with the points over 1 code in
+brackets, for the GPU and for OCIO's default CPU processor (`getDefaultCPUProcessor`, what
+lungecuta ran before); the GPU without fast math agrees with the CPU without its fast
+log, exp and pow exactly as with lossless on every row. Times are for a 1920x1080 frame,
+the GPU with its copies, the default CPU processor on one thread.
+
+| display / view | direction | GPU | default CPU | GPU twice the same bytes | GPU ms | CPU ms |
+| --- | --- | --- | --- | --- | --- | --- |
+| sRGB - Display / ACES 2.0 - SDR 100 nits (Rec.709) | forwards | 0.047 (0) | 0.069 (0) | True | 5.2 | 397.8 |
+| sRGB - Display / ACES 2.0 - SDR 100 nits (Rec.709) | backwards | 0.161 (0) | 0.579 (0) | True | 5.9 | 402.5 |
+| sRGB - Display / Un-tone-mapped | forwards | 0.117 (0) | 3.379 (34) | True | 3.2 | 13.7 |
+| sRGB - Display / Un-tone-mapped | backwards | 0.000 (0) | 0.004 (0) | True | 3.5 | 13.5 |
+| sRGB - Display / Video (colorimetric) | forwards | 0.117 (0) | 3.379 (34) | True | 3.3 | 13.7 |
+| sRGB - Display / Video (colorimetric) | backwards | 0.000 (0) | 0.004 (0) | True | 3.4 | 13.4 |
+| sRGB - Display / Raw | forwards | 0.000 (0) | 0.000 (0) | True | 2.9 | 3.8 |
+| sRGB - Display / Raw | backwards | 0.000 (0) | 0.000 (0) | True | 3.0 | 3.8 |
+| Display P3 - Display / ACES 2.0 - SDR 100 nits (P3 D65) | forwards | 0.032 (0) | 1023.000 (1) | True | 5.3 | 401.7 |
+| Display P3 - Display / ACES 2.0 - SDR 100 nits (P3 D65) | backwards | 2.641 (1) | 1.767 (1) | True | 5.9 | 389.5 |
+| Display P3 - Display / Un-tone-mapped | forwards | 0.074 (0) | 1.857 (6) | True | 3.2 | 13.6 |
+| Display P3 - Display / Un-tone-mapped | backwards | 0.000 (0) | 0.004 (0) | True | 3.1 | 13.6 |
+| Display P3 - Display / Video (colorimetric) | forwards | 0.074 (0) | 1.857 (6) | True | 3.5 | 14.4 |
+| Display P3 - Display / Video (colorimetric) | backwards | 0.000 (0) | 0.004 (0) | True | 3.3 | 13.5 |
+| Display P3 - Display / Raw | forwards | 0.000 (0) | 0.000 (0) | True | 2.8 | 3.8 |
+| Display P3 - Display / Raw | backwards | 0.000 (0) | 0.000 (0) | True | 2.9 | 3.8 |
+| Display P3 HDR - Display / ACES 2.0 - HDR 1000 nits (P3 D65) | forwards | 0.347 (0) | 0.459 (0) | True | 7.4 | 398.8 |
+| Display P3 HDR - Display / ACES 2.0 - HDR 1000 nits (P3 D65) | backwards | 0.005 (0) | 0.007 (0) | True | 4.9 | 388.7 |
+| Display P3 HDR - Display / ACES 2.0 - SDR 100 nits (Rec.709) | forwards | 0.011 (0) | 0.021 (0) | True | 5.8 | 433.0 |
+| Display P3 HDR - Display / ACES 2.0 - SDR 100 nits (Rec.709) | backwards | 15.815 (1) | 2.980 (1) | True | 5.8 | 454.5 |
+| Display P3 HDR - Display / Un-tone-mapped | forwards | 0.074 (0) | 1.857 (6) | True | 3.8 | 16.9 |
+| Display P3 HDR - Display / Un-tone-mapped | backwards | 0.000 (0) | 0.004 (0) | True | 4.4 | 13.9 |
+| Display P3 HDR - Display / Video (colorimetric) | forwards | 0.074 (0) | 1.857 (6) | True | 4.1 | 14.0 |
+| Display P3 HDR - Display / Video (colorimetric) | backwards | 0.000 (0) | 0.004 (0) | True | 3.1 | 15.9 |
+| Display P3 HDR - Display / Raw | forwards | 0.000 (0) | 0.000 (0) | True | 3.0 | 3.9 |
+| Display P3 HDR - Display / Raw | backwards | 0.000 (0) | 0.000 (0) | True | 2.6 | 4.2 |
+| Gamma 2.2 Rec.709 - Display / ACES 2.0 - SDR 100 nits (Rec.709) | forwards | 1.122 (2) | 1.364 (5) | True | 5.7 | 427.3 |
+| Gamma 2.2 Rec.709 - Display / ACES 2.0 - SDR 100 nits (Rec.709) | backwards | 0.315 (0) | 1.036 (1) | True | 8.1 | 466.0 |
+| Gamma 2.2 Rec.709 - Display / Un-tone-mapped | forwards | 0.259 (0) | 7.984 (40) | True | 4.2 | 16.3 |
+| Gamma 2.2 Rec.709 - Display / Un-tone-mapped | backwards | 0.000 (0) | 0.003 (0) | True | 4.0 | 13.3 |
+| Gamma 2.2 Rec.709 - Display / Video (colorimetric) | forwards | 0.259 (0) | 7.984 (40) | True | 3.5 | 16.6 |
+| Gamma 2.2 Rec.709 - Display / Video (colorimetric) | backwards | 0.000 (0) | 0.003 (0) | True | 3.0 | 13.1 |
+| Gamma 2.2 Rec.709 - Display / Raw | forwards | 0.000 (0) | 0.000 (0) | True | 3.3 | 4.8 |
+| Gamma 2.2 Rec.709 - Display / Raw | backwards | 0.000 (0) | 0.000 (0) | True | 4.1 | 5.6 |
+| Gamma 2.6 P3-D65 - Display / ACES 2.0 - SDR 100 nits (P3 D65) | forwards | 1.928 (1) | 1023.000 (6) | True | 6.0 | 433.7 |
+| Gamma 2.6 P3-D65 - Display / ACES 2.0 - SDR 100 nits (P3 D65) | backwards | 0.930 (0) | 0.230 (0) | True | 7.5 | 445.5 |
+| Gamma 2.6 P3-D65 - Display / ACES 2.0 - SDR 100 nits (Rec.709) | forwards | 0.216 (0) | 0.372 (0) | True | 7.1 | 431.9 |
+| Gamma 2.6 P3-D65 - Display / ACES 2.0 - SDR 100 nits (Rec.709) | backwards | 0.832 (0) | 0.236 (0) | True | 7.7 | 436.2 |
+| Gamma 2.6 P3-D65 - Display / Un-tone-mapped | forwards | 0.397 (0) | 26.177 (41) | True | 4.0 | 13.5 |
+| Gamma 2.6 P3-D65 - Display / Un-tone-mapped | backwards | 0.000 (0) | 0.004 (0) | True | 3.9 | 13.2 |
+| Gamma 2.6 P3-D65 - Display / Video (colorimetric) | forwards | 0.397 (0) | 26.177 (41) | True | 4.3 | 13.5 |
+| Gamma 2.6 P3-D65 - Display / Video (colorimetric) | backwards | 0.000 (0) | 0.004 (0) | True | 3.0 | 13.1 |
+| Gamma 2.6 P3-D65 - Display / Raw | forwards | 0.000 (0) | 0.000 (0) | True | 2.7 | 4.0 |
+| Gamma 2.6 P3-D65 - Display / Raw | backwards | 0.000 (0) | 0.000 (0) | True | 2.4 | 4.1 |
+| Rec.1886 Rec.709 - Display / ACES 2.0 - SDR 100 nits (Rec.709) | forwards | 1.980 (3) | 2.368 (7) | True | 6.6 | 422.5 |
+| Rec.1886 Rec.709 - Display / ACES 2.0 - SDR 100 nits (Rec.709) | backwards | 0.087 (0) | 0.224 (0) | True | 6.5 | 429.5 |
+| Rec.1886 Rec.709 - Display / Un-tone-mapped | forwards | 0.368 (0) | 10.377 (53) | True | 4.2 | 13.4 |
+| Rec.1886 Rec.709 - Display / Un-tone-mapped | backwards | 0.000 (0) | 0.004 (0) | True | 3.7 | 12.9 |
+| Rec.1886 Rec.709 - Display / Video (colorimetric) | forwards | 0.368 (0) | 10.377 (53) | True | 4.0 | 13.4 |
+| Rec.1886 Rec.709 - Display / Video (colorimetric) | backwards | 0.000 (0) | 0.004 (0) | True | 3.9 | 12.9 |
+| Rec.1886 Rec.709 - Display / Raw | forwards | 0.000 (0) | 0.000 (0) | True | 2.8 | 4.0 |
+| Rec.1886 Rec.709 - Display / Raw | backwards | 0.000 (0) | 0.000 (0) | True | 3.0 | 4.2 |
+| Rec.2100-HLG - Display / Raw | forwards | 0.000 (0) | 0.000 (0) | True | 2.7 | 4.0 |
+| Rec.2100-HLG - Display / Raw | backwards | 0.000 (0) | 0.000 (0) | True | 2.7 | 4.1 |
+| Rec.2100-PQ - Display / Raw | forwards | 0.000 (0) | 0.000 (0) | True | 3.3 | 4.2 |
+| Rec.2100-PQ - Display / Raw | backwards | 0.000 (0) | 0.000 (0) | True | 2.9 | 4.0 |
+| ST2084-P3-D65 - Display / Raw | forwards | 0.000 (0) | 0.000 (0) | True | 2.7 | 4.1 |
+| ST2084-P3-D65 - Display / Raw | backwards | 0.000 (0) | 0.000 (0) | True | 3.1 | 4.4 |
+
+The GPU has no more points over 1 code than OCIO's default CPU processor on every row.
+Its largest difference is larger than the default's on four inverse views, by one point
+each on two of them over a code: Display P3 with the P3 D65 view (2.6 against 1.8) and
+Display P3 HDR with the Rec.709 view (15.8 against 3.0), at the edge of the display's
+gamut. The default CPU processor is the one far off on the simple views: by up to 26
+codes on 41 points for Gamma 2.6 Un-tone-mapped, and by 1023 on the ACES 2.0 P3 D65
+views. On the default view (Rec.1886, ACES 2.0 SDR 100 nits), the GPU's three points
+over a code forwards all have a channel below code 8.
+
+## A render's frames with the views on the GPU: `uv run python bench/render_scaling.py PROJECT COMP 96 web-h264 1 15`
+
+A private project's comp (S-Log3 and DJI footage graded, display-referred graphics under
+and over it, 1920x1080), its first 96 frames, the code before (`git worktree` of the
+commit before) and after, run one after the other at a load of 4 to 14 from other work
+(2026-11-27). Each run made the same frame bytes on every count of workers.
+
+| workers | CPU views: ms a frame, wall | GPU views: ms a frame, wall | OCIO, CPU views | OCIO, GPU views |
+| --- | --- | --- | --- | --- |
+| 1 | 1622.8 | 161.3 | 1489.8 | 38.5 |
+| 15 | 422.8 | 64.9 | 5674.6 (summed over threads) | 696.9 (summed over threads) |
+
+On 24 frames spread over the comp, the two differ by 1.81 ten-bit codes at most, 0.099
+at the 99.99th percentile, 14 of 149,299,200 values over 1 code, and by at most one code
+in 8 bits on 107,953 values.
+
 ## Numbers cited from elsewhere (not re-measured here)
 
 | number | where it was measured |

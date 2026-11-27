@@ -1,5 +1,7 @@
 """OpenColorIO, the colour reference (D2): processors from the built-in config, applied
-on the CPU by row bands on threads, since the CPU processor releases the GIL."""
+on the CPU by row bands on threads, since the CPU processor releases the GIL; the output
+view and its inverse, which are most of a frame's colour work, on the GPU (`metal.py`),
+measured against the CPU as 04-color.md's faster paths are."""
 from __future__ import annotations
 
 import functools
@@ -10,6 +12,7 @@ import numpy as np
 import PyOpenColorIO as ocio
 
 from .camera_spaces import add_spaces
+from .metal import GpuProcessor, supported
 
 # The space proxy parity is measured in (docs/design/02-media.md#proxies).
 DAVINCI_INTERMEDIATE = "DaVinci Intermediate WideGamut"
@@ -32,9 +35,18 @@ def cpu_processor(config_name: str, source: str, target: str) -> ocio.CPUProcess
     return cfg.getProcessor(source, target).getDefaultCPUProcessor()
 
 
+def _on_gpu(processor: ocio.Processor) -> GpuProcessor | ocio.CPUProcessor:
+    """The output view on the GPU where `metal.py` runs it (every SDR display of the
+    built-in config); the HDR displays' curves stay on the CPU."""
+    if supported(processor):
+        return GpuProcessor(processor, processor.getDefaultCPUProcessor())
+    return processor.getDefaultCPUProcessor()
+
+
 @functools.cache
-def view_processor(config_name: str, source: str, display: str, view: str) -> ocio.CPUProcessor:
-    """The output transform: from `source` to the display-encoded values of a display and view."""
+def view_processor(config_name: str, source: str, display: str, view: str) -> GpuProcessor | ocio.CPUProcessor:
+    """The output transform: from `source` to the display-encoded values of a display and
+    view, on the GPU where it can run there (`_on_gpu`)."""
     cfg = config(config_name)
     assert cfg.getColorSpace(source) is not None, f"{source!r} is not a colour space of {config_name}"
     assert display in cfg.getDisplays(), f"{display!r} is not a display of {config_name}"
@@ -43,20 +55,21 @@ def view_processor(config_name: str, source: str, display: str, view: str) -> oc
     transform.setSrc(source)
     transform.setDisplay(display)
     transform.setView(view)
-    return cfg.getProcessor(transform).getDefaultCPUProcessor()
+    return _on_gpu(cfg.getProcessor(transform))
 
 
 @functools.cache
-def inverse_view_processor(config_name: str, target: str, display: str, view: str) -> ocio.CPUProcessor:
+def inverse_view_processor(config_name: str, target: str, display: str, view: str) -> GpuProcessor | ocio.CPUProcessor:
     """The output transform run backwards: from display-encoded values of a display and view
-    to `target`, how a display-referred layer under footage enters the working space."""
+    to `target`, how a display-referred layer under footage enters the working space; on
+    the GPU where it can run there (`_on_gpu`)."""
     cfg = config(config_name)
     transform = ocio.DisplayViewTransform()
     transform.setSrc(target)
     transform.setDisplay(display)
     transform.setView(view)
     transform.setDirection(ocio.TRANSFORM_DIR_INVERSE)
-    return cfg.getProcessor(transform).getDefaultCPUProcessor()
+    return _on_gpu(cfg.getProcessor(transform))
 
 
 # A clip decided as display-referred video (`lungecuta decide KEY --colour display`): its codes
@@ -66,7 +79,7 @@ def inverse_view_processor(config_name: str, target: str, display: str, view: st
 DISPLAY = "display"
 
 
-def input_processor(settings, space: str, target: str | None = None) -> ocio.CPUProcessor:
+def input_processor(settings, space: str, target: str | None = None) -> ocio.CPUProcessor | GpuProcessor:
     """A clip's input transform, from its decided `space` into `target` (the project's
     working space by default): the colour space's own conversion, or for display-referred
     video the project's output view run backwards. `settings` is the project's colour
@@ -77,10 +90,14 @@ def input_processor(settings, space: str, target: str | None = None) -> ocio.CPU
     return cpu_processor(settings.config, space, target)
 
 
-def apply(processor: ocio.CPUProcessor, image: np.ndarray, threads: int | None = None) -> None:
-    """Transform a float32 HxWx3 image in place."""
+def apply(processor: ocio.CPUProcessor | GpuProcessor, image: np.ndarray, threads: int | None = None) -> None:
+    """Transform a float32 HxWx3 image in place: on the GPU at once for a `GpuProcessor`
+    (`threads` unused), otherwise by row bands on `threads` CPU threads."""
     assert image.dtype == np.float32 and image.ndim == 3 and image.shape[2] == 3, "expected float32 HxWx3"
     assert image.flags.c_contiguous, "the image must be C-contiguous to be transformed in place"
+    if isinstance(processor, GpuProcessor):
+        processor.apply(image)
+        return
     threads = threads or os.cpu_count() or 1
     # Contiguous row views of `image`; a small image gives some empty ones, left out.
     bands = [band for band in np.array_split(image, threads * 4, axis=0) if band.size]

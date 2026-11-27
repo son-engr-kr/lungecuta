@@ -960,6 +960,7 @@ dependencies = [
     { name = "pyloudnorm" },
     { name = "scipy" },
     { name = "spacy" },
+    { name = "torch" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
@@ -988,6 +989,7 @@ requires-dist = [
     { name = "pyloudnorm", specifier = ">=0.2.0" },
     { name = "scipy", specifier = ">=1.18.1" },
     { name = "spacy", specifier = ">=3.8.16" },
+    { name = "torch", specifier = ">=2.14.1" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.54.0" },
 ]
 

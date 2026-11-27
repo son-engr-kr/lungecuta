@@ -100,11 +100,14 @@ close to the render, and the capture diff above says how close.
 
 ## Compute plan
 
-**Year one runs OpenColorIO on the CPU, with threads, for preview and final.** It is the
-reference implementation, so parity with it is exact, and it is fast enough: the ACES 2.0
+**OpenColorIO runs on the CPU, with threads, for preview and final, except the output
+view and its inverse.** The CPU processor is the reference implementation. The ACES 2.0
 output view costs 144 ms per 4K frame and 10 ms per 540p frame on 15 threads (OCIO
-releases the GIL). The single-thread figure (1.7 s per 4K frame) led an earlier version
-of this design to require the GPU; it does not.
+releases the GIL), which was taken as fast enough; but a render makes many frames at once
+on one thread each, and there the views were 91 % of a frame (`bench/render_scaling.py`).
+So the view and its inverse run OCIO's own Metal shader for them on the GPU (`metal.py`,
+[04-color.md](04-color.md#faster-paths)): about 6 ms a 1920x1080 frame against 400 to
+460 ms on one CPU thread (`bench/ocio_gpu.py`).
 
 Other work goes to the GPU only when it is measured to need it:
 
@@ -114,9 +117,12 @@ Other work goes to the GPU only when it is measured to need it:
 - **Not a substitute for the output transform:** a baked 65^3 LUT sampled trilinearly is
   wrong by more than one code on half of near-neutral colours (p99 5.8, max 77), so
   `grid_sample` on a baked view fails the colour criterion.
+- **OCIO's generated Metal shader, not a hand-written one:** the ACES 2.0 view's shader
+  reads two 1D tables as textures by nearest texel, which `torch.mps.compile_shader` does
+  not take, so `metal.py` rewrites each read as a buffer read of the same texel; the
+  shader is otherwise OCIO's. A transform with 3D LUTs or linearly sampled tables (the
+  HDR displays' PQ and HLG curves) stays on the CPU.
 - **Out of year one:** hand-written Metal kernels, a CUDA extension, native modules.
-  OCIO's generated Metal shader for the ACES 2.0 view needs textures, which
-  `torch.mps.compile_shader` does not take, so running it on the GPU is its own project.
 
 Frames move between CPU and GPU as little as possible; a round trip between two effects
 can cost more than either effect.

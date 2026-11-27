@@ -26,6 +26,7 @@ dependencies = [
     "pyloudnorm>=0.2.0",
     "scipy>=1.18.1",
     "spacy>=3.8.16",
+    "torch>=2.14.1",
     "uvicorn[standard]>=0.54.0",
 ]
 

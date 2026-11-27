@@ -13,6 +13,7 @@ from click.testing import CliRunner
 from lungecuta.cli import main
 from lungecuta.decode import frame_rgb, read_rgb
 from lungecuta.geometry import area_resize, oriented, turns
+from lungecuta.metal import GpuProcessor
 from lungecuta.media import Project
 from lungecuta.probe import probe
 from lungecuta.project import DEFAULT_COLOR, init_project
@@ -48,7 +49,9 @@ def reference(frame: np.ndarray, rotation: int = 0, height: int | None = None) -
     view.setSrc(DEFAULT_COLOR.working)
     view.setDisplay(DEFAULT_COLOR.display)
     view.setView(DEFAULT_COLOR.view)
-    config.getProcessor(view).getDefaultCPUProcessor().applyRGB(frame)
+    # the view on the GPU, as lungecuta runs it (measured against OCIO's CPU in test_metal.py)
+    processor = config.getProcessor(view)
+    GpuProcessor(processor, processor.getDefaultCPUProcessor()).apply(frame)
     return frame
 
 
