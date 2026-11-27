@@ -19,6 +19,7 @@ TAGS = "setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709:range=t
 
 
 HEVC_QUALITY = "70"  # hevc_videotoolbox -q:v, from bench/hevc_quality.py (bench/RESULTS.md)
+DRAFT_QUALITY = "74"  # h264_videotoolbox -q:v, from bench/draft_quality.py (bench/RESULTS.md)
 # Formats an encoder takes as a Y plane then one of Cb and Cr interleaved, in 16-bit words
 # with the code in the top bits, and the planar format whose codes they carry.
 SEMI_PLANAR = {"p010le": "yuv420p10le"}
@@ -39,6 +40,7 @@ class Preset:
     true_peak: float = -1.0  # dBTP ceiling (07-audio.md; EBU R 128-2023, m)
     alpha: bool = False  # the comp's coverage written as straight alpha, transparent where nothing is
     decodes_as: str | None = None  # the pixel format the file decodes as, when not `pix_fmt`
+    draft: bool = False  # made from proxies at the preview size, not a delivery (08-deliver.md, Drafts)
 
 
 PRESETS = {
@@ -62,6 +64,14 @@ PRESETS = {
         ("-c:v", "hevc_videotoolbox", "-profile:v", "main10", "-q:v", HEVC_QUALITY, "-tag:v", "hvc1",
          "-movflags", "+faststart"),
         "p010le", "left", False, ("-c:a", "aac_at", "-b:a", "256k"), "hevc", "Main 10", decodes_as="yuv420p10le",
+    ),
+    # A draft for review (08-deliver.md, Drafts): the editor's preview chain on the proxies,
+    # at the preview size and at most DRAFT_RATE frames a second, with its graphics, by
+    # VideoToolbox's H.264 at the lowest quality setting with web-h264's PSNR at that size.
+    "draft-h264": Preset(
+        "draft-h264", ".mp4",
+        ("-c:v", "h264_videotoolbox", "-profile:v", "high", "-q:v", DRAFT_QUALITY, "-movflags", "+faststart"),
+        "yuv420p", "left", True, ("-c:a", "aac_at", "-b:a", "256k"), "h264", "High", draft=True,
     ),
     # For graphics handed to another tool (08-deliver.md): 4:4:4, so no chroma is decimated
     # and the siting is moot; straight alpha, as `lungecuta graphic` writes ProRes 4444 (whether

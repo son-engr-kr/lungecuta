@@ -118,6 +118,10 @@ the Phase 0 media tests need samples of your own (see Conventions).
   frames came out 10 times faster on one worker and 6.5 at 15 (`bench/ocio_gpu.py`,
   `bench/render_scaling.py`). Everything else in colour stays on the CPU, as do the HDR
   displays' curves.
+- **A draft renders from the proxies** (`--preset draft-h264`, 2026-11-27): the editor's
+  preview chain at the preview size, graphics captured at its scale, at most 30 frames a
+  second, VideoToolbox H.264 at the setting measured in `bench/draft_quality.py`;
+  `lungecuta verify` refuses it (08-deliver.md, Drafts).
 - **The time an edit takes is logged**: every lungecuta command run in a project, with its
   time, duration, parameters and outcome (`activity.py`, `cache/lungecuta/commands.jsonl`), and
   `lungecuta stages` turns that and the editor's journal into minutes by stage, for Phase 0's
@@ -404,6 +408,8 @@ describes.
 - `lungecuta import --refresh` re-imports a changed file as new, the old colour decision
   not kept (*proposed*, `02-media.md#ingest`); a removed or replaced comp's file is kept
   in `cache/lungecuta/removed/` (*proposed*).
+- A draft at most 30 frames a second (`DRAFT_RATE`, every `step`th comp frame) and at the
+  preview size, refused by `lungecuta verify` (*proposed*, 08-deliver.md, Drafts).
 - The faster-path criterion restated (*proposed*, 04-color.md, Precision and tests):
   against OCIO's lossless CPU processor, no more points over 1 ten-bit code than OCIO's
   default CPU processor has, since the default, first named as the reference, is off from

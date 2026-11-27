@@ -1010,6 +1010,31 @@ On 24 frames spread over the comp, the two differ by 1.81 ten-bit codes at most,
 at the 99.99th percentile, 14 of 149,299,200 values over 1 code, and by at most one code
 in 8 bits on 107,953 values.
 
+## The draft preset's H.264: `uv run python bench/draft_quality.py PROJECT COMP 300 OUT_DIR SETTING...`
+
+A private project's comp (display-referred plates and 16 graphics layers, 1920x1080 at
+50 fps), its first 300 draft frames (960x540, every second comp frame, 25 fps), made on
+the M5 Pro at a load of 3 to 5 (2026-11-27): 27.1 ms a draft frame on one thread, the
+captures at the draft's scale 3.0 s. Every encode decoded to 300 frames. PSNR is per
+plane against the 8-bit 4:2:0 planes every encoder was given. The planes' own frame to
+frame Y PSNR is 26.90 dB (moving graphics).
+
+| setting | Mbps | PSNR Y / U / V, dB | frame to frame Y, dB | encode |
+| --- | --- | --- | --- | --- |
+| `h264_videotoolbox -q:v 40` | 0.34 | 37.50 / 48.90 / 44.39 | 27.33 | 676 fps |
+| `-q:v 50` | 0.52 | 40.05 / 49.38 / 45.38 | 27.17 | 710 fps |
+| `-q:v 60` | 0.89 | 43.04 / 50.54 / 47.56 | 27.06 | 703 fps |
+| `-q:v 70` and `71` (alike) | 1.60 | 45.65 / 51.69 / 49.93 | 26.99 | 697 fps |
+| `-q:v 72` and `73` (alike) | 1.84 | 46.38 / 51.93 / 50.40 | 26.98 | 714 fps |
+| **`-q:v 74`** and `75` (alike) | 2.03 | 46.94 / 52.12 / 50.79 | 26.98 | 716 fps |
+| `-q:v 80` | 2.74 | 48.57 / 52.65 / 51.77 | 26.95 | 715 fps |
+| `libx264 -crf 18` (web-h264's) | 1.50 | 45.82 / 51.94 / 50.06 | 27.00 | 554 fps |
+
+74 is the lowest setting at or over x264's PSNR on every plane (72 misses U by 0.015 dB).
+The whole comp as a draft (`lungecuta render COMP --preset draft-h264`: 3,573 frames,
+142.9 s, audio mastered) took 73.0 s of wall time, with the originals of its plates not
+on disk.
+
 ## Numbers cited from elsewhere (not re-measured here)
 
 | number | where it was measured |

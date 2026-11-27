@@ -59,6 +59,8 @@ def loudness(path: Path) -> dict[str, float]:
 
 def verify(project: Project, name: str, file: Path, preset_name: str, *, threads: int | None = None) -> dict[str, Any]:
     preset = PRESETS[preset_name]
+    assert not preset.draft, (f"{preset_name} is a draft, made from the proxies at the preview size for review, "
+                              "not a delivery: verify a delivery preset's render")
     resolved = resolve(project, load_comp(project, name))
     found = probe_file(file, audio=bool(preset.audio))
     video, audio = found["video"], found["audio"]

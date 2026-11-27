@@ -21,7 +21,8 @@ import shutil
 import threading
 from collections.abc import Iterable, Iterator
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field
+from fractions import Fraction
+from dataclasses import dataclass, field, replace
 from importlib.metadata import version
 from pathlib import Path
 from typing import Any
@@ -55,6 +56,7 @@ class Entry:
     directory: Path
     photos: dict[str, Path]
     page_file: Path
+    resolution: Fraction = Fraction(1)  # device pixels a CSS pixel, the layer's own over a draft's divisor
     served: dict[str, str | None] = field(default_factory=dict)
 
     def file(self, t: float) -> Path:
@@ -67,10 +69,11 @@ class Entry:
         return file.read_bytes()
 
 
-def _key(project: Project, overlay: Overlay, size: tuple[int, int], photos: dict[str, Path]) -> str:
+def _key(project: Project, overlay: Overlay, size: tuple[int, int], resolution: Fraction,
+         photos: dict[str, Path]) -> str:
     """The name of a layer's entry: what decided its captures, its served files aside."""
     decided = {"page": overlay.layer.page, "params": overlay.layer.params, "size": list(size),
-               "resolution": str(overlay.resolution),
+               "resolution": str(resolution),
                "photos": {key: load_record(project, key).hash for key in sorted(photos)},
                "playwright": version("playwright"), "chromium_args": graphics.CHROMIUM_ARGS,
                "capture": CAPTURE_VERSION}
@@ -92,14 +95,36 @@ def _fresh(project: Project, entry: Entry) -> bool:
     return all(graphics.served_hash(project.directory / name) == digest for name, digest in served.items())
 
 
-def _entries(project: Project, resolved: Resolved) -> dict[str, Entry]:
+def draft_resolution(resolution: Fraction, size: tuple[int, int], divisor: int) -> Fraction:
+    """The device pixels a CSS pixel a page of `size` is captured at for a draft at
+    `divisor`: its own `resolution` over the divisor, raised to a step of 1 / gcd(width,
+    height) so the capture is whole pixels (as `capture_resolution` raises it)."""
+    if divisor == 1:
+        return resolution
+    step = math.gcd(*size)
+    return Fraction(math.ceil(resolution / divisor * step), step)
+
+
+def at_divisor(overlay: Overlay, size: tuple[int, int], divisor: int) -> Overlay:
+    """`overlay` as a draft at `divisor` draws it on a canvas `divisor` times smaller: its
+    captures' pixels a canvas pixel in place of its resolution."""
+    if divisor == 1:
+        return overlay
+    return replace(overlay, resolution=draft_resolution(overlay.resolution, size, divisor) * divisor)
+
+
+def _entries(project: Project, resolved: Resolved, divisor: int = 1) -> dict[str, Entry]:
+    """Every graphics layer's entry: its page laid out at its comp's size in CSS pixels,
+    captured at its resolution over `divisor` device pixels a CSS pixel (a draft's, so the
+    page lays out as in the render and only has fewer pixels)."""
     from .compose import _all_overlays, photos_of
 
     out = {}
     for path, overlay, size in _all_overlays(resolved):
         photos = photos_of(project, overlay)
-        directory = project.directory / CAPTURE_DIR / _key(project, overlay, size, photos)
-        out[path] = Entry(path, overlay, size, directory, photos, project.directory / overlay.layer.page)
+        resolution = draft_resolution(overlay.resolution, size, divisor)
+        directory = project.directory / CAPTURE_DIR / _key(project, overlay, size, resolution, photos)
+        out[path] = Entry(path, overlay, size, directory, photos, project.directory / overlay.layer.page, resolution)
     return out
 
 
@@ -154,7 +179,7 @@ def _capture(project: Project, tasks: list[tuple[Entry, list[float]]], workers: 
                 done = False
                 try:
                     with graphics.opened(browser, entry.page_file, entry.size, entry.overlay.layer.params,
-                                         entry.photos, resolution=entry.overlay.resolution, served=served) as page:
+                                         entry.photos, resolution=entry.resolution, served=served) as page:
                         _record(project, entry, served, lock)
                         known = len(served)
                         for t in times:
@@ -186,12 +211,12 @@ def _tasks(needed: dict[str, set[float]], entries: dict[str, Entry], workers: in
 
 
 def captures(project: Project, resolved: Resolved, indices: Iterable[int],
-             workers: int = CAPTURE_WORKERS) -> dict[str, Entry]:
+             workers: int = CAPTURE_WORKERS, divisor: int = 1) -> dict[str, Entry]:
     """Every graphics layer's entry, by path, holding a capture at every page time comp
     frames `indices` show: those already in the cache kept, the rest captured now. A stale
-    entry is emptied first."""
+    entry is emptied first. `divisor` captures for a draft at the preview's scale."""
     assert workers >= 1, "capture with at least one Chromium"
-    entries = _entries(project, resolved)
+    entries = _entries(project, resolved, divisor)
     if not entries:
         return entries
     for entry in entries.values():

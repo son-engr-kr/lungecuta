@@ -91,6 +91,9 @@ when they ask how long the edit took.
    Both exit with status 1 when the file fails. A change to the sound alone (music, an
    effect, a gain, ducking) renders in seconds: the file's picture is kept and only the
    sound delivered again; a new version file takes `--picture-from PREVIOUS_FILE`.
+   For a review copy, `--preset draft-h264` renders from the proxies at the preview size
+   and at most 30 frames a second, graphics included, in a fraction of the time; a draft
+   is not a delivery, so `lungecuta verify` refuses it.
 7. Commit each review round (`lungecuta init` made the project a git repository, unless it
    lay in one); never overwrite a version the person has seen.
 

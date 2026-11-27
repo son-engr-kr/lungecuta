@@ -6,10 +6,13 @@ delivers it, and a manifest of the versions that decided the pixels and samples
 from __future__ import annotations
 
 import json
+import math
 import os
 import platform
 import subprocess
+from contextlib import closing
 from importlib.metadata import version
+from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
@@ -23,10 +26,30 @@ from .files import content_hash, content_hash_text, json_text, write_atomic
 from .media import Project, load_record
 from .mixdown import delivered_audio
 from .parallel import in_order
+from .preview import Preview, preview_divisor
 from .ticks import TICKS_PER_SECOND, format_rate, ticks_per_frame
 from .tools import run, tool
 
 RENDER_DIR = Path("cache") / "lungecuta" / "render"
+# A draft's frames a second at most (*proposed*, 08-deliver.md, Drafts): it shows every
+# `draft_step`th comp frame, so a 50 fps comp drafts at 25 and a 23.976 one at its own rate.
+DRAFT_RATE = 30
+
+
+def draft_step(rate: Fraction) -> int:
+    """The comp frames a draft frame stands for: the fewest that bring `rate` to DRAFT_RATE or under."""
+    return math.ceil(rate / DRAFT_RATE)
+
+
+def draft_of(project: Project, resolved: Resolved, preset: Preset) -> dict[str, Any] | None:
+    """What a draft preset makes of the comp: the preview's divisor and size, the step
+    between the comp frames it shows and its rate; None for a delivery."""
+    if not preset.draft:
+        return None
+    divisor = preview_divisor(tuple(resolved.comp.size), project.file.proxy_height)
+    step = draft_step(resolved.rate)
+    return {"divisor": divisor, "size": [resolved.comp.size[0] // divisor, resolved.comp.size[1] // divisor],
+            "step": step, "rate": format_rate(resolved.rate / step), "from": "proxies"}
 
 
 def read(project: Project, name: str) -> tuple[Resolved, dict[str, Any]]:
@@ -75,14 +98,14 @@ def _picture_comp(resolved: Resolved) -> dict[str, Any]:
             "precomps": [_picture_comp(nest.resolved) for nest in resolved.nests]}
 
 
-def picture(project: Project, resolved: Resolved, hashes: dict[str, Any]) -> str | None:
+def picture(project: Project, resolved: Resolved, hashes: dict[str, Any], draft: dict | None = None) -> str | None:
     """What decides a render's pixels and none of its sound, as one hash: the comp and its
     precomps as `_picture_comp` keeps them, the footage and photos, LUTs, looks, colour
     settings, the code and versions that make frames, and each graphics layer's capture
     entry with every file its page loaded (overlays.py). None when a graphics layer's
     captures cannot be vouched for (not made yet, or a file its page loaded changed), since
-    then nothing says what the page draws."""
-    entries = overlays._entries(project, resolved)
+    then nothing says what the page draws. A draft's (`draft_of`) holds what it makes too."""
+    entries = overlays._entries(project, resolved, 1 if draft is None else draft["divisor"])
     if not all(overlays._fresh(project, entry) for entry in entries.values()):
         return None
     decided = {
@@ -94,6 +117,7 @@ def picture(project: Project, resolved: Resolved, hashes: dict[str, Any]) -> str
         "graphics": sorted((path, entry.directory.name, sorted(entry.served.items()))
                            for path, entry in entries.items()),
         "engine": _engine(),
+        "draft": draft,
         "versions": {"opencolorio": version("opencolorio"), "numpy": np.__version__,
                      "ffmpeg": run(["ffmpeg", "-hide_banner", "-version"]).stdout.decode().splitlines()[0]},
     }
@@ -102,7 +126,9 @@ def picture(project: Project, resolved: Resolved, hashes: dict[str, Any]) -> str
 
 def manifest(project: Project, resolved: Resolved, hashes: dict[str, Any], preset: Preset, out: Path,
              clipped: float, audio: dict[str, Any]) -> dict:
-    """What decided the file's pixels and samples (01-architecture.md, Playback)."""
+    """What decided the file's pixels and samples (01-architecture.md, Playback); for a
+    draft, what it made of the comp (`draft_of`)."""
+    draft = draft_of(project, resolved, preset)
     ffmpeg = run(["ffmpeg", "-hide_banner", "-version"]).stdout.decode().splitlines()[0]
     settings = project.file.color
     return {
@@ -122,7 +148,8 @@ def manifest(project: Project, resolved: Resolved, hashes: dict[str, Any], prese
                      "numpy": np.__version__, "ffmpeg": ffmpeg, "python": platform.python_version()},
         "clipped_pixels": round(clipped, 6),
         "audio": audio,
-        "picture": picture(project, resolved, hashes),
+        "picture": picture(project, resolved, hashes, draft),
+        **({} if draft is None else {"draft": draft}),
     }
 
 
@@ -137,7 +164,7 @@ def _same_picture(project: Project, resolved: Resolved, hashes: dict[str, Any], 
     old = json.loads(manifest_path.read_text())
     if old["preset"] != preset.name:
         return None, f"{earlier.name} is a {old['preset']} render, not {preset.name}"
-    current = picture(project, resolved, hashes)
+    current = picture(project, resolved, hashes, draft_of(project, resolved, preset))
     if current is None or old.get("picture") != current:
         return None, f"the picture is not the one {earlier.name} was rendered from"
     if content_hash(earlier) != old["hash"]:
@@ -190,9 +217,12 @@ def render(project: Project, name: str, preset_name: str, out: Path | None = Non
                 "frames": old["comp"]["frames"], "picture": f"the video of {earlier.name}, unchanged; sound delivered anew",
                 "seconds": round(resolved.end * ticks_per_frame(resolved.rate) / TICKS_PER_SECOND, 6),
                 "clipped_pixels": record["clipped_pixels"], "audio": chain}
-    width, height = resolved.comp.size
+    draft = draft_of(project, resolved, preset)
+    width, height = resolved.comp.size if draft is None else draft["size"]
+    step = 1 if draft is None else draft["step"]
+    indices = range(0, resolved.end, step)
     inputs = ["-f", "rawvideo", "-pix_fmt", preset.pix_fmt, "-s", f"{width}x{height}",
-              "-framerate", format_rate(resolved.rate), "-i", "-"]
+              "-framerate", format_rate(resolved.rate / step), "-i", "-"]
     maps, audio_args = ["-map", "0:v:0"], []
     mix_path, chain = None, {"none": "the preset has no audio"}
     if preset.audio:
@@ -212,16 +242,30 @@ def render(project: Project, name: str, preset_name: str, out: Path | None = Non
 
     # Frames are read and graphics captured in order here; their colour work runs on
     # `workers` threads (numpy and OCIO release the GIL) and they are written in order.
-    with overlay_pages(project, resolved, range(resolved.end)) as pages:
-        jobs = ((index, raws, captured(resolved, index, pages))
-                for index, raws in enumerate(raw_layers(project, resolved)))
-        for data, outside in in_order(job, jobs, workers=workers, ahead=2 * workers):
-            encoder.stdin.write(data)
-            clipped, count = clipped + outside, count + 1
+    if draft is None:
+        with overlay_pages(project, resolved, indices) as pages:
+            jobs = ((index, raws, captured(resolved, index, pages))
+                    for index, raws in enumerate(raw_layers(project, resolved)))
+            for data, outside in in_order(job, jobs, workers=workers, ahead=2 * workers):
+                encoder.stdin.write(data)
+                clipped, count = clipped + outside, count + 1
+    else:
+        # the editor's preview chain on the proxies, with the graphics captured at its scale
+        pages = overlays.captures(project, resolved, indices, divisor=draft["divisor"])
+        with closing(Preview(project, name)) as preview:
+            assert preview.hash == hashes["comp"], f"comp {name} changed while the draft began"
+
+            def draft_job(index: int, captures: dict) -> tuple[bytes, float]:
+                return frame_bytes(preview.draft(index, captures), preset, seed=index)
+
+            jobs = ((index, captured(resolved, index, pages)) for index in indices)
+            for data, outside in in_order(draft_job, jobs, workers=workers, ahead=2 * workers):
+                encoder.stdin.write(data)
+                clipped, count = clipped + outside, count + 1
     encoder.stdin.close()
     error = encoder.stderr.read().decode(errors="replace").strip()
     assert encoder.wait() == 0 and not error, f"ffmpeg failed encoding {out.name}: {error}"
-    assert count == resolved.end, f"{count} frames rendered for {resolved.end}"
+    assert count == len(indices), f"{count} frames rendered for {len(indices)}"
     if mix_path is not None:
         mix_path.unlink()
     partial.rename(out)
@@ -229,4 +273,5 @@ def render(project: Project, name: str, preset_name: str, out: Path | None = Non
     write_atomic(out.with_name(out.name + ".manifest.json"), json_text(record))
     return {"file": str(out), "manifest": str(out.with_name(out.name + ".manifest.json")), "frames": count,
             "seconds": round(resolved.end * ticks_per_frame(resolved.rate) / TICKS_PER_SECOND, 6),
-            "clipped_pixels": record["clipped_pixels"], "audio": chain}
+            "clipped_pixels": record["clipped_pixels"], "audio": chain,
+            **({} if draft is None else {"draft": draft})}

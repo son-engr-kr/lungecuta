@@ -108,6 +108,30 @@ matches, and `--again` renders every frame regardless. The video stream that com
 the earlier one byte for byte (`tests/test_render.py`). The new manifest names the file
 the picture came from (`picture_from`) and keeps its clipped-pixel count.
 
+## Drafts
+
+`draft-h264` is a review copy, not a delivery (`src/lungecuta/render.py`, `preview.py`):
+the editor's preview chain on the clips' proxies, at the preview size (the comp's size
+over the smallest whole divisor that brings it to the project's `proxy_height` or under,
+960x540 for a 1920x1080 comp), showing every `step`th comp frame, the fewest that bring
+the rate to 30 frames a second or under (`DRAFT_RATE`, *proposed*: a 50 fps comp drafts
+at 25, a 23.976 one at its own rate). Its graphics are drawn as a render draws them: each
+page laid out at its comp's size in CSS pixels and captured at its resolution over the
+divisor (raised to whole pixels), kept in the capture cache under their own entries,
+under footage through the inverse view and on top after the output view. The sound is
+the delivery's, through the same master chain. H.264 High by VideoToolbox at `-q:v 74`,
+the lowest setting with web-h264's PSNR on every plane at the draft's size
+(`bench/draft_quality.py`); its quality steps are coarse (72 and 73 encode alike, as do
+74 and 75).
+
+What a draft leaves out, so it is never taken for the comp: the originals (a proxy is
+FFV1 at the preview size, [02-media.md](02-media.md#proxies)), every frame between its
+steps, and the full resolution of footage and graphics. Its manifest says so (`draft`:
+divisor, size, step, rate, `from: proxies`), its `picture` is its own (a draft never
+lends its video to a delivery, nor one to it), and `lungecuta verify` refuses a draft
+preset. A draft needs every clip's proxy (`lungecuta proxy --comp COMP`), and only those:
+it renders with the originals on another disk.
+
 ## Verification
 
 `lungecuta verify FILE --preset P` after every render:

@@ -27,7 +27,8 @@ from .files import content_hash, content_hash_text
 from .geometry import area_resize, mask_alpha, place
 from .media import Project
 from .schema.comp import StyleTime
-from .compose import composite_alpha, placed_layer, shown
+from .compose import composite_alpha, page_layer, placed_layer, shown
+from .overlays import at_divisor
 from .ticks import ticks_per_frame
 
 VIEWER_DISPLAY = "sRGB - Display"  # what Chrome expects, encoding the same light (01-architecture.md)
@@ -175,25 +176,40 @@ class Preview:
         placed, alpha = placed_layer(self.project, cut, index, frame, canvas, factor)
         return placed * np.float32(faded), alpha * np.float32(faded)
 
-    def _working(self, resolved: Resolved, index: int, canvas: tuple[int, int]) -> tuple[np.ndarray, np.ndarray]:
-        """A comp's frame at the preview's scale on `canvas`, premultiplied, with coverage:
-        its footage and precomps in stack order (its graphics are not drawn here)."""
+    def _layers(self, resolved: Resolved, index: int, canvas: tuple[int, int], captures: dict | None,
+                prefix: str = "", top: bool = False) -> list:
+        """A comp's layers at the preview's scale on `canvas`, premultiplied, with coverage,
+        in stack order: its footage and precomps, and with `captures` (a draft render's,
+        made at the preview's scale: `overlays.captures` with its divisor) its graphics
+        under footage through the inverse view; the top run of graphics too when `top`."""
         cuts = {cut.layer.id: cut for cut in resolved.stack(index)}
         nests = {nest.layer.id: nest for nest in resolved.nests_at(index)}
+        overlays = {overlay.layer.id: overlay for overlay in resolved.overlays}
         layers = []
         for layer in resolved.comp.layers:
             if layer.id in cuts:
                 layers.append(self._layer(cuts[layer.id], index, canvas))
             elif layer.id in nests:
-                layers.append(self._nest(nests[layer.id], index, canvas))
-        return composite_alpha(layers, canvas)
+                layers.append(self._nest(nests[layer.id], index, canvas, captures, f"{prefix}{layer.id}/"))
+            elif captures is not None and prefix + layer.id in captures and (top or not overlays[layer.id].top):
+                overlay = at_divisor(overlays[layer.id], tuple(resolved.comp.size), self.divisor)
+                layers.append(page_layer(self.project, overlay, captures[prefix + layer.id], canvas, None, inline=True))
+        return layers
 
-    def _nest(self, nest: Nest, index: int, canvas: tuple[int, int]) -> tuple[np.ndarray, np.ndarray]:
+    def _working(self, resolved: Resolved, index: int, canvas: tuple[int, int], captures: dict | None = None,
+                 prefix: str = "") -> tuple[np.ndarray, np.ndarray]:
+        """A comp's frame at the preview's scale on `canvas`, premultiplied, with coverage:
+        its footage and precomps in stack order, and its graphics when `captures` are given
+        (inside a precomp they are never the top of the final stack, D15)."""
+        return composite_alpha(self._layers(resolved, index, canvas, captures, prefix, top=bool(prefix)), canvas)
+
+    def _nest(self, nest: Nest, index: int, canvas: tuple[int, int], captures: dict | None = None,
+              prefix: str = "") -> tuple[np.ndarray, np.ndarray]:
         """A precomp layer at the preview's scale: the precomp drawn on a canvas its size
         over the preview's divisor, placed as the render places it."""
         width, height = nest.resolved.comp.size
         inner = (max(1, round(width / self.divisor)), max(1, round(height / self.divisor)))
-        premultiplied, cover = self._working(nest.resolved, nest.frame(index), inner)
+        premultiplied, cover = self._working(nest.resolved, nest.frame(index), inner, captures, prefix)
         straight = np.ascontiguousarray(np.divide(premultiplied, cover, out=np.zeros_like(premultiplied),
                                                   where=cover > 0))
         mask = cover if not nest.layer.masks else cover * mask_alpha(nest.layer.masks, inner)
@@ -217,6 +233,21 @@ class Preview:
             frame = self._working(self.resolved, index, self.size)[0]
             color.apply(self.view, frame)
             return frame
+
+    def draft(self, index: int, captures: dict) -> np.ndarray:
+        """Comp frame `index` at the preview size with its graphics, display-encoded, as
+        `compose.finish` makes it at the comp's size: a draft render's frame (08-deliver.md,
+        Drafts). `captures` are the frame's, made at the preview's scale."""
+        assert 0 <= index < self.resolved.end, f"frame {index} is outside the comp (0 to {self.resolved.end - 1})"
+        with self.lock:
+            frame = composite_alpha(self._layers(self.resolved, index, self.size, captures), self.size)[0]
+        color.apply(self.view, frame)
+        for overlay in self.resolved.overlays:
+            if overlay.top and overlay.layer.id in captures:
+                page, page_alpha = page_layer(self.project, at_divisor(overlay, tuple(self.comp.size), self.divisor),
+                                              captures[overlay.layer.id], self.size, None, inline=False)
+                frame = np.ascontiguousarray(page + frame * (1 - page_alpha), dtype=np.float32)
+        return frame
 
     def thumbnail(self, layer_id: str, height: int) -> np.ndarray:
         """A footage layer's first frame alone, placed as the comp places it, on black,

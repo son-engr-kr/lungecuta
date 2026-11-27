@@ -78,7 +78,7 @@ def test_clipped_pixels_are_counted_not_hidden():
     assert outside == 1 / 16
 
 
-@pytest.mark.parametrize("preset", sorted(PRESETS))
+@pytest.mark.parametrize("preset", sorted(name for name, preset in PRESETS.items() if not preset.draft))
 def test_render_writes_a_file_verify_accepts(cut_project, preset):
     result = CliRunner().invoke(main, ["render", "main", "--preset", preset, "--project", str(cut_project)])
     assert result.exit_code == 0, result.output
@@ -448,3 +448,38 @@ def test_a_change_to_the_sound_alone_keeps_the_rendered_picture(cut_project, tmp
     assert "picture" not in json.loads(full.output) and video_md5(file) != picture
     again = run("--again")
     assert again.exit_code == 0 and "picture" not in json.loads(again.output)
+
+
+def test_draft_steps_bring_the_rate_to_thirty_or_under():
+    from lungecuta.render import draft_step
+
+    assert [draft_step(Fraction(r)) for r in (50, Fraction(60000, 1001), Fraction(24000, 1001), 120, 30)] == [2, 2, 1, 4, 1]
+
+
+def test_a_draft_is_the_preview_chain_with_its_graphics(cut_project):
+    import subprocess
+
+    (cut_project / "graphics" / "title.html").write_text(TITLE)
+    comp = comp_json(rate="60000/1001")
+    comp["layers"].append({"id": "title", "type": "graphics", "page": "graphics/title.html", "space": "display",
+                           "start": "b:2", "out": "b:6", "params": {"colour": "rgb(200, 40, 120)"}})
+    put_comp(cut_project, comp)
+    result = CliRunner().invoke(main, ["render", "main", "--preset", "draft-h264", "--project", str(cut_project)])
+    assert result.exit_code == 0, result.output
+    printed = json.loads(result.output)
+    assert printed["draft"] == {"divisor": 2, "size": [64, 36], "step": 2, "rate": "30000/1001", "from": "proxies"}
+    manifest = json.loads(Path(printed["manifest"]).read_text())
+    assert manifest["draft"] == printed["draft"] and manifest["preset"] == "draft-h264"
+    frames = int(subprocess.run([tool("ffprobe"), "-v", "error", "-count_frames", "-select_streams", "v:0",
+                                 "-show_entries", "stream=nb_read_frames,width,height", "-of", "csv=p=0",
+                                 printed["file"]], capture_output=True, text=True, check=True).stdout.split(",")[2])
+    assert frames == printed["frames"] == -(-manifest["comp"]["frames"] // 2)
+    # comp frame 120 (draft frame 60) shows the title: its opaque box, 40x20 CSS pixels at (4, 4), is 20x10 here
+    raw = subprocess.run([tool("ffmpeg"), "-v", "error", "-i", printed["file"], "-vf", "select=eq(n\\,60)",
+                          "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], capture_output=True,
+                         check=True).stdout
+    frame = np.frombuffer(raw, np.uint8).reshape(36, 64, 3).astype(int)
+    assert np.abs(frame[8, 12] - [200, 40, 120]).max() <= 12, frame[8, 12]
+    refused = CliRunner().invoke(main, ["verify", printed["file"], "--comp", "main", "--preset", "draft-h264",
+                                        "--project", str(cut_project)])
+    assert refused.exit_code != 0 and "is a draft" in str(refused.exception)
