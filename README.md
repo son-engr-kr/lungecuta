@@ -127,7 +127,7 @@ lungecuta patch-card DIR ... / lungecuta patches  a card of known colours, and r
 lungecuta op OP COMP ...                   an edit operation: place, cut, graphic, sfx, move, trim, slip, slide,
                                            roll, ripple-delete, split, snap, key, unkey, move-key, set,
                                            remap, speed, style, unstyle, look, unlook, grade, masks,
-                                           transition, untransition, sound, duck, captions
+                                           transition, untransition, sound, duck, bed, captions
 lungecuta stages --comp COMP               the time the edit took by stage, from the log of every command
 lungecuta changes                          what the editor wrote since the agent last asked, and what is on
                                            its screen: the playhead, the selection, the range marked with I and O

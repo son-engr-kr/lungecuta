@@ -98,8 +98,22 @@ dB while a layer plays (a shot with its own sound, a sound, a title), or over a 
 gain keys on the music, the outer two a given ramp before and after the span, on the
 nearest frames, at the level the music had there, and the inner two on the span's first
 frame and the frame after it. How far and how fast are the caller's: no default is
-given, since none is measured here. A gain key already inside the duck is refused rather
-than merged, so neighbouring shots are ducked once, over their whole span.
+given, since none is measured here. Several layers can be given at once (`--under` repeated,
+or `--under-voices` for every voice-over line, a sound whose record has `speech`): each
+layer's span is ducked, and spans whose ramps meet or overlap (the first's outer key at or
+after the next one's) are one span, so the music stays down between lines close together
+rather than coming up for a moment (*proposed*). A gain key already inside a duck is
+refused rather than merged.
+
+**A bed under the voice** (`lungecuta op bed COMP MUSIC --under-voices --below 22`): the voice
+(the layers given, summed) and the music, as the comp plays each, are measured by BS.1770
+integrated loudness (`audio.loudness`, pyloudnorm, with its gating) from the voice's first
+sample to its last, and the difference is added to the music's gain: its constant, or
+every key, so a duck keeps its depth. The music is measured with what is already on it, so
+a duck made first lowers it under the lines and the bed brings the whole track to the
+level asked for there; a bed made before the duck is not moved by it. The loudness is
+measured again after the gain is set and both are returned (*proposed*: the range and
+measuring the music as it plays). How far below is the caller's.
 
 ## Effects
 

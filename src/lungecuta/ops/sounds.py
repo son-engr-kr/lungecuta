@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import math
 from fractions import Fraction
-from typing import Any
+from typing import Any, Sequence
+
+import numpy as np
 
 from ..comp import MIX_RATE
 from ..literals import Field, Seconds, format_literal, parse_literal, resolve_position, resolve_span
@@ -124,52 +126,140 @@ def sound(project: Project, name: str, layer_id: str, on: bool = True, gain: flo
     return edit.save()
 
 
-def duck(project: Project, name: str, layer_id: str, by: float, ramp: str, under: str | None = None,
-         start: str | None = None, end: str | None = None, expect: str | None = None) -> dict[str, Any]:
-    """Lower an audio layer (the music) by `by` dB while layer `under` plays (a shot with
-    its own sound, a sound), or from `start` to `end`: four gain keys, the outer two `ramp`
-    before and after the span (on the nearest frames) at the level the layer had there, the
-    inner two on the span's first frame and the frame after it, lowered by `by`. A gain key
-    already inside the duck is refused rather than merged: duck once over neighbouring shots."""
+def _voices(resolved, layer_id: str) -> list[str]:
+    """The comp's voice-over lines: audio layers whose sound `lungecuta voice` said."""
+    return [s.layer.id for s in resolved.sounds if not s.footage and s.record.speech is not None and s.layer.id != layer_id]
+
+
+def _under(resolved, name: str, layer_id: str, under: Sequence[str], voices: bool) -> list[str]:
+    assert not (under and voices), "give --under or --under-voices, not both"
+    if voices:
+        ids = _voices(resolved, layer_id)
+        assert ids, f"comp {name} has no voice-over lines (lungecuta voice) besides {layer_id}"
+        return ids
+    assert layer_id not in under, f"{layer_id} cannot go down under itself"
+    return list(under)
+
+
+def duck(project: Project, name: str, layer_id: str, by: float, ramp: str, under: Sequence[str] = (),
+         start: str | None = None, end: str | None = None, voices: bool = False,
+         expect: str | None = None) -> dict[str, Any]:
+    """Lower an audio layer (the music) by `by` dB while layers `under` play (shots with
+    their own sound, sounds, titles; `voices` for every voice-over line), or from `start`
+    to `end`: per span four gain keys, the outer two `ramp` before and after it (on the
+    nearest frames) at the level the layer had there, the inner two on the span's first
+    frame and the frame after it, lowered by `by`. Spans whose ramps meet or overlap are
+    one span, so the music stays down between lines close together. A gain key already
+    inside a duck is refused rather than merged."""
     from ..comp import resolve
     from .properties import _key_tick, _key_time, _keys, _put_keys
 
-    assert (under is None) != (start is None and end is None), "give --under, or --from and --to"
-    assert under is not None or (start is not None and end is not None), "a span needs both --from and --to"
     edit = Edit.open(project, name, expect)
     layer = edit.layer(layer_id)
     assert layer["type"] == "audio", f"{layer_id} is not an audio layer"
     resolved = resolve(project, edit.comp)
     tick = ticks_per_frame(edit.rate)
-    if under is not None:
+    under = _under(resolved, name, layer_id, under, voices) if (under or voices) else []
+    assert bool(under) != (start is not None or end is not None), "give --under or --under-voices, or --from and --to"
+    if under:
         spans = {cut.layer.id: (cut.first, cut.end) for cut in resolved.cuts}
         spans |= {o.layer.id: (o.first, o.end) for o in resolved.overlays}
         spans |= {s.layer.id: (-(-s.first * ticks_per_sample(MIX_RATE) // tick), -(-s.end * ticks_per_sample(MIX_RATE) // tick))
-                  for s in resolved.sounds if not s.footage}
-        assert under in spans and under != layer_id, f"comp {name} has no other layer {under!r} to duck under"
-        first, last = spans[under]
+                  for s in resolved.sounds if not s.footage and s.layer.id != layer_id}
+        missing = [one for one in under if one not in spans]
+        assert not missing, f"comp {name} has no other layer {', '.join(map(repr, missing))} to duck under"
+        frames = sorted(spans[one] for one in under)
     else:
+        assert start is not None and end is not None, "a span needs both --from and --to"
         at = lambda text: -(-resolve_position(parse_literal(text, Field.POSITION), rate=edit.rate, grid=edit.grid) // tick)
-        first, last = at(start), at(end)
-        assert first < last, f"{start} to {end} is no span"
-    t0, t1 = first * tick, last * tick
-    length = resolve_span(parse_literal(ramp, Field.LAYER), anchor=t0, rate=edit.rate, grid=edit.grid)
-    assert length > 0, f"a ramp of {ramp}"
+        frames = [(at(start), at(end))]
+        assert frames[0][0] < frames[0][1], f"{start} to {end} is no span"
     nearest = lambda ticks: (2 * ticks + tick) // (2 * tick) * tick  # the nearest frame, halves up
-    a, d = nearest(t0 - length), nearest(t1 + length)
-    assert a >= edit.start(layer), f"the duck's ramp would start before {layer_id} does"
+    ramps = []  # (a, t0, t1, d) per span in ticks, spans whose ramps meet merged
+    for first, last in frames:
+        t0, t1 = first * tick, last * tick
+        length = resolve_span(parse_literal(ramp, Field.LAYER), anchor=t0, rate=edit.rate, grid=edit.grid)
+        assert length > 0, f"a ramp of {ramp}"
+        a, d = nearest(t0 - length), nearest(t1 + length)
+        if ramps and a <= ramps[-1][3]:
+            pa, p0, p1, pd = ramps[-1]
+            ramps[-1] = (pa, p0, max(p1, t1), max(pd, d))
+        else:
+            ramps.append((a, t0, t1, d))
+    assert ramps[0][0] >= edit.start(layer), f"the duck's ramp would start before {layer_id} does"
     sound = next(s for s in resolved.sounds if s.layer.id == layer_id)
     level = lambda ticks: 0.0 if sound.gain is None else float(sound.gain.at(ticks)[0])
     keys = _keys(edit, layer, "gain")
-    inside = [key["t"] for key in keys if a <= _key_tick(edit, layer, key) <= d]
+    ticks_of = [_key_tick(edit, layer, key) for key in keys]
+    inside = [key["t"] for key, k in zip(keys, ticks_of) if any(a <= k <= d for a, _, _, d in ramps)]
     assert not inside, (f"{layer_id} has gain keys at {', '.join(inside)} inside the duck; duck once over the whole "
                         "span, or take those keys off first")
     new = [{"t": _key_time(edit, layer, f"f:{ticks // tick}")[1], "v": round(level(ticks) + shift, 2)}
-           for ticks, shift in ((a, 0.0), (t0, by), (t1, by), (d, 0.0))]
-    ticks_of = [_key_tick(edit, layer, key) for key in keys]
-    _put_keys(layer, "gain", [key for key, k in zip(keys, ticks_of) if k < a] + new
-              + [key for key, k in zip(keys, ticks_of) if k > d])
-    edit.changes.append(f"{layer_id} ducked {by:g} dB from f:{first} to f:{last}"
-                        + (f" under {under}" if under else "") + f", ramps of {ramp}")
+           for a, t0, t1, d in ramps for ticks, shift in ((a, 0.0), (t0, by), (t1, by), (d, 0.0))]
+    kept = [(k, key) for key, k in zip(keys, ticks_of)]
+    merged = sorted(kept + [(_key_tick(edit, layer, key), key) for key in new], key=lambda pair: pair[0])
+    _put_keys(layer, "gain", [key for _, key in merged])
+    what = ", ".join(f"f:{t0 // tick} to f:{t1 // tick}" for _, t0, t1, _ in ramps)
+    edit.changes.append(f"{layer_id} ducked {by:g} dB from {what}"
+                        + (f" under {', '.join(under)}" if under else "") + f", ramps of {ramp}")
     _resolves(project, edit)
     return edit.save()
+
+
+def _loudness(project: Project, sounds: list, first: int, end: int) -> float:
+    """BS.1770 integrated loudness of these layers summed, as the comp mixes them, over
+    comp samples [first, end)."""
+    from ..audio import loudness
+    from ..mixdown import layer_sound
+
+    total = np.zeros((end - first, 2), dtype=np.float64)
+    for one in sounds:
+        if one.end <= first or one.first >= end:
+            continue
+        piece = layer_sound(project, one, end)
+        lo = max(one.first, first)
+        total[lo - first:min(one.end, end) - first] += piece[lo - one.first:]
+    return loudness(total, MIX_RATE)
+
+
+def bed(project: Project, name: str, layer_id: str, below: float, under: Sequence[str] = (), voices: bool = False,
+        expect: str | None = None) -> dict[str, Any]:
+    """Set an audio layer (the music) `below` LU under the voice: the BS.1770 integrated
+    loudness of layers `under` (`voices` for every voice-over line) summed, and of the
+    layer as the comp plays it, both measured from the voice's first sample to its last,
+    and the difference added to the layer's gain (its constant, or every key, so ducks
+    keep their depth). Measured again after, and both numbers returned."""
+    from ..comp import resolve
+
+    edit = Edit.open(project, name, expect)
+    layer = edit.layer(layer_id)
+    assert layer["type"] == "audio", f"{layer_id} is not an audio layer"
+    resolved = resolve(project, edit.comp)
+    ids = _under(resolved, name, layer_id, under, voices)
+    assert ids, "give --under or --under-voices"
+    sounds = {s.layer.id: s for s in resolved.sounds}
+    missing = [one for one in ids if one not in sounds]
+    assert not missing, f"comp {name} has no sound layer {', '.join(map(repr, missing))} to measure"
+    lines = [sounds[one] for one in ids]
+    first, end = min(s.first for s in lines), max(s.end for s in lines)
+    music = sounds[layer_id]
+    assert music.first < end and music.end > first, f"{layer_id} does not play where {', '.join(ids)} do"
+    voice = _loudness(project, lines, first, end)
+    before = _loudness(project, [music], first, end)
+    assert math.isfinite(voice) and math.isfinite(before), f"the voice measures {voice} LUFS and {layer_id} {before}"
+    shift = round(voice - below - before, 2)
+    gain = layer.get("gain", 0.0)
+    if isinstance(gain, dict):
+        layer["gain"] = {**gain, "keys": [{**key, "v": round(key["v"] + shift, 2)} for key in gain["keys"]]}
+    else:
+        layer["gain"] = round(gain + shift, 2)
+    after_music = next(s for s in resolve(project, CompFile.model_validate(edit.data)).sounds if s.layer.id == layer_id)
+    after = _loudness(project, [after_music], first, end)
+    edit.changes.append(f"{layer_id} {shift:+g} dB: {after:.2f} LUFS, {voice - after:.2f} LU under "
+                        f"{', '.join(ids)} ({voice:.2f} LUFS) from {first / MIX_RATE:.3f} s to {end / MIX_RATE:.3f} s")
+    _resolves(project, edit)
+    result = edit.save()
+    result["bed"] = {"voice_lufs": round(voice, 2), "music_lufs_before": round(before, 2),
+                     "music_lufs": round(after, 2), "gain_shift_db": shift,
+                     "from_s": round(first / MIX_RATE, 3), "to_s": round(end / MIX_RATE, 3)}
+    return result

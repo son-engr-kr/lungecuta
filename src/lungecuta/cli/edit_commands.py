@@ -399,17 +399,34 @@ def op_cut(comp: str, shots: str | None, plan: Path | None, project_dir: Path | 
 @click.argument("layer")
 @click.option("--by", type=float, required=True, help="dB, negative: how far the layer goes down (-12).")
 @click.option("--ramp", required=True, help="How long it takes to go down before and to come back after (0.25s, f:6).")
-@click.option("--under", help="The layer it goes down for: a shot with its own sound, a sound, a title.")
+@click.option("--under", multiple=True, help="A layer it goes down for: a shot with its own sound, a sound, a title. Repeat it for several.")
+@click.option("--under-voices", "voices", is_flag=True, help="Go down for every voice-over line (lungecuta voice).")
 @click.option("--from", "start", help="Where the span starts, a comp position; with --to instead of --under.")
 @click.option("--to", "end", help="Where it ends (the first frame after it).")
 @project_option
-def op_duck(comp: str, layer: str, by: float, ramp: str, under: str | None, start: str | None, end: str | None,
-            project_dir: Path | None) -> None:
-    """Lower audio LAYER (the music) by --by dB while --under plays, or from --from to
-    --to: gain keys --ramp before and after at its level there, and lowered from the
-    span's first frame to its end. Gain keys already inside the duck are refused; duck
-    once over neighbouring shots instead."""
-    print_json(ops.duck(project_of(project_dir), comp, layer, by, ramp, under, start, end))
+def op_duck(comp: str, layer: str, by: float, ramp: str, under: tuple[str, ...], voices: bool, start: str | None,
+            end: str | None, project_dir: Path | None) -> None:
+    """Lower audio LAYER (the music) by --by dB while the --under layers play (or every
+    voice-over line, --under-voices), or from --from to --to: gain keys --ramp before and
+    after at its level there, and lowered from each span's first frame to its end. Spans
+    whose ramps meet are one span, so the music stays down between close lines. Gain keys
+    already inside the duck are refused."""
+    print_json(ops.duck(project_of(project_dir), comp, layer, by, ramp, under, start, end, voices))
+
+
+@op.command("bed")
+@click.argument("comp")
+@click.argument("layer")
+@click.option("--below", type=float, required=True, help="LU the layer sits under the voice (22).")
+@click.option("--under", multiple=True, help="A layer that is the voice: a voice-over line, a shot with its own sound. Repeat it for several.")
+@click.option("--under-voices", "voices", is_flag=True, help="The voice is every voice-over line (lungecuta voice).")
+@project_option
+def op_bed(comp: str, layer: str, below: float, under: tuple[str, ...], voices: bool, project_dir: Path | None) -> None:
+    """Set audio LAYER (the music) --below LU under the voice: both measured by BS.1770
+    integrated loudness from the voice's first sample to its last, the layer as the comp
+    plays it, and the difference added to its gain (its constant, or every key, so ducks
+    keep their depth). Prints both loudnesses, measured again after."""
+    print_json(ops.bed(project_of(project_dir), comp, layer, below, under, voices))
 
 
 @op.command("sound")

@@ -143,7 +143,8 @@ the Phase 0 media tests need samples of your own (see Conventions).
   telemetry off, text read by misaki with no espeak-ng fallback (GPL-3.0), each line a
   sound whose record holds its phonemes and every token's samples from the model's
   durations; the `speech` anchor puts a line's first word on its start, and
-  `lungecuta op captions --voices` captions what the layers say. English voices only;
+  `lungecuta op captions --voices` captions what the layers say. The music is ducked under every line
+  (`lungecuta op duck --under-voices`) or set some LU under the voice (`lungecuta op bed`). English voices only;
   the model has no Korean voice. Measured in `bench/voice_check.py`.
 - **Two edits made as an agent makes one** run end to end on the samples
   (`bench/dry_run.sh`, `bench/dry_run2.sh`; their stage times in `bench/RESULTS.md`): a cut
@@ -379,6 +380,10 @@ describes.
 - Photos (JPEG, PNG, TIFF) as graphics layers of lungecuta's photo page, served where they
   lie, their colour Chromium's (an ICC profile to sRGB, an untagged file taken as sRGB);
   RAW refused until developed (*proposed*, `docs/design/05-motion-graphics.md#photos`).
+- Ducking under several layers merges spans whose ramps meet, and `lungecuta op bed` measures the
+  voice and the music (as the comp plays it, ducks included) by BS.1770 integrated loudness from
+  the voice's first sample to its last, adding the difference to every gain key (*proposed*,
+  `docs/design/07-audio.md`, Ducking).
 - A clip's own sound (`sound` on the footage layer, `lungecuta op sound`): a field of the
   footage layer rather than a linked audio layer, and played only at 100 % (*proposed*,
   `docs/design/07-audio.md#location-sound`).

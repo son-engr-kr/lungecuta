@@ -74,7 +74,7 @@ when they ask how long the edit took.
    shot" and "this part" mean; `marked` gives the range as `--from` and `--to`.
 2. Prefer `lungecuta op OP COMP ...` (move, trim, slip, slide, roll, ripple-delete, split, snap,
    place, cut, graphic, captions, key, unkey, move-key, set, remap, speed, style, unstyle, grade, look, unlook,
-   masks, transition, untransition, sfx, sound, duck): the editor's own functions, written only if the
+   masks, transition, untransition, sfx, sound, duck, bed): the editor's own functions, written only if the
    file is still the one read, the change printed in editing terms, and the layers an op made
    named in its `added`. Edit the JSON for anything else, then run `lungecuta validate`.
    `lungecuta new-comp NAME ... --replace` starts a comp again and `lungecuta rm-comp NAME`
@@ -147,6 +147,9 @@ plays it, so split off a slowed part first. Music and effects are audio layers o
 --gain -9 --fade-out f:3` places a sound at its level with its fades in one call.
 `lungecuta op duck COMP MUSIC --under LAYER --by -12 --ramp 0.25s` lowers the music while that
 shot speaks, and `--from P --to P` over a run of shots; the person judges by ear how far.
+`--under` repeats, and `--under-voices` ducks under every voice-over line, lines close together
+as one duck. `lungecuta op bed COMP MUSIC --under-voices --below 22` measures both and sets the music
+22 LU under the voice.
 
 A voice-over is said on this machine: `lungecuta voice --voice af_heart --lines
 '[{{"key": "vo01", "text": "This is [Kokoro](/kˈOkəɹO/)."}}, ...]'` makes each line a sound

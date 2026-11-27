@@ -106,7 +106,7 @@ def test_the_music_ducks_under_a_shot_s_own_sound(cut_project):
     comp["layers"].append({"id": "talk", "type": "footage", "media": "C0002", "start": "b:4", "out": "1s",
                            "source_start": "0.5s", "sound": {}})
     put_comp(cut_project, comp)
-    result = ops.duck(Project.load(cut_project), "main", "music", -12.0, "f:6", under="talk")
+    result = ops.duck(Project.load(cut_project), "main", "music", -12.0, "f:6", under=["talk"])
     project = Project.load(cut_project)
     resolved = resolve(project, load_comp(project, "main"))
     talk = next(cut for cut in resolved.cuts if cut.layer.id == "talk")
