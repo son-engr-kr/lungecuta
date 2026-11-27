@@ -126,7 +126,9 @@ from `0s` needs (no beat span starts before the first beat). A whole first cut i
 `lungecuta op cut COMP --shots '[{{"media": KEY, "at": "b:8", "for": "b:4", "source": "2.5s"}}, ...]'`,
 each shot as `place` takes it, written at once or not at all. A later layer is drawn over
 an earlier one, so shots that meet at cuts need no ordering. `lungecuta op graphic COMP
-graphics/title.html --at 0s --to b:4 --params '{{...}}'` puts a title page on top. A photo
+graphics/title.html --at 0s --to b:4 --params '{{...}}'` puts a title page on top; to look at a
+page alone first, `lungecuta graphic PAGE --at 1.5 --over KEY --source 2.5s --params '{{...}}' --out t.png`
+draws it at that time over a clip's frame. A photo
 (a developed JPEG, PNG or TIFF, imported like a clip) is placed with `op place` too,
 `--for b:1`, and shows as it was developed; `lungecuta still --media PHOTO --at 0s --height 540`
 shows it upright and in sRGB, as the page will.

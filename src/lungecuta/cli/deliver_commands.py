@@ -2,13 +2,14 @@
 from __future__ import annotations
 
 import json
+from fractions import Fraction
 from pathlib import Path
 
 import click
 
 from ..encode import PRESETS
 from ..fcpxml import export as export_fcpxml
-from ..graphics import render as render_graphic
+from ..graphics import page_still, render as render_graphic
 from ..patches import read_patches, write_card
 from ..render import render as render_comp
 from ..ticks import parse_rate
@@ -42,21 +43,60 @@ def fcpxml(comp: str, out: Path | None, project_dir: Path | None) -> None:
 
 @main.command()
 @click.argument("page", type=click.Path(exists=True, dir_okay=False, path_type=Path))
-@size_option
-@rate_option
-@click.option("--frames", type=click.IntRange(min=1), required=True, help="How many frames, from t = 0.")
-@click.option("--out", type=click.Path(dir_okay=False, path_type=Path), required=True, help="The .mov to write.")
-def graphic(page: Path, size: str, rate: str, frames: int, out: Path) -> None:
-    """Render a web page to ProRes 4444 with alpha, for import into Resolve.
+@click.option("--size", help="WIDTHxHEIGHT in pixels, such as 1920x1080; with --over, by default the clip's.")
+@click.option("--rate", help="Frame rate of the .mov as ffprobe writes it: 30000/1001, 25, 60.")
+@click.option("--frames", type=click.IntRange(min=1), help="How many frames of the .mov.")
+@click.option("--from", "first", type=float, default=0.0, show_default=True,
+              help="The page time in seconds of the .mov's first frame.")
+@click.option("--at", "at", type=float, help="One PNG of the page at this page time in seconds, instead of a .mov.")
+@click.option("--over", "key", help="With --at: the page over a frame of this clip, as lungecuta still shows it.")
+@click.option("--source", help="With --over: the clip's frame, as lungecuta still --media takes it (f:N or seconds).")
+@click.option("--params", help="The page's params as JSON, as a comp's graphics layer gives them.")
+@click.option("--out", type=click.Path(dir_okay=False, path_type=Path), required=True,
+              help="The .mov to write, or with --at the .png.")
+@project_option
+def graphic(page: Path, size: str | None, rate: str | None, frames: int | None, first: float, at: float | None,
+            key: str | None, source: str | None, params: str | None, out: Path, project_dir: Path | None) -> None:
+    """Render a web page to ProRes 4444 with alpha, for import into Resolve; or with --at,
+    one PNG of it at that time, to look at.
 
     The page sets window.ready = true once loaded and draws frame t (seconds) completely
     in window.renderAt(t), the contract of the past projects' pages. Each frame is seeked
     and captured on a transparent background in the pinned Chromium; the page is served
     only its own directory and every other request is refused. Frames are 8-bit sRGB
     code values, written as BT.709 Y'CbCr in limited range, 10-bit 4:4:4 with alpha, tagged
-    1-1-1.
+    1-1-1, starting at page time --from.
+
+    With --at the PNG is the capture, transparent where the page draws nothing; with
+    --over KEY --source P it is the page over that frame of the clip, through the clip's
+    input transform and the project's view as lungecuta still shows it, composited on
+    display-encoded values as a render composites a top graphics layer.
     """
-    print_json(render_graphic(page, out, size=parse_size(size), rate=parse_rate(rate), frames=frames))
+    values = None if params is None else json.loads(params)
+    assert values is None or isinstance(values, dict), "--params is a JSON object"
+    if at is None:
+        assert key is None and source is None, "--over and --source go with --at"
+        assert size and rate and frames, "a .mov takes --size, --rate and --frames"
+        print_json(render_graphic(page, out, size=parse_size(size), rate=parse_rate(rate), frames=frames,
+                                  first_time=Fraction(first).limit_denominator(1_000_000), params=values))
+        return
+    assert rate is None and frames is None and first == 0.0, "--at makes one PNG: no --rate, --frames or --from"
+    under = None
+    if key is not None:
+        assert source is not None, "--over takes --source, the clip's frame"
+        from ..media import load_record
+        from ..still import open_clip, source_frame
+
+        project = project_of(project_dir)
+        clip = open_clip(project, load_record(project, key))
+        index = source_frame(source, rate=clip.rate, frames=clip.video.frames)
+        shown = parse_size(size) if size else clip.shown
+        under = clip.show(clip.read(index), shown)
+    else:
+        assert source is None and size, "--at takes --size, or --over KEY --source P"
+        shown = parse_size(size)
+    result = page_still(page, out, size=shown, t=at, params=values, under=under)
+    print_json(result | ({} if key is None else {"over": {"media": key, "frame": index}}))
 
 
 @main.command("patch-card")

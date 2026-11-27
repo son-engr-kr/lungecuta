@@ -107,3 +107,41 @@ def test_the_card_file_reads_back_with_every_patch_code(tmp_path):
     assert all(round(m) == e for patch in read["patches"] for m, e in zip(patch["measured"], patch["expected"]))
     with pytest.raises(AssertionError, match="exists already"):
         write_card(tmp_path / "card", size=(480, 270), rate=Fraction(25), frames=2)
+
+
+def test_graphic_at_one_time_and_over_a_clip(cut_project):
+    import io
+
+    from click.testing import CliRunner
+    from PIL import Image
+
+    from lungecuta.cli import main
+
+    from clips import TITLE
+
+    page = cut_project / "graphics" / "title.html"
+    page.write_text(TITLE)
+    params = json.dumps({"colour": "rgb(200, 40, 120)"})
+    run_cli = lambda *args: CliRunner().invoke(main, ["graphic", str(page), "--params", params, *args,
+                                                      "--project", str(cut_project)])
+    alone = run_cli("--size", "128x72", "--at", "0.5", "--out", str(cut_project / "alone.png"))
+    assert alone.exit_code == 0, alone.output
+    image = np.asarray(Image.open(cut_project / "alone.png").convert("RGBA")).astype(int)
+    assert list(image[10, 10]) == [200, 40, 120, 255] and image[2, 2, 3] == 0  # the box, and nothing around it
+    assert abs(image[50, 70, 3] - 128) <= 1  # the white box half faded in at 0.5 s
+    over = run_cli("--at", "0.5", "--over", "C0001", "--source", "f:10", "--out", str(cut_project / "over.png"))
+    assert over.exit_code == 0, over.output
+    assert json.loads(over.output)["over"] == {"media": "C0001", "frame": 10}
+    still = CliRunner().invoke(main, ["still", "--media", "C0001", "--at", "f:10", "--out", str(cut_project / "s.png"),
+                                      "--project", str(cut_project)])
+    assert still.exit_code == 0, still.output
+    shown = np.asarray(Image.open(cut_project / "over.png").convert("RGB")).astype(int)
+    frame = np.asarray(Image.open(cut_project / "s.png").convert("RGB")).astype(int)
+    assert list(shown[10, 10]) == [200, 40, 120] and (shown[2, 2] == frame[2, 2]).all()
+    expected = 255 * 0.5 + frame[50, 70] * 0.5
+    assert np.abs(shown[50, 70] - expected).max() <= 1.5
+    mov = run_cli("--size", "128x72", "--rate", "30", "--frames", "3", "--from", "1.0",
+                  "--out", str(cut_project / "late.mov"))
+    assert mov.exit_code == 0 and json.loads(mov.output)["frames"] == 3, mov.output
+    refused = run_cli("--at", "0.5", "--rate", "30", "--size", "128x72", "--out", str(cut_project / "x.png"))
+    assert refused.exit_code != 0

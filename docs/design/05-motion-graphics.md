@@ -240,6 +240,18 @@ outside `graphics/`. *(proposed, as a whole)*
   with the profile embedded and the pixels upright). Decoding RAW into the working space
   as scene light, which would grade with the footage, is not written.
 
+## A page at one time
+
+`lungecuta graphic PAGE --at T --size WxH --out FILE.png` writes the page at page time T
+seconds as one PNG, its capture, transparent where the page draws nothing; `--params`
+gives the page the params a comp's layer would. With `--over KEY --source P` (the clip's
+frame as `lungecuta still --media KEY --at P` takes it), the page is drawn over that
+frame, at the clip's shown size unless `--size` says otherwise: the frame through its
+input transform and the project's view, as `lungecuta still` shows it, and the page
+composited over it on display-encoded values, as a render composites a top graphics
+layer (`src/lungecuta/graphics.py`, `page_still`). It shows a title in place before it
+is put in a comp. `--from T` starts a `.mov` at page time T instead of 0.
+
 ## Phase 0: graphics for Resolve
 
 `lungecuta graphic` renders a page to ProRes 4444 with alpha for Resolve, the past projects'

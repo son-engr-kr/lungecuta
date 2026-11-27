@@ -30,7 +30,7 @@ import numpy as np
 from urllib.parse import unquote, urlencode
 
 from .encode import TAGS
-from .files import content_hash, content_hash_text
+from .files import content_hash, content_hash_text, write_atomic
 from .ticks import format_rate
 from .tools import run, tool
 
@@ -229,6 +229,27 @@ def render(page_file: Path, out: Path, *, size: tuple[int, int], rate: Fraction,
     return {"file": str(out), "frames": frames, "size": list(size), "rate": format_rate(rate),
             "pix_fmt": stream["pix_fmt"], "tags": {key: stream.get(key) for key in
                                                    ("color_primaries", "color_transfer", "color_space", "color_range")}}
+
+
+def page_still(page_file: Path, out: Path, *, size: tuple[int, int], t: float, params: dict[str, Any] | None = None,
+               under: np.ndarray | None = None) -> dict[str, Any]:
+    """One PNG of a page at page time `t` seconds: its capture, transparent where the page
+    draws nothing; or over `under` (a display-encoded frame of `size`, such as a clip's
+    `lungecuta still`), composited on display-encoded values as a render composites a top
+    graphics layer (05-motion-graphics.md, A page at one time)."""
+    from .images import png as png_bytes
+
+    assert out.suffix == ".png", f"a page at one time is a .png, not {out.name}"
+    with chromium() as browser, opened(browser, page_file, size, params) as page:
+        captured = frame_png(page, t)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    if under is None:
+        write_atomic(out, captured)
+    else:
+        assert under.shape[1::-1] == tuple(size), f"the frame under the page is {under.shape[1]}x{under.shape[0]}, not {size}"
+        rgb, alpha = straight(captured, size)
+        write_atomic(out, png_bytes(np.ascontiguousarray(rgb * alpha + under * (1 - alpha), dtype=np.float32)))
+    return {"png": str(out), "t": t, "size": list(size)}
 
 
 def straight(png: bytes, size: tuple[int, int]) -> tuple[np.ndarray, np.ndarray]:
