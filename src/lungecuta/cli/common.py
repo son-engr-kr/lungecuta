@@ -6,6 +6,7 @@ import inspect
 import json
 import sys
 import time
+import traceback
 from pathlib import Path
 from typing import Any
 
@@ -54,7 +55,25 @@ threads_option = click.option(
 )
 
 
-@click.group()
+class Group(click.Group):
+    """The `lungecuta` group: a command that fails prints its failure as its one JSON object
+    (`{"ok": false, "error": {...}}`: the exception's type, message and traceback, whose
+    message carries a graphics page's error and console when a page failed), then fails as
+    it would have, the traceback on stderr and exit status 1 (09-agent-interface.md,
+    Output conventions). Click's own exits and usage errors pass as they are."""
+
+    def invoke(self, context: click.Context) -> Any:
+        try:
+            return super().invoke(context)
+        except (click.exceptions.Exit, click.exceptions.Abort, click.ClickException, SystemExit):
+            raise
+        except Exception as error:  # the boundary: reported in the JSON result, then raised again
+            print_json({"ok": False, "error": {"type": type(error).__name__, "message": str(error),
+                                               "traceback": traceback.format_exc()}})
+            raise
+
+
+@click.group(cls=Group)
 @click.pass_context
 def main(context: click.Context) -> None:
     """lungecuta: edit short, music-driven pieces shot in log, with an AI agent."""

@@ -65,6 +65,12 @@ returns its report as the tool's error; the server keeps running.
   name built from the media key or comp, the time and the size (`C0001_f352_960x540.png`);
   the path is printed. Numbers are
   printed to stdout as one JSON object, so an agent can parse them.
+- **Failures:** a command that fails prints `{"ok": false, "error": {"type", "message",
+  "traceback"}}` as its JSON object, then fails as Python would, the traceback on stderr
+  and exit status 1 (`src/lungecuta/cli/common.py`); as an MCP tool, that object is the
+  tool's error. A graphics page that threw or never became ready puts its error and its
+  console in the message. A check that ran and found faults (`verify`, `flash`, `detect`,
+  `doctor`) prints its own report with `ok: false` instead, as before.
 - **Writing:** a command that changes project files (`lungecuta import`, `lungecuta op`, `lungecuta relink`)
   writes each one atomically and only if its content hash is still the one the command
   read, the same rule the UI follows. Before editing a file by hand, the agent runs

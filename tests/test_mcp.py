@@ -60,6 +60,9 @@ def test_an_agent_sees_a_frame_and_edits_through_the_server(cut_project):
     assert not moved.is_error and json.loads(moved.content[0].text)["changes"]
     assert json.loads((cut_project / "comps" / "main.json").read_text())["layers"][2]["start"] != "b:4"
     assert wrong.is_error and "outside the beat grid" in wrong.content[0].text  # an error, not a dead server
+    reported = json.loads(wrong.content[0].text)  # the failure as the command's JSON, its traceback beside it
+    assert reported["ok"] is False and "outside the beat grid" in reported["error"]["message"]
+    assert "Traceback" in wrong.content[1].text
 
 
 def test_a_command_that_exits_1_is_a_tool_error_with_its_report():
@@ -88,3 +91,19 @@ def test_a_command_that_exits_1_is_a_tool_error_with_its_report():
     for name, error in (("through-click", True), ("through-system-exit", True), ("passing", False)):
         result = call(group, [name], group.commands[name], {}, None)
         assert result.is_error == error and json.loads(result.content[0].text)["ok"] == (not error), name
+
+
+def test_a_failing_command_reports_its_error_as_json(tmp_path):
+    import json
+
+    from click.testing import CliRunner
+
+    from lungecuta.cli import main
+    from lungecuta.project import init_project
+
+    project = init_project(tmp_path / "edit.lungecuta")
+    result = CliRunner().invoke(main, ["still", "nothing", "--at", "f:0", "--project", str(project)])
+    assert result.exit_code == 1 and isinstance(result.exception, Exception)
+    printed = json.loads(result.stdout)
+    assert printed["ok"] is False and printed["error"]["type"] == type(result.exception).__name__
+    assert printed["error"]["message"] == str(result.exception) and "Traceback" in printed["error"]["traceback"]
