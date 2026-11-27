@@ -398,7 +398,7 @@ def export(project: Project, name: str, out: Path | None = None) -> dict[str, An
                        rate=resolved.rate, frames=overlay.end - overlay.first,
                        first_time=_Fraction(overlay.first * ticks_per_frame(resolved.rate) - overlay.start,
                                             TICKS_PER_SECOND),
-                       params=overlay.layer.params, photos=photos_of(project, overlay))
+                       params=overlay.layer.params, photos=photos_of(project, overlay), markers=overlay.markers)
         graphics_files.append((overlay, movie))
     write_atomic(out, build(project, resolved, graphics_files))
     grid = resolved.grid

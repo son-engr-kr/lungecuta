@@ -251,6 +251,7 @@ class Overlay:
     placement: Placement | None = None
     shutter: Track | None = None  # motion blur: the output shutter in degrees against comp ticks
     resolution: Fraction = Fraction(1)  # device pixels a CSS pixel, the comp's size times it whole
+    markers: tuple[dict, ...] = ()  # the layer's markers as the page gets them: name and t, layer seconds
 
     def layer_seconds(self, frame: int, rate: Fraction) -> float:
         return float(Fraction(frame * ticks_per_frame(rate) - self.start, TICKS_PER_SECOND))

@@ -240,6 +240,22 @@ outside `graphics/`. *(proposed, as a whole)*
   with the profile embedded and the pixels upright). Decoding RAW into the working space
   as scene light, which would grade with the footage, is not written.
 
+## A page's events
+
+A page's events (a label fading in, a word typed) are its layer's `markers`, in layer
+time, rather than times the page reports or names in its params: the comp holds them, so
+`lungecuta op sfx COMP SOUND --on markers --layer TITLE` places sounds on them without
+running the page, and the page is given the same times. A graphics layer with markers is
+opened with a second query parameter, `markers`, JSON of `[{"name": ..., "t": seconds}]`,
+each `t` the marker's exact layer time in seconds (the page's `t`, not rounded to a
+frame), in the layer's order; a layer without markers is opened as before
+(`graphics.page_query`). Captures, `lungecuta graphic`, FCPXML's ProRes 4444 and the editor
+give it alike, and a layer's captures are keyed by its markers only when it has some, so
+other layers keep theirs. A page that ignores the parameter draws as it did. Moving a
+marker moves the page's event and, with `op sfx` run again, its sound; the sound layers an
+earlier `op sfx` placed are not moved with it (*proposed*). `lungecuta graphic --markers JSON`
+gives a page markers outside a comp.
+
 ## A page at one time
 
 `lungecuta graphic PAGE --at T --size WxH --out FILE.png` writes the page at page time T

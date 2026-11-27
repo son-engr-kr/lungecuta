@@ -183,6 +183,11 @@ kept in `cache/lungecuta/graphics/`, by the page, its params and every file it l
 page is captured again only when one of those changes, and a page that throws stops the
 command at once with its error and its console.
 
+A page's events (a label coming in, a word typed) are its layer's `markers` in the comp, in
+layer time: the page reads them as `JSON.parse(new URLSearchParams(location.search).get("markers") || "[]")`,
+each `{{"name": ..., "t": seconds}}`, and draws each at its `t`; `lungecuta op sfx COMP SOUND --on markers
+--layer TITLE` puts a sound on each, so the times are kept in one place.
+
 Captions (subtitles, lyrics, a line someone says) are `lungecuta op captions COMP --lines
 JSON --css CSS`: each line from a comp position to another, as text or word by word, on
 lungecuta's captions page; their look is the stylesheet, which the person decides (ask, or

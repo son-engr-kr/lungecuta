@@ -438,6 +438,24 @@ def test_a_graphics_layer_is_transformed_and_masked_in_the_inspector(page, cut_p
     assert mask == [200, "image/png"]
 
 
+def test_a_page_in_the_editor_is_given_its_layer_s_markers(page, cut_project):
+    from urllib.parse import parse_qs, urlsplit
+
+    from clips import comp_json, put_comp
+    from test_page_events import EVENTS
+
+    (cut_project / "graphics" / "events.html").write_text(EVENTS)
+    comp = comp_json()
+    comp["layers"].append({"id": "events", "type": "graphics", "page": "graphics/events.html", "space": "display",
+                           "start": "b:2", "out": "b:6", "markers": [{"t": "0.4s", "name": "in"}]})
+    put_comp(cut_project, comp)
+    page.wait_for_function("state.tl.layers.some(l => l.id === 'events')")
+    page.evaluate("show(50)")
+    page.wait_for_function("state.ready.has('events')")
+    (inner,) = [frame for frame in page.frames if urlsplit(frame.url).path.endswith("/events.html")]
+    assert json.loads(parse_qs(urlsplit(inner.url).query)["markers"][0]) == [{"name": "in", "t": 0.4}]
+
+
 def test_only_the_pages_near_the_playhead_are_open(page, cut_project):
     from clips import TITLE, comp_json, put_comp
 

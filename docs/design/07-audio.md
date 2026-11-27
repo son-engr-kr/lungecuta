@@ -166,8 +166,11 @@ used (`src/lungecuta/comp/resolve.py`). Music is placed by its start. `lungecuta
 in the span, anchored there (`rise` by default), sound `(k * 7) mod n` of the n given on
 event k, each as long as its sound and cut at the comp's end; seven or fourteen sounds
 are refused, since the rule would repeat one. A cut is a footage layer's first frame
-after the comp's start, from black included. Pools with repitch jitter, keyframes and
-graphics events as events are not written yet. `lungecuta op place COMP SOUND --at P
+after the comp's start, from black included. `--on markers --layer TITLE` takes only that
+layer's markers (`--layer ''` the comp's own) and `--named NAME` only markers of that name:
+a graphics layer's markers are its page's events (05-motion-graphics.md, A page's events),
+so a sound lands on each label as the page draws it, with no copy of the times kept
+anywhere else. Pools with repitch jitter and keyframes as events are not written yet. `lungecuta op place COMP SOUND --at P
 --gain DB --fade-in SPAN --fade-out SPAN` writes the audio layer's `gain`, `fade_in` and
 `fade_out` in the same edit, so one call places a sound as it plays; footage refuses
 them (its own sound is `lungecuta op sound`).

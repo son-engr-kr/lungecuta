@@ -10,8 +10,12 @@
 // window.renderAt(t) (docs/design/05-motion-graphics.md).
 const query = new URLSearchParams(location.search);
 const page = document.getElementById("page");
-const params = query.get("params");
-page.src = query.get("page") + (params ? "?params=" + encodeURIComponent(params) : "");
+// the page's query as lungecuta's captures give it (graphics.page_query): params, and the
+// layer's markers when it has any
+const forward = new URLSearchParams();
+if (query.get("params") && query.get("params") !== "{}") forward.set("params", query.get("params"));
+if (query.get("markers") && query.get("markers") !== "[]") forward.set("markers", query.get("markers"));
+page.src = query.get("page") + (forward.toString() ? "?" + forward : "");
 let ready = false;
 let pending = null;
 function waitForPage() {

@@ -20,7 +20,7 @@ import io
 import json
 import subprocess
 import threading
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from fractions import Fraction
 from pathlib import Path
@@ -111,14 +111,22 @@ def chromium() -> Iterator[Any]:
         browser.close()
 
 
+def page_query(params: dict[str, Any] | None, markers: Sequence[dict] = ()) -> str:
+    """The query a page is opened with: its params, and its layer's markers when it has
+    any (05-motion-graphics.md, A page's events)."""
+    fields = ({"params": json.dumps(params)} if params else {}) | ({"markers": json.dumps(list(markers))} if markers else {})
+    return "?" + urlencode(fields) if fields else ""
+
+
 @contextmanager
 def opened(browser: Any, page_file: Path, size: tuple[int, int], params: dict[str, Any] | None = None,
            photos: dict[str, Path] | None = None, resolution: Fraction = Fraction(1),
-           served: dict[Path, str | None] | None = None) -> Iterator[Any]:
+           served: dict[Path, str | None] | None = None, markers: Sequence[dict] = ()) -> Iterator[Any]:
     """A page of `size` CSS pixels in `browser` showing `page_file`, ready to render, in a
     context of its own (its own origin, viewport and request gate), captured at
     `resolution` device pixels a CSS pixel (which must make `size` whole pixels); `params`
-    reach the page as JSON in its `params` query parameter, `photos` are served to it by
+    reach the page as JSON in its `params` query parameter, the layer's `markers` (each a
+    name and `t` in seconds of layer time) as JSON in its `markers` one, `photos` are served to it by
     key, and the files it asks for go into `served`.
 
     A page that throws before it is ready fails at once with its error and its console,
@@ -158,7 +166,7 @@ def opened(browser: Any, page_file: Path, size: tuple[int, int], params: dict[st
             said = "\n".join(console[-CONSOLE_LINES:])
             return f"{page_file.name} raised: {errors[0]}" + (f"\nits console:\n{said}" if said else "")
 
-        query = "" if not params else "?" + urlencode({"params": json.dumps(params)})
+        query = page_query(params, markers)
         page.goto(f"{origin}/{page_file.name}{query}")
         try:
             page.wait_for_function("window.ready === true || window.__lungecuta_errors.length > 0",
@@ -197,7 +205,7 @@ def frame_png(page: Any, t: float) -> bytes:
 
 def render(page_file: Path, out: Path, *, size: tuple[int, int], rate: Fraction, frames: int,
            first_time: Fraction = Fraction(0), params: dict[str, Any] | None = None,
-           photos: dict[str, Path] | None = None) -> dict[str, Any]:
+           photos: dict[str, Path] | None = None, markers: Sequence[dict] = ()) -> dict[str, Any]:
     """Render `frames` frames of a page at `rate`, the first at page time `first_time`
     seconds, into a ProRes 4444 file with alpha."""
     assert frames >= 1, "render at least one frame"
@@ -210,7 +218,7 @@ def render(page_file: Path, out: Path, *, size: tuple[int, int], rate: Fraction,
         "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709", "-color_range", "tv",
         str(partial),
     ]
-    with chromium() as browser, opened(browser, page_file, size, params, photos) as page:
+    with chromium() as browser, opened(browser, page_file, size, params, photos, markers=markers) as page:
         encoder = subprocess.Popen(command, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
         for index in range(frames):
             encoder.stdin.write(frame_png(page, float(first_time + Fraction(index) / rate)))
@@ -232,7 +240,7 @@ def render(page_file: Path, out: Path, *, size: tuple[int, int], rate: Fraction,
 
 
 def page_still(page_file: Path, out: Path, *, size: tuple[int, int], t: float, params: dict[str, Any] | None = None,
-               under: np.ndarray | None = None) -> dict[str, Any]:
+               under: np.ndarray | None = None, markers: Sequence[dict] = ()) -> dict[str, Any]:
     """One PNG of a page at page time `t` seconds: its capture, transparent where the page
     draws nothing; or over `under` (a display-encoded frame of `size`, such as a clip's
     `lungecuta still`), composited on display-encoded values as a render composites a top
@@ -240,7 +248,7 @@ def page_still(page_file: Path, out: Path, *, size: tuple[int, int], t: float, p
     from .images import png as png_bytes
 
     assert out.suffix == ".png", f"a page at one time is a .png, not {out.name}"
-    with chromium() as browser, opened(browser, page_file, size, params) as page:
+    with chromium() as browser, opened(browser, page_file, size, params, markers=markers) as page:
         captured = frame_png(page, t)
     out.parent.mkdir(parents=True, exist_ok=True)
     if under is None:

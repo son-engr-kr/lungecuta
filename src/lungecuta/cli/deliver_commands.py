@@ -52,11 +52,13 @@ def fcpxml(comp: str, out: Path | None, project_dir: Path | None) -> None:
 @click.option("--over", "key", help="With --at: the page over a frame of this clip, as lungecuta still shows it.")
 @click.option("--source", help="With --over: the clip's frame, as lungecuta still --media takes it (f:N or seconds).")
 @click.option("--params", help="The page's params as JSON, as a comp's graphics layer gives them.")
+@click.option("--markers", help="The page's markers as JSON, [{\"name\": ..., \"t\": seconds}], as a layer's markers reach it.")
 @click.option("--out", type=click.Path(dir_okay=False, path_type=Path), required=True,
               help="The .mov to write, or with --at the .png.")
 @project_option
 def graphic(page: Path, size: str | None, rate: str | None, frames: int | None, first: float, at: float | None,
-            key: str | None, source: str | None, params: str | None, out: Path, project_dir: Path | None) -> None:
+            key: str | None, source: str | None, params: str | None, markers: str | None, out: Path,
+            project_dir: Path | None) -> None:
     """Render a web page to ProRes 4444 with alpha, for import into Resolve; or with --at,
     one PNG of it at that time, to look at.
 
@@ -74,11 +76,15 @@ def graphic(page: Path, size: str | None, rate: str | None, frames: int | None, 
     """
     values = None if params is None else json.loads(params)
     assert values is None or isinstance(values, dict), "--params is a JSON object"
+    events = [] if markers is None else json.loads(markers)
+    assert isinstance(events, list) and all(isinstance(m, dict) and set(m) == {"name", "t"} for m in events), (
+        "--markers is a JSON list of {\"name\": ..., \"t\": seconds}")
     if at is None:
         assert key is None and source is None, "--over and --source go with --at"
         assert size and rate and frames, "a .mov takes --size, --rate and --frames"
         print_json(render_graphic(page, out, size=parse_size(size), rate=parse_rate(rate), frames=frames,
-                                  first_time=Fraction(first).limit_denominator(1_000_000), params=values))
+                                  first_time=Fraction(first).limit_denominator(1_000_000), params=values,
+                                  markers=events))
         return
     assert rate is None and frames is None and first == 0.0, "--at makes one PNG: no --rate, --frames or --from"
     under = None
@@ -95,7 +101,7 @@ def graphic(page: Path, size: str | None, rate: str | None, frames: int | None, 
     else:
         assert source is None and size, "--at takes --size, or --over KEY --source P"
         shown = parse_size(size)
-    result = page_still(page, out, size=shown, t=at, params=values, under=under)
+    result = page_still(page, out, size=shown, t=at, params=values, under=under, markers=events)
     print_json(result | ({} if key is None else {"over": {"media": key, "frame": index}}))
 
 

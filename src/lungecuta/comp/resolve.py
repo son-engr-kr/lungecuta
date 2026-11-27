@@ -393,7 +393,10 @@ def resolve(project: Project, comp: CompFile, inside: tuple[str, ...] = ()) -> R
                 layer=layer, start=start, first=first, end=last, top=k > last_footage, comp_rate=rate,
                 placement=None if layer.transform is None else placement(layer.transform, start, rate, grid),
                 shutter=None if layer.motion_blur is None else _track(layer.motion_blur.shutter_deg, start, rate, grid, 1),
-                resolution=capture_resolution(layer, tuple(comp.size))))
+                resolution=capture_resolution(layer, tuple(comp.size)),
+                markers=tuple({"name": m.name, "t": float(Fraction(resolve_span(parse_literal(m.t, Field.LAYER), anchor=start,
+                                                                         rate=rate, grid=grid), TICKS_PER_SECOND))}
+                              for m in layer.markers)))
     markers = [MarkerAt(marker, _marker_frame(marker.t, None, rate, grid), None) for marker in comp.markers]
     for layer in comp.layers:
         if layer.markers:

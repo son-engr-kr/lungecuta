@@ -224,7 +224,8 @@ function openPage(layer) {
   // from another machine reaches it as it reached the editor.
   const [cw, ch] = state.tl.size;
   const frame = document.createElement("iframe");
-  const query = new URLSearchParams({ id: layer.id, page: layer.page, params: JSON.stringify(layer.params || {}) });
+  const query = new URLSearchParams({ id: layer.id, page: layer.page, params: JSON.stringify(layer.params || {}),
+                                      markers: JSON.stringify(layer.markers || []) });
   frame.src = `${location.protocol}//${location.hostname}:${state.project.graphics_port}/__lungecuta_frame.html?${query}`;
   frame.width = cw;
   frame.height = ch;

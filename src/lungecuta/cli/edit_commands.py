@@ -511,13 +511,16 @@ def op_unlook(comp: str, layer: str, look: str, project_dir: Path | None) -> Non
 @click.option("--anchor", type=click.Choice(["start", "peak", "rise"]), default="rise", show_default=True,
               help="The point of the sound that lands on each event.")
 @click.option("--gain", type=float, default=0.0, show_default=True, help="Each layer's gain in dB.")
+@click.option("--layer", help="With --on markers: only this layer's markers (a graphics layer's are its page's events); '' for the comp's own.")
+@click.option("--named", help="With --on markers: only the markers of this name.")
 @project_option
 def op_sfx(comp: str, sounds: tuple[str, ...], on: str, start: str | None, end: str | None, anchor: str, gain: float,
-           project_dir: Path | None) -> None:
+           layer: str | None, named: str | None, project_dir: Path | None) -> None:
     """Put SOUNDS (imported with --sound) on every cut, beat, downbeat or marker in a span:
     a layer an event, anchored there, sound (k * 7) mod n of the n given on event k, so
-    neighbours differ, the rule past edits used."""
-    print_json(ops.sfx(project_of(project_dir), comp, list(sounds), on, start, end, anchor, gain))
+    neighbours differ, the rule past edits used. A graphics layer's markers reach its page
+    as its `markers` query parameter, so the page draws its events where the sounds land."""
+    print_json(ops.sfx(project_of(project_dir), comp, list(sounds), on, start, end, anchor, gain, layer, named))
 
 
 @op.command("move-key")

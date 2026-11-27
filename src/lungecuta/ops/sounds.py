@@ -23,9 +23,11 @@ EVENTS = ("cuts", "beats", "downbeats", "markers")
 ROTATION = 7  # sound k of n is (k * 7) mod n, the rule past edits used (07-audio.md, SFX placement)
 
 
-def _events(edit: Edit, on: str, first: int, last: int) -> list[str]:
+def _events(edit: Edit, on: str, first: int, last: int, layer: str | None = None, named: str | None = None) -> list[str]:
     """The comp positions of a kind of event inside [first, last), as literals: each cut (a
-    footage layer's first frame, after the comp's), each beat or downbeat, each marker."""
+    footage layer's first frame, after the comp's), each beat or downbeat, each marker
+    (only those of layer `layer`, `""` for the comp's own, and only those named `named`, if
+    given): a graphics layer's markers are its page's events (05-motion-graphics.md)."""
     from ..comp import resolve
 
     resolved = resolve(edit.project, edit.comp)
@@ -34,8 +36,12 @@ def _events(edit: Edit, on: str, first: int, last: int) -> list[str]:
         frames = sorted({cut.cut_frame for cut in resolved.cuts
                          if cut.cut_frame > 0 and first <= cut.cut_frame * tick < last})
         return [f"f:{frame}" for frame in frames]
+    assert on == "markers" or (layer is None and named is None), "--layer and --named pick markers"
     if on == "markers":
-        return [f"f:{at.frame}" for at in resolved.markers if first <= at.frame * tick < last]
+        assert layer in (None, "") or any(layer == other.id for other in edit.comp.layers), (
+            f"comp {edit.name} has no layer {layer!r}")
+        return [f"f:{at.frame}" for at in resolved.markers if first <= at.frame * tick < last
+                and (layer is None or at.layer == (layer or None)) and (named is None or at.marker.name == named)]
     assert edit.grid is not None, f"comp {edit.name} has no beat grid for {on}"
     if on == "beats":
         return [f"b:{k}" for k, t in enumerate(edit.grid.times) if first <= t < last]
@@ -43,8 +49,10 @@ def _events(edit: Edit, on: str, first: int, last: int) -> list[str]:
 
 
 def sfx(project: Project, name: str, sounds: list[str], on: str, start: str | None = None, end: str | None = None,
-        anchor: str = "rise", gain: float = 0.0, expect: str | None = None) -> dict[str, Any]:
-    """Put a sound on every event of a kind in a span (07-audio.md, SFX placement): one
+        anchor: str = "rise", gain: float = 0.0, layer: str | None = None, named: str | None = None,
+        expect: str | None = None) -> dict[str, Any]:
+    """Put a sound on every event of a kind in a span (07-audio.md, SFX placement), markers
+    only of `layer` or named `named` if given: one
     audio layer an event, anchored there, the sounds taken in turn as sound (k * 7) mod n
     of the n given, so neighbours differ; each as long as its sound, cut at the comp's end."""
     assert on in EVENTS, f"{on!r} is not an event kind ({', '.join(EVENTS)})"
@@ -59,7 +67,7 @@ def sfx(project: Project, name: str, sounds: list[str], on: str, start: str | No
     records = {key: load_record(project, key) for key in sounds}
     for key, record in records.items():
         assert record.wav is not None and record.beats is None, f"{key} is not a sound (lungecuta import --sound)"
-    events = _events(edit, on, first, last)
+    events = _events(edit, on, first, last, layer, named)
     assert events, f"no {on} between {start or 'the start'} and {end or 'the end'} of {name}"
     taken = {layer["id"] for layer in edit.data["layers"]}
     added = []

@@ -380,6 +380,10 @@ describes.
 - Photos (JPEG, PNG, TIFF) as graphics layers of lungecuta's photo page, served where they
   lie, their colour Chromium's (an ICC profile to sRGB, an untagged file taken as sRGB);
   RAW refused until developed (*proposed*, `docs/design/05-motion-graphics.md#photos`).
+- A page's events are its graphics layer's markers, given to the page as a `markers` query
+  parameter in exact layer seconds, and `lungecuta op sfx --on markers --layer` places sounds on them;
+  sounds placed earlier do not follow a moved marker (*proposed*, `docs/design/05-motion-graphics.md`,
+  A page's events).
 - Ducking under several layers merges spans whose ramps meet, and `lungecuta op bed` measures the
   voice and the music (as the comp plays it, ducks included) by BS.1770 integrated loudness from
   the voice's first sample to its last, adding the difference to every gain key (*proposed*,

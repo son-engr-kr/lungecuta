@@ -113,7 +113,7 @@ class Editor:
                    for s in resolved.sounds if not s.footage]
         edit = ops.Edit.open(preview.project, name)
         layers += [{"id": o.layer.id, "type": "graphics", "page": o.layer.page.removeprefix("graphics/"),
-                    "params": o.layer.params, "first": o.first, "end": o.end, "start": o.start / frame,
+                    "params": o.layer.params, "markers": list(o.markers), "first": o.first, "end": o.end, "start": o.start / frame,
                     "start_seconds": o.start / TICKS_PER_SECOND, "top": o.top, "row": order[o.layer.id],
                     "masks": [m.model_dump(mode="json") for m in o.layer.masks],
                     "samples": None if o.layer.motion_blur is None else o.layer.motion_blur.samples,

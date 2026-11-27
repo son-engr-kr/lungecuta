@@ -77,6 +77,8 @@ def _key(project: Project, overlay: Overlay, size: tuple[int, int], resolution: 
                "photos": {key: load_record(project, key).hash for key in sorted(photos)},
                "playwright": version("playwright"), "chromium_args": graphics.CHROMIUM_ARGS,
                "capture": CAPTURE_VERSION}
+    if overlay.markers:  # only a page given its markers is decided by them; others keep their entries
+        decided["markers"] = list(overlay.markers)
     return content_hash_text(json.dumps(decided, sort_keys=True)).removeprefix("sha256:")[:32]
 
 
@@ -179,7 +181,8 @@ def _capture(project: Project, tasks: list[tuple[Entry, list[float]]], workers: 
                 done = False
                 try:
                     with graphics.opened(browser, entry.page_file, entry.size, entry.overlay.layer.params,
-                                         entry.photos, resolution=entry.resolution, served=served) as page:
+                                         entry.photos, resolution=entry.resolution, served=served,
+                                         markers=entry.overlay.markers) as page:
                         _record(project, entry, served, lock)
                         known = len(served)
                         for t in times:
