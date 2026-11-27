@@ -436,3 +436,22 @@ def test_a_graphics_layer_is_transformed_and_masked_in_the_inspector(page, cut_p
       return [r.status, r.headers.get('content-type')];
     })()""")
     assert mask == [200, "image/png"]
+
+
+def test_only_the_pages_near_the_playhead_are_open(page, cut_project):
+    from clips import TITLE, comp_json, put_comp
+
+    (cut_project / "graphics" / "title.html").write_text(TITLE)
+    comp = comp_json()
+    comp["layers"].append({"id": "late", "type": "graphics", "page": "graphics/title.html", "space": "display",
+                           "start": "b:9", "out": "b:2", "params": {"colour": "rgb(200, 40, 120)"}})
+    put_comp(cut_project, comp)
+    page.wait_for_function("state.tl.layers.some(l => l.id === 'late') && state.graphics.has('late')")
+    page.evaluate("show(0)")
+    assert page.evaluate("state.graphics.get('late').frame === null && !document.querySelector('#overlays iframe')")
+    page.evaluate("show(150)")
+    page.wait_for_function("state.ready.has('late') && !state.graphics.get('late').frame.hidden")
+    src = page.evaluate("state.graphics.get('late').frame.src")
+    assert src.startswith(f"http://127.0.0.1:{page.evaluate('state.project.graphics_port')}/")
+    page.evaluate("show(0)")
+    assert page.evaluate("state.graphics.get('late').frame === null && !state.ready.has('late')")

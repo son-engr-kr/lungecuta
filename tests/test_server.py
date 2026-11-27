@@ -2,6 +2,8 @@
 import json
 import struct
 
+import numpy as np
+
 import pytest
 from click.testing import CliRunner
 from fastapi.testclient import TestClient
@@ -25,7 +27,7 @@ def client(cut_project):
 
 def test_the_timeline_holds_layers_beats_and_markers(client):
     project = client.get("/api/project").json()
-    assert project["comps"] == ["main"] and project["graphics_origin"].startswith("http://127.0.0.1:")
+    assert project["comps"] == ["main"] and project["graphics_port"] > 0
     timeline = client.get("/api/comp/main").json()
     assert (timeline["frames"], timeline["preview"], timeline["rate"]) == (188, [64, 36], "30000/1001")
     layers = {layer["id"]: layer for layer in timeline["layers"]}
@@ -86,7 +88,7 @@ def test_an_undo_does_not_overwrite_what_the_agent_wrote_since(client, cut_proje
 def test_the_graphics_origin_serves_only_the_projects_graphics_with_a_local_policy(client):
     import urllib.request
 
-    origin = client.get("/api/project").json()["graphics_origin"]
+    origin = f"http://127.0.0.1:{client.get('/api/project').json()['graphics_port']}"
     with urllib.request.urlopen(f"{origin}/title.html") as page:
         assert page.headers["Content-Security-Policy"] == "default-src 'self' 'unsafe-inline' data: blob:"
         assert b"renderAt" in page.read()
@@ -215,3 +217,24 @@ def test_a_shot_s_thumbnail_is_its_first_frame_and_survives_a_move(client, cut_p
     ops.slip(Project.load(cut_project), "main", "shot1", "f:5")  # it does not
     assert keys()["shot1"] != before["shot1"]
     assert client.get(f"/api/comp/main/layer/shot1/thumb.png?key={before['shot1']}").status_code == 409  # stale key
+
+
+def test_frames_come_as_jpeg_for_an_editor_on_another_machine(client):
+    import io
+
+    from PIL import Image
+
+    with client.websocket_connect("/ws") as socket:
+        socket.send_text(json.dumps({"type": "frame", "id": 1, "comp": "main", "frame": 10}))
+        raw = socket.receive_bytes()
+        socket.send_text(json.dumps({"type": "frame", "id": 2, "comp": "main", "frame": 10, "format": "jpeg"}))
+        compressed = socket.receive_bytes()
+    def split(data):
+        length = int.from_bytes(data[:4], "little")
+        return json.loads(data[4:4 + length]), data[4 + length:]
+    (raw_header, pixels), (jpeg_header, encoded) = split(raw), split(compressed)
+    assert (raw_header["format"], jpeg_header["format"]) == ("rgba", "jpeg")
+    from lungecuta.server import jpeg
+
+    assert encoded == jpeg(pixels, (64, 36))
+    assert np.asarray(Image.open(io.BytesIO(encoded))).shape == (36, 64, 3)

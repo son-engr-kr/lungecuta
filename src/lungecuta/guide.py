@@ -30,7 +30,8 @@ GUIDE = """\
 
 This directory is a lungecuta project: a music-driven video edit kept as JSON files that
 you, an agent, and a person edit together. The person watches and listens in the editor
-(`lungecuta serve`); you read and write the files and use `lungecuta` to see and check what they mean.
+(`lungecuta serve`; from another machine, `lungecuta serve --host 0.0.0.0` or the machine's Tailscale
+address); you read and write the files and use `lungecuta` to see and check what they mean.
 Every `lungecuta` command prints one JSON object; `lungecuta COMMAND --help` says exactly what it does,
 `lungecuta commands` lists every command with its arguments and options as JSON, and
 `lungecuta schema` prints the JSON Schema of every file. The same commands are MCP tools when

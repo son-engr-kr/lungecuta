@@ -93,7 +93,7 @@ def test_the_editor_serves_a_photo_to_its_pages_and_nothing_else(cut_project):
 
     path = photo_project(cut_project)
     with TestClient(create_app(cut_project)) as client:
-        origin = client.get("/api/project").json()["graphics_origin"]
+        origin = f"http://127.0.0.1:{client.get('/api/project').json()['graphics_port']}"
         with urllib.request.urlopen(origin + MEDIA_URL + "P001") as response:
             assert response.read() == path.read_bytes()
         for key in ("C0001", "missing", "..%2Fproject"):  # footage, no record, out of media/

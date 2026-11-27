@@ -16,7 +16,7 @@ const state = {
   selected: null,
   playing: false,
   audio: null,           // { ctx, buffer, source, startedAt, from }
-  graphics: new Map(),   // layer id -> iframe
+  graphics: new Map(),   // layer id -> { frame: its iframe while near the playhead, else null, layer }
   ready: new Set(),      // graphics layers whose page is ready
   curves: null,          // the selected footage layer's properties per frame, from /curves
   styles: [],            // the project's styles
@@ -25,6 +25,9 @@ const state = {
   peaks: { hash: null, layers: {} },  // each audio layer's largest magnitude per comp frame, from /peaks
 };
 const ROW = 30, RULER = 26, GRID = 18, LEFT = 0;
+// Opened from another machine (not this one's loopback), frames come as JPEG: a raw
+// 960x540 RGBA frame is 2 MB, too much for a network to play at the comp's rate.
+const REMOTE = !["localhost", "127.0.0.1", "[::1]"].includes(location.hostname);
 
 // ----- server -------------------------------------------------------------
 
@@ -56,9 +59,15 @@ function connect() {
     state.asked.delete(state.pending.get(header.id));
     state.pending.delete(header.id);
     const key = `${header.version}:${header.frame}`;
-    const pixels = new Uint8ClampedArray(event.data, 4 + length);
-    state.cache.set(key, new ImageData(pixels, header.width, header.height));
-    if (state.tl && header.version === state.tl.version && header.frame === state.frame) draw();
+    const shown = (image) => {
+      state.cache.set(key, image);
+      if (state.tl && header.version === state.tl.version && header.frame === state.frame) draw();
+    };
+    if (header.format === "jpeg") {
+      createImageBitmap(new Blob([new Uint8Array(event.data, 4 + length)], { type: "image/jpeg" })).then(shown);
+    } else {
+      shown(new ImageData(new Uint8ClampedArray(event.data, 4 + length), header.width, header.height));
+    }
     pump();
   };
 }
@@ -103,7 +112,7 @@ function pump() {
     state.asked.add(key);
     const id = state.nextId++;
     state.pending.set(id, key);
-    socket.send(JSON.stringify({ type: "frame", id, comp: state.tl.name, frame }));
+    socket.send(JSON.stringify({ type: "frame", id, comp: state.tl.name, frame, format: REMOTE ? "jpeg" : "rgba" }));
   }
 }
 
@@ -111,7 +120,8 @@ function draw() {
   const image = state.cache.get(`${state.tl.version}:${state.frame}`);
   // A frame not rendered yet is shown as missing, never as a stale one (01-architecture.md).
   $("missing").hidden = Boolean(image);
-  if (image) $("picture").getContext("2d").putImageData(image, 0, 0);
+  if (image instanceof ImageData) $("picture").getContext("2d").putImageData(image, 0, 0);
+  else if (image) $("picture").getContext("2d").drawImage(image, 0, 0);
 }
 
 function show(frame) {
@@ -195,22 +205,32 @@ function amount(from, to, inFrames) {
 
 // ----- graphics -----------------------------------------------------------
 
+// A page is opened this long before its layer starts, and closed this long after it
+// ends, so it is ready when the playhead reaches it (a choice of the editor's, not a
+// measurement): only the pages near the playhead are open, not every graphics layer's.
+const PAGE_AHEAD_SECONDS = 2;
+
 function buildGraphics() {
-  const box = $("overlays");
-  box.innerHTML = "";
+  $("overlays").innerHTML = "";
   state.graphics.clear();
   state.ready.clear();
-  const [cw, ch] = state.tl.size;
   for (const layer of state.tl.layers.filter((l) => l.type === "graphics")) {
-    const frame = document.createElement("iframe");
-    const query = new URLSearchParams({ id: layer.id, page: layer.page, params: JSON.stringify(layer.params || {}) });
-    frame.src = `${state.project.graphics_origin}/__lungecuta_frame.html?${query}`;
-    frame.width = cw;
-    frame.height = ch;
-    frame.hidden = true;
-    box.appendChild(frame);
-    state.graphics.set(layer.id, { frame, layer });
+    state.graphics.set(layer.id, { frame: null, layer });
   }
+}
+
+function openPage(layer) {
+  // The graphics origin is the editor's own address on its own port, so the editor opened
+  // from another machine reaches it as it reached the editor.
+  const [cw, ch] = state.tl.size;
+  const frame = document.createElement("iframe");
+  const query = new URLSearchParams({ id: layer.id, page: layer.page, params: JSON.stringify(layer.params || {}) });
+  frame.src = `${location.protocol}//${location.hostname}:${state.project.graphics_port}/__lungecuta_frame.html?${query}`;
+  frame.width = cw;
+  frame.height = ch;
+  frame.hidden = true;
+  $("overlays").appendChild(frame);
+  return frame;
 }
 
 window.addEventListener("message", (event) => {
@@ -219,10 +239,21 @@ window.addEventListener("message", (event) => {
 
 function graphicsAt(frame) {
   // The editor draws web layers live over the engine's frames (01-architecture.md, Preview).
-  for (const { frame: iframe, layer } of state.graphics.values()) {
+  const ahead = Math.ceil(PAGE_AHEAD_SECONDS * state.tl.fps);
+  for (const entry of state.graphics.values()) {
+    const layer = entry.layer;
     // A page under footage is composited in the working space by the engine, which the
     // preview does not capture; drawing it over everything would show the wrong stack.
-    const visible = layer.top && frame >= layer.first && frame < layer.end;
+    const near = layer.top && frame >= layer.first - ahead && frame < layer.end + ahead;
+    if (near && !entry.frame) entry.frame = openPage(layer);
+    if (!near && entry.frame) {
+      entry.frame.remove();
+      entry.frame = null;
+      state.ready.delete(layer.id);
+    }
+    if (!entry.frame) continue;
+    const iframe = entry.frame;
+    const visible = frame >= layer.first && frame < layer.end;
     iframe.hidden = !visible;
     if (visible) {
       placeGraphic(iframe, layer, frame);

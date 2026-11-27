@@ -3,7 +3,8 @@ frames over a WebSocket, and the API over what `editor.py` holds for the project
 timelines, the audio mixdown, edit operations with their journal, file watching, so an
 edit the agent makes appears in the editor).
 
-Graphics pages for the live overlay are served from a second origin on another port,
+Graphics pages for the live overlay are served from a second origin on another port of
+the editor's own address (so the editor opened from another machine draws them too),
 only the project's `graphics/`, with a Content-Security-Policy that allows the page's own
 origin and nothing else, so a project's code cannot reach the editor's API or the network
 (09-agent-interface.md#sandboxing). The editor drives them through a wrapper page on that
@@ -72,11 +73,28 @@ class GraphicsHandler(http.server.SimpleHTTPRequestHandler):
         pass
 
 
-def serve_graphics(directory: Path) -> tuple[str, http.server.ThreadingHTTPServer]:
+def serve_graphics(directory: Path, host: str = "127.0.0.1") -> tuple[int, http.server.ThreadingHTTPServer]:
+    """The graphics origin on `host` (the editor's) at a free port; the browser reaches it
+    at the address it reached the editor by, on this port."""
     handler = functools.partial(GraphicsHandler, project=directory)
-    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    server = http.server.ThreadingHTTPServer((host, 0), handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
-    return f"http://127.0.0.1:{server.server_address[1]}", server
+    return server.server_address[1], server
+
+
+def jpeg(rgba: bytes, size: tuple[int, int]) -> bytes:
+    """A preview frame as JPEG at Pillow's default quality with chroma kept whole, for an
+    editor opened from another machine, where a raw 960x540 frame (2 MB) is too much for
+    the network to play: about 39 kB, 0.94 codes from the raw frame on the mean, in 1 ms
+    (06-editing.md, The editor from another machine). The viewer shows a preview either
+    way; the scopes are measured on the server's own frame."""
+    from io import BytesIO
+
+    from PIL import Image
+
+    out = BytesIO()
+    Image.frombytes("RGBA", size, rgba).convert("RGB").save(out, "JPEG", subsampling=0)
+    return out.getvalue()
 
 
 class EditRequest(BaseModel):
@@ -95,13 +113,13 @@ class ViewReport(BaseModel):
     mark_out: int | None = Field(alias="out")
 
 
-def create_app(directory: Path) -> FastAPI:
+def create_app(directory: Path, host: str = "127.0.0.1") -> FastAPI:
     editor = Editor(directory)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        origin, graphics_server = serve_graphics(editor.directory)
-        editor.graphics_origin = origin
+        port, graphics_server = serve_graphics(editor.directory, host)
+        editor.graphics_port = port
         task = asyncio.create_task(editor.watch(editor.snapshot()))
         yield
         task.cancel()
@@ -213,14 +231,17 @@ def create_app(directory: Path) -> FastAPI:
                 if ask.get("type") != "frame":
                     continue
                 preview = editor.preview(ask["comp"])
+                assert ask.get("format", "rgba") in ("rgba", "jpeg"), f"no frame format {ask.get('format')!r}"
                 try:
                     data = await anyio.to_thread.run_sync(preview.frame, ask["frame"])
+                    if ask.get("format") == "jpeg":
+                        data = await anyio.to_thread.run_sync(jpeg, data, preview.size)
                 except AssertionError as error:
                     await socket.send_text(json.dumps({"type": "error", "id": ask["id"], "detail": str(error)}))
                     continue
                 header = json.dumps({"id": ask["id"], "comp": ask["comp"], "frame": ask["frame"],
                                      "version": preview.version, "width": preview.size[0],
-                                     "height": preview.size[1]}).encode()
+                                     "height": preview.size[1], "format": ask.get("format", "rgba")}).encode()
                 await socket.send_bytes(struct.pack("<I", len(header)) + header + data)
         except WebSocketDisconnect:
             editor.sockets.discard(socket)
@@ -231,7 +252,7 @@ def create_app(directory: Path) -> FastAPI:
 def serve(directory: Path, host: str, port: int, open_browser: bool) -> None:
     import uvicorn
 
-    app = create_app(directory)
+    app = create_app(directory, host)
     if open_browser:
         threading.Timer(1.0, webbrowser.open, args=(f"http://{host}:{port}/",)).start()
     uvicorn.run(app, host=host, port=port, log_level="warning")

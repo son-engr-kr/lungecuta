@@ -122,6 +122,9 @@ the Phase 0 media tests need samples of your own (see Conventions).
   preview chain at the preview size, graphics captured at its scale, at most 30 frames a
   second, VideoToolbox H.264 at the setting measured in `bench/draft_quality.py`;
   `lungecuta verify` refuses it (08-deliver.md, Drafts).
+- **The editor works from another machine** (2026-11-27): the graphics origin listens on
+  the editor's address, frames go as JPEG to an editor not on loopback, and only the
+  graphics pages near the playhead are open (06-editing.md, The editor from another machine).
 - **The time an edit takes is logged**: every lungecuta command run in a project, with its
   time, duration, parameters and outcome (`activity.py`, `cache/lungecuta/commands.jsonl`), and
   `lungecuta stages` turns that and the editor's journal into minutes by stage, for Phase 0's

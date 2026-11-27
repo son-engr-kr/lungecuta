@@ -80,6 +80,26 @@ positions, `to` the frame after the out mark, as `lungecuta sheet --from --to` t
 report is not an edit and is not journalled; a comp shortened since the report gives
 the frames past its end as such rather than moving them (`src/lungecuta/view.py`).
 
+### The editor from another machine
+
+`lungecuta serve --host ADDRESS` listens on that address (`0.0.0.0`, or the machine's
+Tailscale address) for an editor opened elsewhere. The graphics origin listens on the same
+address, on its own port, and the editor reaches it at the address it reached the
+editor by, so a page drawn live over the preview is a separate origin either way
+(`src/lungecuta/server.py`, 09-agent-interface.md#sandboxing). Opened from an address
+other than the machine's own loopback, the editor asks for its frames as JPEG at Pillow's
+default quality with chroma kept whole: on a 960x540 preview of a real comp, about 39 kB
+a frame against 2 MB raw, 0.94 codes from the raw frame on the mean (2.4 on the worst of
+ten frames), 1 ms to encode (measured 2026-11-27 on the M5 Pro). The scopes are measured
+on the server's own frame, not the JPEG.
+
+Each graphics layer's page is open only from 2 seconds before its layer starts to 2
+seconds after it ends (`PAGE_AHEAD_SECONDS`, a choice of the editor's), and only for the
+layers drawn live (those in the top run of the stack), so a comp with dozens of titles
+keeps a few pages open rather than one for each layer, every one laid out at the comp's
+size. A preview frame itself took 15 ms on that comp (16 graphics layers, 1920x1080 at
+50 fps previewed at 960x540, from proxies), seeking or playing.
+
 ## The beat grid
 
 The beat map from [02-media.md](02-media.md#music-and-beats) is drawn under the

@@ -53,7 +53,7 @@ class Editor:
         self.known: dict[str, str] = {}  # file -> the hash the server last read or wrote
         self.sockets: set[WebSocket] = set()
         self.lock = threading.Lock()
-        self.graphics_origin = ""
+        self.graphics_port = 0  # the graphics origin's port on the editor's address (server.py)
 
     @property
     def project(self) -> Project:
@@ -84,7 +84,7 @@ class Editor:
                           "color": (record.get("color") or {}).get("status"),
                           "frames": (record["probe"].get("video") or {}).get("frames")})
         return {"directory": str(self.directory), "comps": [Path(c).stem for c in project.file.comps],
-                "media": media, "graphics_origin": self.graphics_origin}
+                "media": media, "graphics_port": self.graphics_port}
 
     def timeline(self, name: str) -> dict[str, Any]:
         """What the timeline draws: layers by frame, the beat grid, markers, overlays."""
