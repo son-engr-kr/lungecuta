@@ -161,10 +161,12 @@ def patches(file: Path, card_file: Path, frame: int, matrix: str | None, range_:
                    "area-averaged from the comp's size.")
 @click.option("--max-size", help="Keep the file under this size, such as 10MiB or 9.5MB (web-h264): the preset's "
                                  "own encode if it fits, else x264's two passes at the bitrate the budget leaves.")
+@click.option("--loudness", type=float, help="Master the sound to this integrated loudness in LUFS (-16) instead of "
+                                             "the preset's -14; the true-peak ceiling stays.")
 @project_option
 def render_command(comp: str, preset: str, out: Path | None, threads: int | None, workers: int | None,
                    picture_from: Path | None, again: bool, height: int | None, max_size: str | None,
-                   project_dir: Path | None) -> None:
+                   loudness: float | None, project_dir: Path | None) -> None:
     """Render comp COMP to a delivery file, with a manifest of what decided it.
 
     Every frame goes through the same chain as lungecuta still at the comp's size; music layers
@@ -178,10 +180,12 @@ def render_command(comp: str, preset: str, out: Path | None, threads: int | None
     --picture-from does this from another file, such as the previous version.
 
     --height and --max-size make a smaller file to send (a chat service's upload limit):
-    verify it with the same two options.
+    verify it with the same two options. --loudness masters to another target; verify it
+    with the same --loudness. A file rendered at one target and asked for at another
+    keeps its video and has its sound delivered again.
     """
     print_json(render_comp(project_of(project_dir), comp, preset, out, threads, workers, picture_from, again,
-                           height, max_size))
+                           height, max_size, loudness))
 
 
 @main.command("flash")
@@ -216,19 +220,20 @@ def flash_command(file: Path, threads: int | None, project_dir: Path | None) -> 
 @click.option("--preset", required=True, type=click.Choice(sorted(PRESETS)), help="The preset it was rendered with.")
 @click.option("--height", type=click.IntRange(min=2), help="The --height it was rendered with.")
 @click.option("--max-size", help="The --max-size it was rendered with: the file must be at most this size.")
+@click.option("--loudness", type=float, help="The --loudness it was rendered with: the target its loudness is checked against.")
 @threads_option
 @project_option
 def verify_command(file: Path, comp: str, preset: str, height: int | None, max_size: str | None,
-                   threads: int | None, project_dir: Path | None) -> None:
+                   loudness: float | None, threads: int | None, project_dir: Path | None) -> None:
     """Check FILE against its comp and preset: codec, profile, pixel format, size, rate,
     frame count, the four colour tags, audio format; each cut's first and last frames,
     decoded from the file, against the engine's own reference render (bias per channel,
     PSNR, and closer to its own frame than to a neighbour's); integrated loudness within
-    0.2 LU of the preset's target and true peak at or under its ceiling, by ffmpeg's
+    0.2 LU of the preset's target (or --loudness) and true peak at or under its ceiling, by ffmpeg's
     ebur128 (EBU R 128-2023). Exits with status 1 when a check fails.
     """
     result = verify_render(project_of(project_dir), comp, file, preset, threads=threads, height=height,
-                           max_size=max_size)
+                           max_size=max_size, target=loudness)
     print_json(result)
     if not result["ok"]:
         raise SystemExit(1)

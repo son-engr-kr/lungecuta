@@ -16,6 +16,12 @@ Labels P1 to P3 are the past projects listed in [decisions.md](decisions.md), D4
 
 `master-prores-hq`, `web-h264` and `web-hevc10` master to -14 LUFS integrated with a -1 dBTP ceiling,
 held in the delivered file ([07-audio.md](07-audio.md#the-master-chain-as-built-srclungecutaaudiopy)).
+`lungecuta render --loudness -16` masters to another integrated target (a speech-led piece,
+a platform asking for its own), between BS.1770's absolute gate of -70 LUFS and full
+scale; the ceiling stays the preset's (`render.with_loudness`). The target is recorded in
+the manifest's master chain (`audio.target_lufs`), the picture is not decided by it, so
+a file rendered at one target and asked for at another keeps its video and has only its
+sound delivered again, and `lungecuta verify --loudness -16` checks the file against it.
 `prores-4444-alpha` is written too: the comp composited with its coverage, the output
 view applied to un-premultiplied colour (a colour transform of premultiplied values is
 wrong wherever coverage is partial), the top graphics composited straight over it, and
@@ -159,7 +165,7 @@ it renders with the originals on another disk.
 - probe: codec, profile, pixel format, size, rate, frame count, duration, all four colour
   tags, audio format;
 - loudness: integrated LUFS and true peak with ffmpeg `ebur128`, against the preset's
-  target (-14 LUFS for promos, -16 for speech-led, true peak at most -1 dBTP). The
+  target or `--loudness` (-14 LUFS for promos, -16 for speech-led, true peak at most -1 dBTP). The
   loudness passes within 0.2 LU of the target, the tolerance EBU R 128-2023 allows "to
   take account of measurement errors" (i); the true peak passes at or under the ceiling,
   with no tolerance added. A comp whose mix is silent is checked to be silent;

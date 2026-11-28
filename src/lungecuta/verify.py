@@ -59,12 +59,13 @@ def loudness(path: Path) -> dict[str, float]:
 
 
 def verify(project: Project, name: str, file: Path, preset_name: str, *, threads: int | None = None,
-           height: int | None = None, max_size: str | None = None) -> dict[str, Any]:
-    """`file` checked against comp `name` and its preset; `height` and `max_size` as the
-    render was given them (the picture compared at that size, the file under that size)."""
-    from .render import output_size, parse_size
+           height: int | None = None, max_size: str | None = None, target: float | None = None) -> dict[str, Any]:
+    """`file` checked against comp `name` and its preset; `height`, `max_size` and
+    `target` (its --loudness) as the render was given them (the picture compared at that
+    size, the file under that size, its loudness at that target)."""
+    from .render import output_size, parse_size, with_loudness
 
-    preset = PRESETS[preset_name]
+    preset = with_loudness(PRESETS[preset_name], target)
     assert not preset.draft, (f"{preset_name} is a draft, made from the proxies at the preview size for review, "
                               "not a delivery: verify a delivery preset's render")
     resolved = resolve(project, load_comp(project, name))

@@ -532,3 +532,25 @@ def test_a_render_fits_a_size_budget_at_a_smaller_height(cut_project):
     assert json.loads(roomy.output)["output"]["fit"]["video"] == "the preset's own settings, under the budget"
     refused = render("--preset", "master-prores-hq", "--max-size", "10MiB")
     assert refused.exit_code != 0
+
+
+def test_a_render_masters_to_another_loudness_and_verify_checks_it(cut_project):
+    def cli(*args):
+        return CliRunner().invoke(main, [*args, "--project", str(cut_project)])
+
+    first = cli("render", "main", "--preset", "web-h264", "--height", "36")
+    assert first.exit_code == 0, first.output
+    file = json.loads(first.output)["file"]
+    quieter = cli("render", "main", "--preset", "web-h264", "--height", "36", "--loudness", "-18")
+    assert quieter.exit_code == 0, quieter.output
+    printed = json.loads(quieter.output)
+    assert "unchanged; sound delivered anew" in printed["picture"], "the target decides the sound, not the picture"
+    record = json.loads(open(file + ".manifest.json").read())
+    assert record["audio"]["target_lufs"] == -18.0 and abs(record["audio"]["loudness_after"] + 18) <= 0.01
+    verify = lambda *more: cli("verify", file, "--comp", "main", "--preset", "web-h264", "--height", "36", *more)
+    checked = verify("--loudness", "-18")
+    assert checked.exit_code == 0, checked.output
+    assert json.loads(checked.output)["loudness"]["target_lufs"] == -18.0
+    assert verify().exit_code == 1, "against the preset's -14 it fails"
+    assert cli("render", "main", "--preset", "prores-4444-alpha", "--loudness", "-18").exit_code != 0
+    assert cli("render", "main", "--preset", "web-h264", "--loudness", "-80").exit_code != 0

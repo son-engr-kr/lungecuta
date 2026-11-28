@@ -39,7 +39,7 @@ the Phase 0 media tests need samples of your own (see Conventions).
   and `lungecuta verify` checks a render against its comp (`compose.py`, `mixdown.py`, `render.py`, `encode.py`,
   `verify.py`), with layer transforms and eased keyframes (`keyframes.py`, `geometry.py`),
   overlapping layers composited in stack order, graphics layers as top overlays (also
-  written to FCPXML as ProRes 4444), frames rendered several at a time, time remap keys
+  written to FCPXML as ProRes 4444), a master loudness other than the preset's (`--loudness`), frames rendered several at a time, time remap keys
   (eased, forwards or backwards; to FCPXML as a time map) and `nearest` and `blend`
   retiming (blends in linear light), and the master audio chain (`audio.py`: high-pass,
   loudness to the preset's target, true-peak limiter, the ceiling held in the delivered

@@ -97,6 +97,7 @@ when they ask how long the edit took.
    and at most 30 frames a second, graphics included, in a fraction of the time; a draft
    is not a delivery, so `lungecuta verify` refuses it. A file to send under an upload
    limit: `--preset web-h264 --height 720 --max-size 10MiB` (verify it with the same two).
+   `--loudness -16` masters to another target than the preset's -14 LUFS (verify it with the same).
 7. Commit each review round (`lungecuta init` made the project a git repository, unless it
    lay in one); never overwrite a version the person has seen.
 

@@ -12,6 +12,7 @@ import platform
 import re
 import subprocess
 from contextlib import closing
+from dataclasses import replace
 from importlib.metadata import version
 from fractions import Fraction
 from pathlib import Path
@@ -261,9 +262,24 @@ def _fit(source: Path, mix: Path | None, audio_args: list[str], preset: Preset, 
     return {"max_bytes": max_bytes, "bytes": size, "video": "x264 two passes", "tries": tries}
 
 
+LOUDNESS_RANGE = (-70.0, 0.0)  # LUFS: BS.1770's absolute gate, under which nothing is measured, to full scale
+
+
+def with_loudness(preset: Preset, loudness: float | None) -> Preset:
+    """The preset with its master mastered to `loudness` LUFS instead (08-deliver.md,
+    Loudness), or as it is; its true-peak ceiling stays."""
+    if loudness is None:
+        return preset
+    assert preset.audio, f"{preset.name} has no audio to master to {loudness} LUFS"
+    low, high = LOUDNESS_RANGE
+    assert low < loudness < high, f"--loudness {loudness}: a target in LUFS between {low} and {high}"
+    return replace(preset, loudness=float(loudness))
+
+
 def render(project: Project, name: str, preset_name: str, out: Path | None = None,
            threads: int | None = None, workers: int | None = None, picture_from: Path | None = None,
-           again: bool = False, height: int | None = None, max_size: str | None = None) -> dict[str, Any]:
+           again: bool = False, height: int | None = None, max_size: str | None = None,
+           loudness: float | None = None) -> dict[str, Any]:
     """Render comp `name` with a delivery preset, `workers` frames at a time (by default
     the machine's core count); returns what `lungecuta render` prints.
 
@@ -274,11 +290,12 @@ def render(project: Project, name: str, preset_name: str, out: Path | None = Non
 
     `height` delivers the picture that many lines tall, each frame area-averaged on its
     display-encoded values from the comp's size; `max_size` (such as `10MiB`) keeps the
-    file under that size (`_fit`), for a preset encoded by x264."""
+    file under that size (`_fit`), for a preset encoded by x264; `loudness` masters the
+    sound to that integrated loudness in LUFS instead of the preset's (`with_loudness`)."""
     workers = workers or os.cpu_count() or 1
     assert preset_name in PRESETS, f"unknown preset {preset_name!r} (presets: {', '.join(PRESETS)})"
     assert not (again and picture_from), "--again renders the picture; --picture-from reuses one"
-    preset = PRESETS[preset_name]
+    preset = with_loudness(PRESETS[preset_name], loudness)
     resolved, hashes = read(project, name)
     max_bytes = None if max_size is None else parse_size(max_size)
     output = None
