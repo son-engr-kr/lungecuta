@@ -20,7 +20,7 @@ import av
 import numpy as np
 import PyOpenColorIO as ocio
 
-from . import color, grade
+from . import color, fx, grade
 from .comp import Cut, Nest, Resolved, load_comp, resolve
 from .decode import to_rgb
 from .files import content_hash, content_hash_text
@@ -105,6 +105,7 @@ class Preview:
                 break
             paths = now
         self.hash, self.inputs = read_hash, before
+        self.effects = fx.Plan(self.resolved)
         self.version = content_hash_text(self.hash + repr(self.inputs))
         divisor = preview_divisor(tuple(self.comp.size), self.project.file.proxy_height)
         self.divisor = divisor
@@ -207,6 +208,8 @@ class Preview:
               prefix: str = "") -> tuple[np.ndarray, np.ndarray]:
         """A precomp layer at the preview's scale: the precomp drawn on a canvas its size
         over the preview's divisor, placed as the render places it."""
+        assert not nest.resolved.comp.effects, (
+            f"precomp {nest.layer.comp} has picture effects, which are applied to a comp's own render only so far")
         width, height = nest.resolved.comp.size
         inner = (max(1, round(width / self.divisor)), max(1, round(height / self.divisor)))
         premultiplied, cover = self._working(nest.resolved, nest.frame(index), inner, captures, prefix)
@@ -227,12 +230,13 @@ class Preview:
 
     def display(self, index: int) -> np.ndarray:
         """Comp frame `index` at the preview size in the project's display encoding, what
-        a render's footage would hold there (graphics are drawn by the editor live)."""
+        a render's footage would hold there (graphics are drawn by the editor live), with
+        the comp's picture effects but a datamosh (05-motion-graphics.md, Picture effects)."""
         assert 0 <= index < self.resolved.end, f"frame {index} is outside the comp (0 to {self.resolved.end - 1})"
         with self.lock:
             frame = self._working(self.resolved, index, self.size)[0]
             color.apply(self.view, frame)
-            return frame
+            return self.effects.apply_local(index, frame)
 
     def draft(self, index: int, captures: dict) -> np.ndarray:
         """Comp frame `index` at the preview size with its graphics, display-encoded, as

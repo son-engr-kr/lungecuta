@@ -39,7 +39,7 @@ the Phase 0 media tests need samples of your own (see Conventions).
   and `lungecuta verify` checks a render against its comp (`compose.py`, `mixdown.py`, `render.py`, `encode.py`,
   `verify.py`), with layer transforms and eased keyframes (`keyframes.py`, `geometry.py`),
   overlapping layers composited in stack order, graphics layers as top overlays (also
-  written to FCPXML as ProRes 4444), a master loudness other than the preset's (`--loudness`), frames rendered several at a time, time remap keys
+  written to FCPXML as ProRes 4444), a master loudness other than the preset's (`--loudness`), picture effects on the comp (`fx.py`: grain, vignette, halation, RGB split, datamosh, beat envelopes), frames rendered several at a time, time remap keys
   (eased, forwards or backwards; to FCPXML as a time map) and `nearest` and `blend`
   retiming (blends in linear light), and the master audio chain (`audio.py`: high-pass,
   loudness to the preset's target, true-peak limiter, the ceiling held in the delivered
@@ -383,6 +383,9 @@ describes.
 - Photos (JPEG, PNG, TIFF) as graphics layers of lungecuta's photo page, served where they
   lie, their colour Chromium's (an ICC profile to sRGB, an untagged file taken as sRGB);
   RAW refused until developed (*proposed*, `docs/design/05-motion-graphics.md#photos`).
+- Picture effects (`fx.py`) act on the finished display-encoded frame, after the top graphics,
+  and a datamosh matches blocks on frames scaled so a block spans 8 pixels (*proposed*,
+  `docs/design/05-motion-graphics.md`, Picture effects).
 - A page's events are its graphics layer's markers, given to the page as a `markers` query
   parameter in exact layer seconds, and `lungecuta op sfx --on markers --layer` places sounds on them;
   sounds placed earlier do not follow a moved marker (*proposed*, `docs/design/05-motion-graphics.md`,

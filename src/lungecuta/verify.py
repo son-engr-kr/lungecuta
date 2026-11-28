@@ -13,7 +13,8 @@ import numpy as np
 
 from . import compose
 from .comp import load_comp, resolve
-from .compose import captured, finish, footage_at, overlay_pages
+from . import fx
+from .compose import captured, finished, overlay_pages
 from .geometry import area_resize
 from .decode import Layout, frame_rgb, read_raw, read_rgb
 from .encode import PRESETS
@@ -122,6 +123,12 @@ def verify(project: Project, name: str, file: Path, preset_name: str, *, threads
                 across[inside], across[outside] = outside, inside
             else:
                 across.setdefault(inside, None)
+    # a datamosh carries the outgoing picture over its cut on purpose (fx.py): the frames on
+    # either side are compared with their own references only
+    for moshed in fx.Plan(resolved).cuts:
+        for side in (moshed.first - 1, moshed.first):
+            if across.get(side) in (moshed.first - 1, moshed.first):
+                across[side] = None
     with overlay_pages(project, resolved, across) as pages:
         totals, cuts, alpha_error = _sample(project, resolved, file, video, preset, across, threads, pages, size)
     bias = [round(float(b), 3) for b in totals["sum"] / totals["pixels"]]
@@ -162,15 +169,14 @@ def _decoded(file: Path, index: int, resolved, video: dict, preset,
     return colour * alpha, alpha
 
 
-def _reference(project: Project, resolved, index: int, threads, captures, preset,
+def _reference(project: Project, resolved, index: int, threads, pages, preset,
                size: tuple[int, int]) -> tuple[np.ndarray, np.ndarray | None]:
-    footage = footage_at(project, resolved, index, threads)
     if not preset.alpha:
-        frame = finish(project, resolved, index, footage, captures, threads)
+        frame = finished(project, resolved, index, pages, threads)
         if size != tuple(resolved.comp.size):  # as the render shrinks it: area-averaged, display-encoded
             frame = area_resize(frame, size)
         return np.clip(frame, 0, 1), None
-    rgba = finish(project, resolved, index, footage, captures, threads, alpha=True)
+    rgba = finished(project, resolved, index, pages, threads, alpha=True)
     return np.clip(rgba[..., :3], 0, 1) * rgba[..., 3:], rgba[..., 3:]
 
 
@@ -197,7 +203,7 @@ def _sample(project: Project, resolved, file: Path, video: dict, preset, across:
 
     def measured(run: list[int], captures: dict[int, dict]) -> tuple[dict, list, float | None]:
         decoded = {index: _decoded(file, index, resolved, video, preset, size) for index in run}
-        references = {index: _reference(project, resolved, index, threads, captures[index], preset, size)
+        references = {index: _reference(project, resolved, index, threads, pages, preset, size)
                       for index in run}
         totals = {"sum": np.zeros(3), "squares": np.zeros(3), "pixels": 0}
         cuts, alpha_error = [], None

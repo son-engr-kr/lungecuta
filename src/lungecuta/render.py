@@ -20,7 +20,7 @@ from typing import Any
 
 import numpy as np
 
-from . import grade, overlays
+from . import fx, grade, overlays
 from .comp import Resolved, load_comp, resolve
 from .compose import captured, compose, overlay_pages, photo_keys, raw_layers
 from .encode import PRESETS, TAGS, Preset, frame_bytes
@@ -355,13 +355,27 @@ def render(project: Project, name: str, preset_name: str, out: Path | None = Non
     encoder = subprocess.Popen([tool("ffmpeg"), "-v", "error", "-y", *inputs, *command],
                                stdin=subprocess.PIPE, stderr=subprocess.PIPE)
     clipped, count = 0.0, 0
+    effects = fx.InOrder(resolved)
+    assert not (preset.alpha and resolved.comp.effects), (
+        f"comp {name} has picture effects, which a render with alpha does not take yet")
 
-    def job(index: int, raws: list, captures: dict) -> tuple[bytes, float]:
-        frame = compose(project, resolved, index, raws, captures, threads=1 if workers > 1 else threads,
-                        alpha=preset.alpha)
-        if (width, height) != comp_size:
+    def delivered(index: int, frame: np.ndarray) -> tuple[bytes, float]:
+        if (width, height) != tuple(frame.shape[1::-1]):
             frame = area_resize(frame, (width, height))
         return frame_bytes(frame, preset, seed=index)
+
+    def job(index: int, raws: list, captures: dict) -> tuple[bytes | None, float | np.ndarray]:
+        """The frame's bytes; or, for a frame a datamosh involves, its composite, which
+        is carried forward in order below (fx.InOrder)."""
+        frame = compose(project, resolved, index, raws, captures, threads=1 if workers > 1 else threads,
+                        alpha=preset.alpha)
+        if not effects.alone(index):
+            return None, frame
+        return delivered(index, effects.plan.apply_local(index, frame))
+
+    def written(index: int, made: tuple[bytes | None, float | np.ndarray]) -> tuple[bytes, float]:
+        data, rest = made
+        return (data, rest) if data is not None else delivered(index, effects.take(index, rest))
 
     # Frames are read and graphics captured in order here; their colour work runs on
     # `workers` threads (numpy and OCIO release the GIL) and they are written in order.
@@ -369,20 +383,23 @@ def render(project: Project, name: str, preset_name: str, out: Path | None = Non
         with overlay_pages(project, resolved, indices) as pages:
             jobs = ((index, raws, captured(resolved, index, pages))
                     for index, raws in enumerate(raw_layers(project, resolved)))
-            for data, outside in in_order(job, jobs, workers=workers, ahead=2 * workers):
+            for index, made in enumerate(in_order(job, jobs, workers=workers, ahead=2 * workers)):
+                data, outside = written(index, made)
                 encoder.stdin.write(data)
                 clipped, count = clipped + outside, count + 1
     else:
         # the editor's preview chain on the proxies, with the graphics captured at its scale
-        pages = overlays.captures(project, resolved, indices, divisor=draft["divisor"])
+        pages = overlays.captures(project, resolved, effects.plan.needs(indices), divisor=draft["divisor"])
         with closing(Preview(project, name)) as preview:
             assert preview.hash == hashes["comp"], f"comp {name} changed while the draft began"
 
-            def draft_job(index: int, captures: dict) -> tuple[bytes, float]:
-                return frame_bytes(preview.draft(index, captures), preset, seed=index)
+            def draft_job(index: int) -> tuple[bytes, float]:
+                # a draft skips frames, so a moshed one is made from its cut's start (fx.finished)
+                return delivered(index, fx.finished(resolved, index,
+                                                    lambda i: preview.draft(i, captured(resolved, i, pages))))
 
-            jobs = ((index, captured(resolved, index, pages)) for index in indices)
-            for data, outside in in_order(draft_job, jobs, workers=workers, ahead=2 * workers):
+            for data, outside in in_order(draft_job, ((index,) for index in indices), workers=workers,
+                                          ahead=2 * workers):
                 encoder.stdin.write(data)
                 clipped, count = clipped + outside, count + 1
     encoder.stdin.close()

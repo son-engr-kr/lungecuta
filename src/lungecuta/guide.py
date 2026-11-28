@@ -184,6 +184,11 @@ kept in `cache/lungecuta/graphics/`, by the page, its params and every file it l
 page is captured again only when one of those changes, and a page that throws stops the
 command at once with its error and its console.
 
+A comp's `effects` (grain, vignette, halation, rgb_split, datamosh; 05-motion-graphics.md in
+lungecuta's design documents gives each one's parameters) run inside render and still, with
+`from`, `to` and a `beats` envelope; every value is the person's look, so ask or try a few
+with `lungecuta still COMP --at P` rather than settle one.
+
 A page's events (a label coming in, a word typed) are its layer's `markers` in the comp, in
 layer time: the page reads them as `JSON.parse(new URLSearchParams(location.search).get("markers") || "[]")`,
 each `{{"name": ..., "t": seconds}}`, and draws each at its `t`; `lungecuta op sfx COMP SOUND --on markers

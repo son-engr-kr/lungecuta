@@ -373,6 +373,8 @@ def export(project: Project, name: str, out: Path | None = None) -> dict[str, An
             f"layer {cut.layer.id} has a grade, which FCPXML cannot carry; grade in Resolve, "
             "or render with lungecuta render"
         )
+    assert not resolved.comp.effects, (
+        f"comp {resolved.comp.id} has picture effects, which FCPXML does not carry; render it instead")
     for sound in resolved.sounds:
         assert not sound.footage, (
             f"layer {sound.layer.id} plays its own sound, which is not written to FCPXML yet; Resolve imports the "

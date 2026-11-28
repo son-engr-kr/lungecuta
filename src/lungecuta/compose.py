@@ -16,7 +16,7 @@ from contextlib import ExitStack, contextmanager
 
 import numpy as np
 
-from . import color, grade, graphics, overlays
+from . import color, fx, grade, graphics, overlays
 from .comp import Cut, Nest, Overlay, Placement, Resolved
 from .decode import Layout, frame_rgb, read_raw, seek_seconds
 from .geometry import mask_alpha, oriented, place
@@ -107,8 +107,9 @@ def _all_overlays(resolved: Resolved, prefix: str = "") -> list[tuple[str, Overl
 def overlay_pages(project: Project, resolved: Resolved, indices: Iterable[int]) -> Iterator[dict]:
     """Every graphics layer's captures, precomps' included, by path, holding each page time
     comp frames `indices` show: kept in the cache, the missing ones captured first
-    (overlays.py). A context manager, as the open pages it stands for were."""
-    yield overlays.captures(project, resolved, indices)
+    (overlays.py), and those of the frames a datamosh makes them from (`fx.Plan.needs`).
+    A context manager, as the open pages it stands for were."""
+    yield overlays.captures(project, resolved, fx.Plan(resolved).needs(indices))
 
 
 def photo_keys(resolved: Resolved) -> set[str]:
@@ -264,6 +265,8 @@ def _nested(project: Project, nest: Nest, index: int, comp: tuple[int, int], cap
             threads: int | None, prefix: str) -> tuple[np.ndarray, np.ndarray]:
     """A precomp layer on comp frame `index`: the precomp's frame, transparent where it has
     nothing, placed and masked as footage is."""
+    assert not nest.resolved.comp.effects, (
+        f"precomp {nest.layer.comp} has picture effects, which are applied to a comp's own render only so far")
     premultiplied, cover = working_frame(project, nest.resolved, nest.frame(index), captures, threads, prefix)
     straight = np.ascontiguousarray(np.divide(premultiplied, cover, out=np.zeros_like(premultiplied), where=cover > 0))
     mask = cover if not nest.layer.masks else cover * mask_alpha(nest.layer.masks, tuple(nest.resolved.comp.size))
@@ -465,19 +468,31 @@ def frames_at(project: Project, resolved: Resolved, indices: Iterable[int], page
               threads: int | None = None, alpha: bool = False) -> Iterator[np.ndarray]:
     """Comp frames `indices`, in order, as `frame_at` makes them, FRAMES_AT_ONCE at a time.
     `pages` hold the graphics captures of every one of them (`overlay_pages`)."""
-    def made(index: int, captures: dict[str, Shots]) -> np.ndarray:
-        return finish(project, resolved, index, footage_at(project, resolved, index, threads), captures, threads, alpha)
+    def made(index: int) -> np.ndarray:
+        return finished(project, resolved, index, pages, threads, alpha)
 
-    jobs = ((index, captured(resolved, index, pages)) for index in indices)
-    return in_order(made, jobs, workers=FRAMES_AT_ONCE, ahead=FRAMES_AT_ONCE)
+    return in_order(made, ((index,) for index in indices), workers=FRAMES_AT_ONCE, ahead=FRAMES_AT_ONCE)
+
+
+def finished(project: Project, resolved: Resolved, index: int, pages: dict, threads: int | None = None,
+             alpha: bool = False) -> np.ndarray:
+    """Comp frame `index` as a render delivers it: `finish`ed, then the comp's picture
+    effects (`fx.finished`), a moshed frame from the frames of its cut before it."""
+    def composite_of(i: int) -> np.ndarray:
+        return finish(project, resolved, i, footage_at(project, resolved, i, threads), captured(resolved, i, pages),
+                      threads, alpha)
+
+    if not resolved.comp.effects:
+        return composite_of(index)
+    assert not alpha, f"comp {resolved.comp.id} has picture effects, which a render with alpha does not take yet"
+    return fx.finished(resolved, index, composite_of)
 
 
 def frame_at(project: Project, resolved: Resolved, index: int, threads: int | None = None,
              pages: dict | None = None, alpha: bool = False) -> np.ndarray:
     """Comp frame `index` alone, as `frames` renders it (for checks that sample a render);
     `pages` are the overlay pages when the caller keeps them open across frames."""
-    footage = footage_at(project, resolved, index, threads)
     if pages is not None:
-        return finish(project, resolved, index, footage, captured(resolved, index, pages), threads, alpha)
+        return finished(project, resolved, index, pages, threads, alpha)
     with overlay_pages(project, resolved, [index]) as opened:
-        return finish(project, resolved, index, footage, captured(resolved, index, opened), threads, alpha)
+        return finished(project, resolved, index, opened, threads, alpha)

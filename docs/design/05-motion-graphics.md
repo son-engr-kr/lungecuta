@@ -240,6 +240,42 @@ outside `graphics/`. *(proposed, as a whole)*
   with the profile embedded and the pixels upright). Decoding RAW into the working space
   as scene light, which would grade with the footage, is not written.
 
+## Picture effects
+
+A comp's `effects` run on its finished frame, display-encoded, after the top graphics,
+inside `render`, `still`, `sheet`, `scope`, `verify` and a draft (`src/lungecuta/fx.py`),
+so a stylised version is one render rather than a ProRes base taken through an outside
+frame script and imported back as `display`. They act on display-encoded values because
+the looks they stand for were made on rendered frames (*proposed*). Each takes every
+number that shapes it, with no default (the look is the person's), and sizes as
+fractions of the comp's height or width, so a preview and a render agree:
+
+- `grain`: luminance noise, `amount` its standard deviation at mid grey, `size` its blur
+  (a Gaussian's sigma), `edges` its strength at black and white (between them
+  4 * l * (1 - l)), new every frame from `seed` and the frame's index;
+- `vignette`: 1 - amount * clip((r - inner) / (1 - inner), 0, 1) ** power, multiplied;
+- `halation`: BT.709 luminance over `threshold` (full over `knee`), blurred by `width`,
+  less `core` of itself, tinted `colour`, scaled by `strength`, screened over;
+- `rgb_split`: red moved right and blue left by `shift`, with `slices` (bands of the
+  picture thrown sideways, `count`, `height`, `offset`) drawn from `seed` and the frame;
+- `datamosh`: at each cut in `at`, for `length`, the outgoing shot's last frame moved on
+  by the incoming shot's motion, as a decoder that lost the keyframe would: blocks of
+  `block` matched by the least sum of absolute luma differences within `search` on
+  frames scaled so a block spans 8 pixels (*proposed*), the vectors times `motion`, the
+  incoming composite mixed back in by (j / n) ** `ease`. It moves the composited frames,
+  so it comes before the other effects in the list.
+
+Each but a datamosh takes `from` and `to` (comp positions) and `beats`, an envelope that
+scales its strength (`amount`, `strength`, `shift`, the bands): 1 on each beat or
+downbeat, floor + (1 - floor) * exp(-(t - beat) / decay) after it. A moshed frame depends
+on the frames of its cut before it: a render carries the cut forward in order, and a
+frame shown alone (a still, a draft that skips frames, verify's references) is made from
+its cut's start, the same frame either way; `verify` does not ask a moshed cut's frames to
+differ from the frame across it. The editor's preview shows every effect but the
+datamosh, and on the footage it draws, not on the graphics it draws live over it.
+Not written yet: effects on a layer rather than the comp, on a precomp, under an alpha
+render, and in FCPXML (each refused).
+
 ## A page's events
 
 A page's events (a label fading in, a word typed) are its layer's `markers`, in layer

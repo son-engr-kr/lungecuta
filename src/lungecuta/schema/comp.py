@@ -426,6 +426,105 @@ class Transition(_Part):
         return self
 
 
+class BeatEnvelope(_Part):
+    """An effect's strength pulsing on the beat (05-motion-graphics.md, Picture effects): 1 on
+    each beat (or downbeat), falling to `floor` with the time constant `decay`,
+    floor + (1 - floor) * exp(-(t - beat) / decay); `floor` before the first."""
+
+    on: Literal["beats", "downbeats"]
+    floor: float = Field(ge=0, le=1, description="the strength between beats, a fraction of the effect's own")
+    decay: str = _time("layer", "the time constant of the fall after a beat, a span from it (f:3, b:0.25)")
+
+
+class _Effect(_Part):
+    from_: str | None = Field(default=None, alias="from", description="where it starts, a comp position (the comp's "
+                              "start)", json_schema_extra={"x-time": "position"})
+    to: str | None = Field(default=None, description="where it stops, before (the comp's end)",
+                           json_schema_extra={"x-time": "position"})
+    beats: BeatEnvelope | None = None
+
+
+class Grain(_Effect):
+    """Luminance noise added to the display-encoded picture, the same on R, G and B, new
+    every frame from `seed` and the frame's index."""
+
+    type: Literal["grain"]
+    amount: float = Field(gt=0, description="its standard deviation at mid grey, in display code values (0 to 1)")
+    size: float = Field(ge=0, description="its blur, a Gaussian's sigma as a fraction of the comp's height (0: none)")
+    edges: float = Field(ge=0, le=1, description="its strength at black and at white, a fraction of `amount`; "
+                         "between them it follows 4 * l * (1 - l)")
+    seed: int
+
+
+class Vignette(_Effect):
+    """The picture darkened towards the corners, multiplied on display-encoded values:
+    1 - amount * clip((r - inner) / (1 - inner), 0, 1) ** power, r 0 at the centre and 1
+    in a corner, measured in each axis's half-size."""
+
+    type: Literal["vignette"]
+    amount: float = Field(ge=0, le=1)
+    inner: float = Field(ge=0, lt=1, description="where it starts, as r")
+    power: float = Field(gt=0)
+
+
+class Halation(_Effect):
+    """Light glowing around what is bright, screened over the display-encoded picture: the
+    BT.709 luminance above `threshold` (ramping to full over `knee`), blurred, less
+    `core` of itself where it is bright, tinted `colour` and scaled by `strength`."""
+
+    type: Literal["halation"]
+    threshold: float = Field(ge=0, le=1)
+    knee: float = Field(gt=0)
+    width: float = Field(gt=0, description="the glow's Gaussian sigma, a fraction of the comp's height")
+    core: float = Field(ge=0, le=1)
+    colour: tuple[float, float, float] = Field(description="display-encoded R, G, B, each 0 to 1")
+    strength: float = Field(ge=0)
+
+
+class Slices(_Part):
+    """Horizontal bands of the split picture thrown sideways."""
+
+    count: int = Field(ge=1, description="bands a frame at full strength (fewer as the envelope falls)")
+    height: tuple[float, float] = Field(description="the shortest and tallest band, fractions of the comp's height")
+    offset: float = Field(gt=0, description="the standard deviation of a band's throw, a fraction of the comp's width")
+
+
+class RgbSplit(_Effect):
+    """Red moved right and blue left by `shift` (a fraction of the comp's width), with
+    `slices` of the picture thrown sideways if given, the bands new every frame from
+    `seed` and the frame's index."""
+
+    type: Literal["rgb_split"]
+    shift: float = Field(ge=0)
+    slices: Slices | None = None
+    seed: int
+
+    @model_validator(mode="after")
+    def _bands(self) -> RgbSplit:
+        assert self.slices is None or 0 < self.slices.height[0] <= self.slices.height[1] <= 1, (
+            "slices.height is [shortest, tallest], fractions of the comp's height")
+        return self
+
+
+class Datamosh(_Effect):
+    """At each cut in `at`, the outgoing shot's last frame pushed on by the incoming shot's
+    motion for `length`, as a decoder that lost the keyframe moves an old picture by new
+    motion vectors: block motion found between consecutive composited frames, scaled by
+    `motion`, and the incoming picture mixed back in with weight (j / n) ** ease on the
+    cut's j-th frame of n."""
+
+    type: Literal["datamosh"]
+    at: list[str] = Field(min_length=1, description="the cuts, comp positions", json_schema_extra={"x-time": "position"})
+    length: str = _time("layer", "how long each lasts from its cut")
+    motion: float = Field(gt=0, description="how far the vectors push, 1 as found")
+    block: float = Field(gt=0, description="a motion block's side, a fraction of the comp's height")
+    search: float = Field(gt=0, description="how far a block's match is searched, a fraction of the comp's height")
+    ease: float = Field(gt=0)
+
+
+Effect = Annotated[Grain | Vignette | Halation | RgbSplit | Datamosh, Field(discriminator="type")]
+
+
 class CompFile(_Part):
     """`comps/ID.json`: a comp's size, rate, end, beat grid and layers, in stack order."""
 
@@ -438,6 +537,8 @@ class CompFile(_Part):
     layers: list[Annotated[FootageLayer | AudioLayer | GraphicsLayer | PrecompLayer, Field(discriminator="type")]] = Field(
         description="in stack order: a later layer is drawn over an earlier one")
     transitions: list[Transition] = Field(default_factory=list)
+    effects: list[Effect] = Field(default_factory=list, description="picture effects on the finished frame, in order "
+                                  "(05-motion-graphics.md, Picture effects)")
 
     @model_validator(mode="after")
     def _references(self) -> CompFile:
@@ -448,6 +549,9 @@ class CompFile(_Part):
             for name in transition.layers:
                 assert name in footage, f"comp {self.id}: a {transition.type} is on footage layers, and {name!r} is not one"
         assert all(side > 0 for side in self.size), f"comp {self.id}: size {self.size} is not positive"
+        kinds = [effect.type for effect in self.effects]
+        assert kinds[:kinds.count("datamosh")] == ["datamosh"] * kinds.count("datamosh"), (
+            f"comp {self.id}: a datamosh moves the composited frames, so it comes before the other effects")
         if self.beats is not None:
             audio = {layer.id for layer in self.layers if layer.type == "audio"}
             for name in self.beats.from_layers:

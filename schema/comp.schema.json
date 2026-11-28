@@ -189,6 +189,40 @@
       "title": "Band",
       "type": "object"
     },
+    "BeatEnvelope": {
+      "additionalProperties": false,
+      "description": "An effect's strength pulsing on the beat (05-motion-graphics.md, Picture effects): 1 on\neach beat (or downbeat), falling to `floor` with the time constant `decay`,\nfloor + (1 - floor) * exp(-(t - beat) / decay); `floor` before the first.",
+      "properties": {
+        "on": {
+          "enum": [
+            "beats",
+            "downbeats"
+          ],
+          "title": "On",
+          "type": "string"
+        },
+        "floor": {
+          "description": "the strength between beats, a fraction of the effect's own",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Floor",
+          "type": "number"
+        },
+        "decay": {
+          "description": "the time constant of the fall after a beat, a span from it (f:3, b:0.25)",
+          "title": "Decay",
+          "type": "string",
+          "x-time": "layer"
+        }
+      },
+      "required": [
+        "on",
+        "floor",
+        "decay"
+      ],
+      "title": "BeatEnvelope",
+      "type": "object"
+    },
     "BeatsFrom": {
       "additionalProperties": false,
       "properties": {
@@ -301,6 +335,106 @@
         "op"
       ],
       "title": "Cdl",
+      "type": "object"
+    },
+    "Datamosh": {
+      "additionalProperties": false,
+      "description": "At each cut in `at`, the outgoing shot's last frame pushed on by the incoming shot's\nmotion for `length`, as a decoder that lost the keyframe moves an old picture by new\nmotion vectors: block motion found between consecutive composited frames, scaled by\n`motion`, and the incoming picture mixed back in with weight (j / n) ** ease on the\ncut's j-th frame of n.",
+      "properties": {
+        "from": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "where it starts, a comp position (the comp's start)",
+          "title": "From",
+          "x-time": "position"
+        },
+        "to": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "where it stops, before (the comp's end)",
+          "title": "To",
+          "x-time": "position"
+        },
+        "beats": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BeatEnvelope"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "type": {
+          "const": "datamosh",
+          "title": "Type",
+          "type": "string"
+        },
+        "at": {
+          "description": "the cuts, comp positions",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "At",
+          "type": "array",
+          "x-time": "position"
+        },
+        "length": {
+          "description": "how long each lasts from its cut",
+          "title": "Length",
+          "type": "string",
+          "x-time": "layer"
+        },
+        "motion": {
+          "description": "how far the vectors push, 1 as found",
+          "exclusiveMinimum": 0,
+          "title": "Motion",
+          "type": "number"
+        },
+        "block": {
+          "description": "a motion block's side, a fraction of the comp's height",
+          "exclusiveMinimum": 0,
+          "title": "Block",
+          "type": "number"
+        },
+        "search": {
+          "description": "how far a block's match is searched, a fraction of the comp's height",
+          "exclusiveMinimum": 0,
+          "title": "Search",
+          "type": "number"
+        },
+        "ease": {
+          "exclusiveMinimum": 0,
+          "title": "Ease",
+          "type": "number"
+        }
+      },
+      "required": [
+        "type",
+        "at",
+        "length",
+        "motion",
+        "block",
+        "search",
+        "ease"
+      ],
+      "title": "Datamosh",
       "type": "object"
     },
     "FootageLayer": {
@@ -558,6 +692,88 @@
       "title": "GradeGraph",
       "type": "object"
     },
+    "Grain": {
+      "additionalProperties": false,
+      "description": "Luminance noise added to the display-encoded picture, the same on R, G and B, new\nevery frame from `seed` and the frame's index.",
+      "properties": {
+        "from": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "where it starts, a comp position (the comp's start)",
+          "title": "From",
+          "x-time": "position"
+        },
+        "to": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "where it stops, before (the comp's end)",
+          "title": "To",
+          "x-time": "position"
+        },
+        "beats": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BeatEnvelope"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "type": {
+          "const": "grain",
+          "title": "Type",
+          "type": "string"
+        },
+        "amount": {
+          "description": "its standard deviation at mid grey, in display code values (0 to 1)",
+          "exclusiveMinimum": 0,
+          "title": "Amount",
+          "type": "number"
+        },
+        "size": {
+          "description": "its blur, a Gaussian's sigma as a fraction of the comp's height (0: none)",
+          "minimum": 0,
+          "title": "Size",
+          "type": "number"
+        },
+        "edges": {
+          "description": "its strength at black and at white, a fraction of `amount`; between them it follows 4 * l * (1 - l)",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Edges",
+          "type": "number"
+        },
+        "seed": {
+          "title": "Seed",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "type",
+        "amount",
+        "size",
+        "edges",
+        "seed"
+      ],
+      "title": "Grain",
+      "type": "object"
+    },
     "GraphicsLayer": {
       "additionalProperties": false,
       "description": "A web page drawn over the comp (05-motion-graphics.md): Phase 0's contract, a page in\n`graphics/` that sets `window.ready` and draws layer time t in `window.renderAt(t)`. Its\n`params` reach the page as the JSON in its `params` query parameter. Only `display`\nspace for now: its codes are the deliverable's codes, composited after the output\nview in the top run of the stack, or through the inverse view under footage\n(01-architecture.md). Placed, masked and blurred as footage is, its layer's pixels\nbeing the page's CSS pixels, the comp's size.",
@@ -668,6 +884,113 @@
         "out"
       ],
       "title": "GraphicsLayer",
+      "type": "object"
+    },
+    "Halation": {
+      "additionalProperties": false,
+      "description": "Light glowing around what is bright, screened over the display-encoded picture: the\nBT.709 luminance above `threshold` (ramping to full over `knee`), blurred, less\n`core` of itself where it is bright, tinted `colour` and scaled by `strength`.",
+      "properties": {
+        "from": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "where it starts, a comp position (the comp's start)",
+          "title": "From",
+          "x-time": "position"
+        },
+        "to": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "where it stops, before (the comp's end)",
+          "title": "To",
+          "x-time": "position"
+        },
+        "beats": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BeatEnvelope"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "type": {
+          "const": "halation",
+          "title": "Type",
+          "type": "string"
+        },
+        "threshold": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Threshold",
+          "type": "number"
+        },
+        "knee": {
+          "exclusiveMinimum": 0,
+          "title": "Knee",
+          "type": "number"
+        },
+        "width": {
+          "description": "the glow's Gaussian sigma, a fraction of the comp's height",
+          "exclusiveMinimum": 0,
+          "title": "Width",
+          "type": "number"
+        },
+        "core": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Core",
+          "type": "number"
+        },
+        "colour": {
+          "description": "display-encoded R, G, B, each 0 to 1",
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Colour",
+          "type": "array"
+        },
+        "strength": {
+          "minimum": 0,
+          "title": "Strength",
+          "type": "number"
+        }
+      },
+      "required": [
+        "type",
+        "threshold",
+        "knee",
+        "width",
+        "core",
+        "colour",
+        "strength"
+      ],
+      "title": "Halation",
       "type": "object"
     },
     "HueRange": {
@@ -1494,6 +1817,123 @@
       "title": "Reverse",
       "type": "object"
     },
+    "RgbSplit": {
+      "additionalProperties": false,
+      "description": "Red moved right and blue left by `shift` (a fraction of the comp's width), with\n`slices` of the picture thrown sideways if given, the bands new every frame from\n`seed` and the frame's index.",
+      "properties": {
+        "from": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "where it starts, a comp position (the comp's start)",
+          "title": "From",
+          "x-time": "position"
+        },
+        "to": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "where it stops, before (the comp's end)",
+          "title": "To",
+          "x-time": "position"
+        },
+        "beats": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BeatEnvelope"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "type": {
+          "const": "rgb_split",
+          "title": "Type",
+          "type": "string"
+        },
+        "shift": {
+          "minimum": 0,
+          "title": "Shift",
+          "type": "number"
+        },
+        "slices": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Slices"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "seed": {
+          "title": "Seed",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "type",
+        "shift",
+        "seed"
+      ],
+      "title": "RgbSplit",
+      "type": "object"
+    },
+    "Slices": {
+      "additionalProperties": false,
+      "description": "Horizontal bands of the split picture thrown sideways.",
+      "properties": {
+        "count": {
+          "description": "bands a frame at full strength (fewer as the envelope falls)",
+          "minimum": 1,
+          "title": "Count",
+          "type": "integer"
+        },
+        "height": {
+          "description": "the shortest and tallest band, fractions of the comp's height",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Height",
+          "type": "array"
+        },
+        "offset": {
+          "description": "the standard deviation of a band's throw, a fraction of the comp's width",
+          "exclusiveMinimum": 0,
+          "title": "Offset",
+          "type": "number"
+        }
+      },
+      "required": [
+        "count",
+        "height",
+        "offset"
+      ],
+      "title": "Slices",
+      "type": "object"
+    },
     "Speed": {
       "additionalProperties": false,
       "description": "Constant speed from `source_start`, shorthand for a straight remap line.",
@@ -1691,6 +2131,82 @@
       ],
       "title": "Transition",
       "type": "object"
+    },
+    "Vignette": {
+      "additionalProperties": false,
+      "description": "The picture darkened towards the corners, multiplied on display-encoded values:\n1 - amount * clip((r - inner) / (1 - inner), 0, 1) ** power, r 0 at the centre and 1\nin a corner, measured in each axis's half-size.",
+      "properties": {
+        "from": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "where it starts, a comp position (the comp's start)",
+          "title": "From",
+          "x-time": "position"
+        },
+        "to": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "where it stops, before (the comp's end)",
+          "title": "To",
+          "x-time": "position"
+        },
+        "beats": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BeatEnvelope"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "type": {
+          "const": "vignette",
+          "title": "Type",
+          "type": "string"
+        },
+        "amount": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Amount",
+          "type": "number"
+        },
+        "inner": {
+          "description": "where it starts, as r",
+          "exclusiveMaximum": 1,
+          "minimum": 0,
+          "title": "Inner",
+          "type": "number"
+        },
+        "power": {
+          "exclusiveMinimum": 0,
+          "title": "Power",
+          "type": "number"
+        }
+      },
+      "required": [
+        "type",
+        "amount",
+        "inner",
+        "power"
+      ],
+      "title": "Vignette",
+      "type": "object"
     }
   },
   "additionalProperties": false,
@@ -1779,6 +2295,40 @@
         "$ref": "#/$defs/Transition"
       },
       "title": "Transitions",
+      "type": "array"
+    },
+    "effects": {
+      "description": "picture effects on the finished frame, in order (05-motion-graphics.md, Picture effects)",
+      "items": {
+        "discriminator": {
+          "mapping": {
+            "datamosh": "#/$defs/Datamosh",
+            "grain": "#/$defs/Grain",
+            "halation": "#/$defs/Halation",
+            "rgb_split": "#/$defs/RgbSplit",
+            "vignette": "#/$defs/Vignette"
+          },
+          "propertyName": "type"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/Grain"
+          },
+          {
+            "$ref": "#/$defs/Vignette"
+          },
+          {
+            "$ref": "#/$defs/Halation"
+          },
+          {
+            "$ref": "#/$defs/RgbSplit"
+          },
+          {
+            "$ref": "#/$defs/Datamosh"
+          }
+        ]
+      },
+      "title": "Effects",
       "type": "array"
     }
   },
