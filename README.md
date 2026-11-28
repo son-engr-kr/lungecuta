@@ -103,6 +103,7 @@ lungecuta import FILES --root NAME         media records: colour and time decisi
                                            48 kHz WAV and a beat map (Beat This!); photos (JPEG, PNG,
                                            TIFF) their header, shown as graphics pages show images
 lungecuta detect FILE                      the colour-space decision without importing
+lungecuta exclude KEY... --note TEXT       clips left out of the edit, kept imported (--undo)
 lungecuta new-comp NAME --music KEY ...    a new comp (size, rate, end), its music at 0s giving the beat grid
 lungecuta clips                            the imported footage at a glance, a tile a clip
 lungecuta levels KEY [--every b:1|0.5s]    a song's level bar by bar, or a clip's sound, with a chart

@@ -105,7 +105,8 @@ class ColorDecided(_Record):
     status: Literal["decided"]
     space: str = Field(description="an OpenColorIO colour space of the project's config, or one lungecuta adds to "
                                    "it from the camera maker's published definition (camera_spaces.py), or `display` "
-                                   "for display-referred video, decided by a person (lungecuta decide)")
+                                   "for display-referred video, decided by a person (lungecuta decide) or "
+                                   "recognised as lungecuta's own render by its manifest")
     matrix: Literal["bt709"]
     range: Literal["full", "limited"]
     evidence: dict[str, Any]
@@ -225,6 +226,14 @@ class Licence(_Record):
     note: str | None = None
 
 
+class Excluded(_Record):
+    """A clip left out of the edit by a person (`lungecuta exclude`), kept imported so it can
+    come back: placing it is refused and lint warns of a comp that shows it."""
+
+    note: str = Field(description="why it was left out, in the person's words")
+    since: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$", description="the date it was excluded, YYYY-MM-DD")
+
+
 class ImageRecord(_Record):
     """A photo (developed: JPEG, PNG or TIFF), shown as a graphics layer's page shows an
     image, so its colour is the browser's: an embedded ICC profile is converted to the
@@ -331,6 +340,7 @@ class MediaRecord(_Record):
     lenses: list[LensRun] | None = Field(default=None, description="which frames came through which lens, for a "
                                          "camera that says so per frame (DJI); more than one run when the clip "
                                          "changes lens while it records")
+    excluded: Excluded | None = Field(default=None, description="left out of the edit (lungecuta exclude)")
 
     @model_validator(mode="after")
     def _video_or_music(self) -> MediaRecord:

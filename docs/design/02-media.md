@@ -30,6 +30,21 @@ sound's WAV and a music file's beat map change by their own rules
 ([music and beats](#music-and-beats)). A proxy file at a new import's proxy path is one no
 record refers to (its record deleted, or a build that stopped) and is replaced.
 
+A file `lungecuta render` made imports decided: the manifest it wrote beside the file
+(`FILE.manifest.json`) names the file and its hash, and its codes are the display's and
+view's that manifest records, so the clip is display-referred video, `display`, with the
+matrix and range of its stream tags (evidence `lungecuta-render`: the manifest, the
+preset, the comp, the colour settings). A manifest of another file or of an earlier
+version of this one is not evidence, and the file imports as any file with only its tags
+would. A render made for another config, display or view than the project's, or with
+alpha (which footage drops; its comp goes in as a comp layer), stays undecided with that
+reason (`media.own_render`).
+
+`lungecuta exclude KEY... --note TEXT` leaves clips out of the edit rather than out of the
+project: the record keeps them with the note and the date (`excluded`), `lungecuta status`
+lists them apart from the footage, placing one is refused, and lint's `excluded` rule
+warns of a comp that still shows one; `--undo` brings them back. Footage only.
+
 ## Colour-space detection
 
 The stream tags alone cannot be trusted, and on the footage this tool is for they are

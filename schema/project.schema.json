@@ -88,6 +88,12 @@
           "description": "a shot of a clip that changes lens while it records (a DJI zoom onto its other camera) shows frames of one lens",
           "title": "One Lens",
           "type": "boolean"
+        },
+        "excluded": {
+          "default": true,
+          "description": "no layer shows a clip left out of the edit (lungecuta exclude)",
+          "title": "Excluded",
+          "type": "boolean"
         }
       },
       "title": "LintSettings",

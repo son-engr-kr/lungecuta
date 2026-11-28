@@ -209,6 +209,8 @@ def _place(project: Project, edit: Edit, media: str, at: str, size: str, length:
     """`place` on an open edit."""
     assert size in SIZES, f"{size!r} is not a size ({', '.join(SIZES)})"
     record = load_record(project, media)
+    assert record.excluded is None, (f"{media} is left out of the edit ({record.excluded.note}); "
+                                     f"lungecuta exclude {media} --undo brings it back")
     assert anchor is None or record.wav is not None, f"{media} is not a sound: only a sound has an anchor"
     for value, option in ((gain, "a gain"), (fade_in, "a fade in"), (fade_out, "a fade out")):
         assert value is None or record.wav is not None, (

@@ -222,6 +222,9 @@ published, say so instead of choosing one.
   named the space of together (plates rendered for the deliverable) import decided:
   `lungecuta import FILES --root R --colour display --note "what they said"`. A file
   rendered again imports again with `--refresh`, which keeps the records of unchanged ones.
+  A file lungecuta rendered imports decided by the manifest beside it.
+- Clips the person leaves out stay imported: `lungecuta exclude KEY... --note "why"` (and
+  `--undo`); placing one is refused and lint warns of a comp showing one.
 - Footage and music are read where they are and never copied into the project.
 - Nothing in the project runs as Python: graphics are web pages, run in a sandboxed
   browser with no network.

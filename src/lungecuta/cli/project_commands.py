@@ -12,7 +12,7 @@ from .. import journal, ops
 from ..beats import reanalyse
 from ..detect import detect as detect_clip
 from ..files import json_text, write_atomic
-from ..media import decide as decide_colour, import_files, refresh as refresh_media, relink as relink_root, set_root, summary
+from ..media import decide as decide_colour, exclude as exclude_media, import_files, refresh as refresh_media, relink as relink_root, set_root, summary
 from ..probe import probe
 from ..guide import PUT_ON_PATH, SERVER
 from ..project import find_project, init_project
@@ -192,6 +192,19 @@ def decide_command(key: str, space: str, note: str, matrix: str | None, range_: 
     """
     record = decide_colour(project_of(project_dir), key, space, note=note, matrix=matrix, range_=range_)
     print_json({**summary(record), "evidence": record.color.evidence})
+
+
+@main.command("exclude")
+@click.argument("keys", nargs=-1, required=True)
+@click.option("--note", help="Why the person leaves them out (\"out of focus\", \"the other take is better\").")
+@click.option("--undo", is_flag=True, help="Bring them back into the edit.")
+@project_option
+def exclude_command(keys: tuple[str, ...], note: str | None, undo: bool, project_dir: Path | None) -> None:
+    """Leave clips KEYS out of the edit, kept imported so they can come back: placing one
+    is refused, lungecuta status lists them apart, and lint warns of a comp that shows one.
+    --undo brings them back."""
+    print_json({"excluded" if not undo else "included": exclude_media(project_of(project_dir), list(keys),
+                                                                        note=note, undo=undo)})
 
 
 @main.command()

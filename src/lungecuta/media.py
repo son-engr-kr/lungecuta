@@ -21,6 +21,7 @@ from .proxy import PARITY_BIAS, PARITY_P99, PROFILES, build_proxy, parity, parit
 from .schema.media import (
     ColorDecided,
     ColorUndecided,
+    Excluded,
     FileStat,
     ImageRecord,
     MediaPath,
@@ -144,14 +145,77 @@ def import_file(project: Project, file: Path, *, root: str, key: str | None = No
     else:
         assert not sound, f"{file.name} has video; only a file of sound alone imports as a sound"
         detection = detect(file, probed)
+        colour = own_render(project, file, common["hash"], video) or detection.color
         decode = decoder_check(file, pix_fmt=video.pix_fmt, size=video.size, frames=video.frames)
         record = MediaRecord(
-            **common, time=detection.time, color=detection.color, decode=decode, wav=None, beats=None,
-            proxy=_proxy(project, file, key, detection.color, video) if proxy else None, lenses=detection.lenses,
+            **common, time=detection.time, color=colour, decode=decode, wav=None, beats=None,
+            proxy=_proxy(project, file, key, colour, video) if proxy else None, lenses=detection.lenses,
         )
     write_new(record_path, json_text(record.model_dump(mode="json")))
     return record
 
+
+
+def own_render(project: Project, file: Path, file_hash: str, video: VideoProbe) -> ColorDecided | ColorUndecided | None:
+    """A file `lungecuta render` made, known by the manifest it wrote beside it (`FILE.manifest.json`
+    naming this file and its hash): display-referred video, its codes the project's display
+    and view, so decided `display` when the manifest's colour settings are the project's,
+    with the matrix and range of its stream tags (02-media.md, Ingest). Undecided, with the
+    reason, when they are not or the render has alpha; None when there is no such manifest."""
+    from . import color
+    from .detect import STREAM_MATRICES
+
+    manifest_path = file.with_name(file.name + ".manifest.json")
+    if not manifest_path.is_file():
+        return None
+    manifest = json.loads(manifest_path.read_text())
+    if manifest.get("file") != file.name or manifest.get("hash") != file_hash:
+        return None  # a manifest of another file, or of this file before it changed
+    tags = video.tags.model_dump()
+    settings = project.file.color
+    made = {key: manifest["color"][key] for key in ("config", "display", "view")}
+    here = {"config": settings.config, "display": settings.display, "view": settings.view}
+    evidence = {"source": "lungecuta-render", "manifest": manifest_path.name, "preset": manifest["preset"],
+                "comp": manifest["comp"]["id"], "color": made, "stream_tags": tags}
+
+    def undecided(reason: str) -> ColorUndecided:
+        return ColorUndecided(status="undecided", reason=reason, evidence=evidence)
+
+    if made != here:
+        return undecided(f"rendered by lungecuta for {made}, and this project shows {here}")
+    if manifest["preset"] == "prores-4444-alpha":
+        return undecided("a render with alpha, which footage drops; put its comp in as a comp layer instead")
+    matrix, range_ = STREAM_MATRICES.get(tags["color_space"]), RANGES.get(tags["color_range"])
+    if matrix is None or range_ is None:
+        return undecided(f"its stream tags ({tags['color_space']}, {tags['color_range']}) are not a render's")
+    return ColorDecided(status="decided", space=color.DISPLAY, matrix=matrix, range=range_, evidence=evidence)
+
+
+def exclude(project: Project, keys: list[str], *, note: str | None = None, undo: bool = False) -> list[dict[str, Any]]:
+    """Leave clips out of the edit, or with `undo` bring them back (02-media.md, Ingest):
+    the record keeps them, with the person's note and the date. Footage only."""
+    from datetime import date
+
+    assert keys, "name a clip"
+    assert undo == (note is None), "--note says why a clip is left out; --undo takes none"
+    assert undo or note.strip(), "say why the clip is left out (--note)"
+    changed = []
+    for key in keys:
+        record_path = project.directory / "media" / f"{key}.json"
+        assert record_path.is_file(), f"no media record {key!r} in {project.directory / 'media'}"
+        read_hash = content_hash(record_path)
+        record = load_record(project, key)
+        assert record.probe.video is not None, f"{key} is not footage"
+        if undo:
+            assert record.excluded is not None, f"{key} is not excluded"
+            excluded = None
+        else:
+            assert record.excluded is None, f"{key} is excluded already: {record.excluded.note}"
+            excluded = Excluded(note=note.strip(), since=date.today().isoformat())
+        updated = record.model_copy(update={"excluded": excluded})
+        replace_if_unchanged(record_path, read_hash, json_text(updated.model_dump(mode="json")))
+        changed.append({"key": key, "excluded": None if excluded is None else excluded.model_dump()})
+    return changed
 
 # Files imported at once by `import_files`: most of an import is one thread working on
 # frames between decodes (bench/import_jobs.py, bench/RESULTS.md).

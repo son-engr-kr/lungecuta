@@ -128,7 +128,7 @@
           "type": "string"
         },
         "space": {
-          "description": "an OpenColorIO colour space of the project's config, or one lungecuta adds to it from the camera maker's published definition (camera_spaces.py), or `display` for display-referred video, decided by a person (lungecuta decide)",
+          "description": "an OpenColorIO colour space of the project's config, or one lungecuta adds to it from the camera maker's published definition (camera_spaces.py), or `display` for display-referred video, decided by a person (lungecuta decide) or recognised as lungecuta's own render by its manifest",
           "title": "Space",
           "type": "string"
         },
@@ -310,6 +310,29 @@
         "original_hash"
       ],
       "title": "Derivation",
+      "type": "object"
+    },
+    "Excluded": {
+      "additionalProperties": false,
+      "description": "A clip left out of the edit by a person (`lungecuta exclude`), kept imported so it can\ncome back: placing it is refused and lint warns of a comp that shows it.",
+      "properties": {
+        "note": {
+          "description": "why it was left out, in the person's words",
+          "title": "Note",
+          "type": "string"
+        },
+        "since": {
+          "description": "the date it was excluded, YYYY-MM-DD",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "title": "Since",
+          "type": "string"
+        }
+      },
+      "required": [
+        "note",
+        "since"
+      ],
+      "title": "Excluded",
       "type": "object"
     },
     "FileStat": {
@@ -1358,6 +1381,18 @@
       "default": null,
       "description": "which frames came through which lens, for a camera that says so per frame (DJI); more than one run when the clip changes lens while it records",
       "title": "Lenses"
+    },
+    "excluded": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Excluded"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "left out of the edit (lungecuta exclude)"
     }
   },
   "required": [

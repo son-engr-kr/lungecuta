@@ -24,7 +24,7 @@ from .ticks import TICKS_PER_SECOND, ticks_per_frame
 
 
 def _media(project: Project) -> dict[str, list[dict[str, Any]]]:
-    footage, tracks, sounds, photos = [], [], [], []
+    footage, tracks, sounds, photos, excluded = [], [], [], [], []
     for path in sorted((project.directory / "media").glob("*.json")):
         record = load_record(project, path.stem)
         if record.image is not None:
@@ -43,6 +43,9 @@ def _media(project: Project) -> dict[str, list[dict[str, Any]]]:
             sounds.append(sound)
             continue
         video = record.probe.video
+        if record.excluded is not None:
+            excluded.append({"key": record.key, "note": record.excluded.note, "since": record.excluded.since})
+            continue
         decided = isinstance(record.color, ColorDecided) and isinstance(record.time, TimeDecided)
         alike = {"size": list(video.size), "rate": video.rate,
                  "space": record.color.space if isinstance(record.color, ColorDecided) else None,
@@ -53,7 +56,7 @@ def _media(project: Project) -> dict[str, list[dict[str, Any]]]:
             footage.append(group)
         group["keys"].append(record.key)
         group["seconds"] = round(group["seconds"] + video.frames / float(parse_rate(video.rate)), 3)
-    return {"footage": footage, "music": tracks, "sounds": sounds, "photos": photos}
+    return {"footage": footage, "music": tracks, "sounds": sounds, "photos": photos, "excluded": excluded}
 
 
 def _comps(project: Project) -> list[dict[str, Any]]:

@@ -93,6 +93,12 @@ def lint(project: Project, name: str) -> dict[str, Any]:
         warnings += _new_images(project, resolved)
     if settings.one_lens:
         warnings += _lens_changes(resolved)
+    if settings.excluded:
+        for cut in resolved.every_cut():
+            if cut.record.excluded is not None:
+                warnings.append({"rule": "excluded", "layers": [cut.layer.id],
+                                 "message": f"{cut.layer.id} shows {cut.record.key}, left out of the edit on "
+                                            f"{cut.record.excluded.since}: {cut.record.excluded.note}"})
     return {"comp": name, "warnings": warnings, "settings": settings.model_dump(), "not_checked": NOT_CHECKED}
 
 

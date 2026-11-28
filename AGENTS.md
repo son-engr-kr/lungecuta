@@ -99,6 +99,9 @@ the Phase 0 media tests need samples of your own (see Conventions).
   stream into the record's `lenses` (a D-Log clip can zoom onto the 60 mm camera and back),
   and `lungecuta lint` warns of a shot across a change (`one_lens`). `lungecuta import`
   refuses DJI's `.LRF` preview copies and macOS's `._` files (`bench/dji_files.py`).
+- **lungecuta's own renders import decided** `display`, known by the manifest beside them, when
+  rendered for the project's display and view; a clip left out of the edit is marked by
+  `lungecuta exclude` (`media.py`, 02-media.md, Ingest).
 - **An undecided clip is decided by the person**: `lungecuta decide KEY --colour SPACE --note
   TEXT` (`media.py`) records their word (a config space, or `display` for display-referred
   video such as a screen recording) with the evidence it was undecided with, and runs the

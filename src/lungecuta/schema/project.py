@@ -44,6 +44,7 @@ class LintSettings(BaseModel):
                             "repeats) starts on a frame where a new image begins")
     one_lens: bool = Field(default=True, description="a shot of a clip that changes lens while it records (a DJI "
                            "zoom onto its other camera) shows frames of one lens")
+    excluded: bool = Field(default=True, description="no layer shows a clip left out of the edit (lungecuta exclude)")
 
 
 class ProjectFile(BaseModel):
