@@ -124,3 +124,25 @@ def test_the_decoder_check_compares_videotoolbox_with_software_byte_for_byte(tmp
     assert check("r.mov", "yuv422p10le", "-c:v", "prores_ks") == (
         "software", "different", 1, "frame 0 differs from the software decode")
     assert check("f.mkv", "yuv444p10le", "-c:v", "ffv1")[:3] == ("software", "unchecked", 0)
+
+
+def test_a_full_range_yuvj420p_clip_is_read_at_full_range(tmp_path):
+    """8-bit 4:2:0 that FFmpeg names yuvj420p (the a7C II's 23.98p clips): the same planes
+    as yuv420p, read at the range its stream states, so black is code 0 and white 255."""
+    from fractions import Fraction
+
+    from lungecuta.decode import read_rgb
+    from lungecuta.probe import probe
+
+    assert Layout.of("yuvj420p") == Layout.of("yuv420p")
+    assert Layout.of("yuvj422p") == Layout.of("yuv422p")
+    clip = tmp_path / "j.mp4"
+    subprocess.run([tool("ffmpeg"), "-v", "error", "-f", "lavfi", "-i",
+                    "color=black:size=64x32:rate=24000/1001:duration=0.0834,"
+                    "drawbox=x=32:y=0:w=32:h=32:color=white:t=fill",
+                    "-c:v", "libx264", "-qp", "0", "-pix_fmt", "yuvj420p", "-color_range", "pc", str(clip)], check=True)
+    video = probe(clip).video
+    assert video.pix_fmt == "yuvj420p" and video.tags.color_range == "pc"
+    rgb = read_rgb(clip, 0, rate=Fraction(24000, 1001), size=(64, 32), pix_fmt="yuvj420p", matrix="bt709",
+                   range_="full", chroma_location="left")
+    assert np.allclose(rgb[:, :28], 0, atol=1e-6) and np.allclose(rgb[:, 36:], 1, atol=1e-6)

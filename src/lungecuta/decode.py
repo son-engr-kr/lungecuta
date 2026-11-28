@@ -19,7 +19,8 @@ from .tools import run, tool
 CHECK_FRAMES = 300
 # Frames are kept in VideoToolbox surfaces and downloaded in this format, so a silent
 # software fallback fails the check instead of being compared with itself.
-VIDEOTOOLBOX_DOWNLOAD = {"yuv422p10le": "p210le", "yuv420p10le": "p010le", "yuv420p": "nv12", "yuv422p": "nv16"}
+VIDEOTOOLBOX_DOWNLOAD = {"yuv422p10le": "p210le", "yuv420p10le": "p010le", "yuv420p": "nv12", "yuv422p": "nv16",
+                         "yuvj420p": "nv12", "yuvj422p": "nv16"}
 SWS_FLAGS = "accurate_rnd+full_chroma_int+full_chroma_inp"
 
 
@@ -105,7 +106,9 @@ def seek_seconds(index: int, rate: Fraction) -> str:
 # BT.709 and BT.2020 non-constant luminance, ITU-T H.273 V4 Table 4 (MatrixCoefficients 1
 # and 9); the media record names them as ffprobe does.
 KR_KB = {"bt709": (0.2126, 0.0722), "bt2020nc": (0.2627, 0.0593)}
-_PLANAR_YUV = re.compile(r"yuv(a?)(444|422|420)p(\d+)?(le)?")
+# FFmpeg's deprecated yuvj formats are the same planes, named for full range; the range
+# itself is the media record's (the stream's color_range), never inferred from the name.
+_PLANAR_YUV = re.compile(r"yuvj?(a?)(444|422|420)p(\d+)?(le)?")
 _SUBSAMPLING = {"444": (1, 1), "422": (2, 1), "420": (2, 2)}
 # Where the first chroma sample sits, in luma samples right of and below the first luma
 # sample: ITU-T H.273 V4 Table 8 (Chroma420SampleLocType 0 to 5), under the names ffprobe

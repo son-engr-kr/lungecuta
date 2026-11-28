@@ -247,6 +247,11 @@ evidence, once the clip is checked to hold every frame at the original's rate an
   formula would mis-scale chroma by 896/1023. The S-Log3 clip is flagged full range,
   which agrees with Sony's statement that S-Log3 is recorded full range in XAVC; reading
   its black as legal instead would move it from 0.093 to 0.035 of full scale.
+- **FFmpeg's `yuvj` pixel formats** (`yuvj420p`, `yuvj422p`, `yuvj444p`: the a7C II's 8-bit
+  4:2:0 23.98p clips decode as `yuvj420p`) are read as the same planes as `yuv420p` and so
+  on. The `j` names full range, but the range read is still the record's, from the
+  stream's `color_range` (`pc` on these clips), never inferred from the name
+  (`tests/test_decode.py` reads black at 0 and white at 1 from such a clip).
 - **Data levels are to be verified on a chart, not inferred.** A lens-cap shot and a colour chart
   from each body, with raw Y and chroma codes read directly, settle range and matrix
   without depending on Resolve's conventions; a frame through Resolve's Color Space
